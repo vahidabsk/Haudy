@@ -17,7 +17,6 @@ const resultOptions = [
 export function DeviceTestSection({ rows, localSystem, onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
   function setLocalSystem(nextLocalSystem: boolean) {
     onLocalSystemChange(nextLocalSystem);
-    if (nextLocalSystem) onChange(rows.map((row) => ({ ...row, timeReceived: "", updatedAt: nowIso() })));
   }
 
   return (

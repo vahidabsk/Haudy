@@ -176,18 +176,24 @@ function DeviceTable({ rows, localSystem }: { rows: DeviceTestRow[]; localSystem
           <th>T</th>
           <th colSpan={3} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble {localSystem ? " Local System" : ""}</th>
         </tr>
-        {rows.map((row, index) => (
-          <tr key={row.id || index} className="device-row">
-            <td>{[row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ")}</td>
-            <td><Check checked={!!row.functional} /></td>
-            <td><Check checked={!!row.alarm} /></td>
-            <td><Check checked={!!row.supervisory} /></td>
-            <td><Check checked={!!row.trouble} /></td>
-            <td>Trip Time: {row.tripTime}</td>
-            <td>Time Rcvd{localSystem ? " or N/A" : ""}: {localSystem ? "N/A" : row.timeReceived}</td>
-            <td><StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR</td>
-          </tr>
-        ))}
+        {rows.map((row, index) => {
+          const completed = hasDeviceContent(row);
+          return (
+            <tr key={row.id || index} className="device-row">
+              <td>{[row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ")}</td>
+              <td><Check checked={!!row.functional} /></td>
+              <td><Check checked={!!row.alarm} /></td>
+              <td><Check checked={!!row.supervisory} /></td>
+              <td><Check checked={!!row.trouble} /></td>
+              <td>Trip Time: {row.tripTime}</td>
+              <td>Time Rcvd{localSystem ? " or N/A" : ""}: {localSystem && completed ? "N/A" : row.timeReceived}</td>
+              <td>
+                <StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR
+                {localSystem ? <>&nbsp;&nbsp; <Check checked={completed} /> N/A</> : null}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -246,6 +252,10 @@ function StatusCheck({ status, match }: { status: StatusCode | ""; match: Status
 
 function hasSignalContent(row: SignalLogRow) {
   return Boolean(row.signalType || row.date || row.time || row.description || row.notes);
+}
+
+function hasDeviceContent(row: DeviceTestRow) {
+  return Boolean(row.deviceType || row.location || row.deviceId || row.functional || row.alarm || row.supervisory || row.trouble || row.tripTime || row.timeReceived || row.result || row.notes);
 }
 
 function signalCode(signalType: SignalLogRow["signalType"]) {

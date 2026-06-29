@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
@@ -9,11 +10,19 @@ import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
 const codeEditionOptions = ["NFPA 72-2002", "NFPA 72-2007", "NFPA 72 2010 Edition", "NFPA 72-2013", "NFPA 72-2016", "NFPA 72-2019", "NFPA 72-2022"];
+type AuditTab = "signal" | "documentation" | "installation" | "device";
+const auditTabs: Array<{ id: AuditTab; label: string }> = [
+  { id: "signal", label: "Signal Processing" },
+  { id: "documentation", label: "Documentation" },
+  { id: "installation", label: "Installation" },
+  { id: "device", label: "Device Test" },
+];
 
 export function AuditPage({ auditorName }: { auditorName: string }) {
   const { auditId } = useParams();
   const store = useAudits(auditorName);
   const audit = store.audits.find((item) => item.id === auditId);
+  const [activeTab, setActiveTab] = useState<AuditTab>("signal");
   if (!audit) return <main className="p-6">Audit not found.</main>;
 
   function update(next: Audit) {
@@ -42,38 +51,70 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           </label>
         ))}
       </section>
-      <div className="grid gap-6">
-        <section className="grid gap-3 rounded-lg border bg-white p-4">
-          <h2 className="text-lg font-semibold text-navy">Signal Processing Review</h2>
-          <div className="grid gap-3 md:grid-cols-4">
-            <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed })} />
-            <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewStart} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
-            <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewEnd} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
-            <ReviewStatusControl label="Auto tests" value={audit.autoTestsStatus} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
+      <section className="grid gap-4">
+        <div className="flex flex-wrap gap-2 rounded-lg border bg-white p-2 shadow-sm">
+          {auditTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`min-h-11 rounded-md px-4 font-semibold transition ${activeTab === tab.id ? "bg-navy text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {activeTab === "signal" ? (
+          <div className="grid gap-6">
+            <section className="grid gap-3 rounded-lg border bg-white p-4">
+              <h2 className="text-lg font-semibold text-navy">Signal Processing Review</h2>
+              <div className="grid gap-3 md:grid-cols-4">
+                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed })} />
+                <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewStart} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
+                <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewEnd} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
+                <ReviewStatusControl label="Auto tests" value={audit.autoTestsStatus} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
+              </div>
+            </section>
+            <SignalLogSection rows={audit.signalLog} onChange={(signalLog) => update({ ...audit, signalLog })} />
           </div>
-        </section>
-        <SignalLogSection rows={audit.signalLog} onChange={(signalLog) => update({ ...audit, signalLog })} />
-        <section className="grid gap-3 rounded-lg border bg-white p-4">
-          <h2 className="text-lg font-semibold text-navy">Documentation Reviewed</h2>
-          <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} onChange={(documentationReviewed) => update({ ...audit, documentationReviewed })} />
-        </section>
-        <DocumentationSection rows={audit.documentation} auditorName={auditorName} onChange={(documentation) => update({ ...audit, documentation })} />
-        <section className="grid gap-3 rounded-lg border bg-white p-4">
-          <h2 className="text-lg font-semibold text-navy">Installation Review Conditions</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} onChange={(installationReviewed) => update({ ...audit, installationReviewed })} />
-            <ReviewStatusControl label="Matches certificate declarations?" value={audit.matchesCertificateStatus} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
-            <DisplayStatusControl label="Certificate displayed?" value={audit.certificateDisplayedStatus} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
+        ) : null}
+        {activeTab === "documentation" ? (
+          <div className="grid gap-6">
+            <section className="grid gap-3 rounded-lg border bg-white p-4">
+              <h2 className="text-lg font-semibold text-navy">Documentation Reviewed</h2>
+              <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} onChange={(documentationReviewed) => update({ ...audit, documentationReviewed })} />
+            </section>
+            <DocumentationSection rows={audit.documentation} auditorName={auditorName} onChange={(documentation) => update({ ...audit, documentation })} />
           </div>
-        </section>
-        <InstallationSection rows={audit.installation} auditorName={auditorName} onChange={(installation) => update({ ...audit, installation })} />
-        <DeviceTestSection
-          rows={audit.deviceTests}
-          localSystem={audit.deviceSystemLocal}
-          onLocalSystemChange={(deviceSystemLocal) => update({ ...audit, deviceSystemLocal })}
-          onChange={(deviceTests) => update({ ...audit, deviceTests })}
-        />
-      </div>
+        ) : null}
+        {activeTab === "installation" ? (
+          <div className="grid gap-6">
+            <section className="grid gap-3 rounded-lg border bg-white p-4">
+              <h2 className="text-lg font-semibold text-navy">Installation Review Conditions</h2>
+              <div className="grid gap-3 md:grid-cols-3">
+                <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} onChange={(installationReviewed) => update({ ...audit, installationReviewed })} />
+                <ReviewStatusControl label="Matches certificate declarations?" value={audit.matchesCertificateStatus} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
+                <DisplayStatusControl label="Certificate displayed?" value={audit.certificateDisplayedStatus} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
+              </div>
+            </section>
+            <InstallationSection rows={audit.installation} auditorName={auditorName} onChange={(installation) => update({ ...audit, installation })} />
+          </div>
+        ) : null}
+        {activeTab === "device" ? (
+          <DeviceTestSection
+            rows={audit.deviceTests}
+            localSystem={audit.deviceSystemLocal}
+            onLocalSystemChange={(deviceSystemLocal) =>
+              update({
+                ...audit,
+                deviceSystemLocal,
+                deviceTests: deviceSystemLocal ? audit.deviceTests.map((row) => ({ ...row, timeReceived: "", updatedAt: nowIso() })) : audit.deviceTests,
+              })
+            }
+            onChange={(deviceTests) => update({ ...audit, deviceTests })}
+          />
+        ) : null}
+      </section>
     </main>
   );
 }
