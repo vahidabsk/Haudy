@@ -40,6 +40,16 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "CACHE_URLS") return;
+  const urls = Array.isArray(event.data.urls) ? event.data.urls : [];
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => Promise.all(urls.map((url) => cache.add(url).catch(() => undefined))))
+      .then(() => event.ports?.[0]?.postMessage({ ok: true }))
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;

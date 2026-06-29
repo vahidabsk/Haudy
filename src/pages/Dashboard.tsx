@@ -1,18 +1,40 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { relativeTime } from "../lib/utils";
+import { OFFLINE_READY_KEY } from "../register-service-worker";
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const navigate = useNavigate();
   const groups = groupByAsc(audits.audits);
+  const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
+  const [online, setOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    function refresh() {
+      setOfflineReady(localStorage.getItem(OFFLINE_READY_KEY) === "true");
+      setOnline(navigator.onLine);
+    }
+    window.addEventListener("online", refresh);
+    window.addEventListener("offline", refresh);
+    window.addEventListener("haudy:offline-ready", refresh);
+    return () => {
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", refresh);
+      window.removeEventListener("haudy:offline-ready", refresh);
+    };
+  }, []);
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
       <section className="rounded-xl bg-reserve p-6">
         <h2 className="text-2xl font-bold text-navy">Upload Certificate</h2>
         <p className="mt-2 max-w-2xl text-slate-700">Start a fire alarm system audit by uploading the DOCX certificate. PDF extraction is best-effort.</p>
+        <div className={`mt-4 rounded-md border px-3 py-2 text-sm font-medium ${offlineReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          {offlineReady ? "Offline ready on this device" : online ? "Preparing offline access. Keep this screen open online until ready." : "Offline access is not ready on this device yet."}
+        </div>
         <div className="mt-5 max-w-xl">
           <UploadDialog onParsed={(certificate) => {
             const audit = audits.createFromCertificate(certificate);
