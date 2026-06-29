@@ -1,45 +1,45 @@
-import { Audit, Auditor, ParsedCertificate } from "./types";
+import { Audit, AuditRow, Auditor, ParsedCertificate } from "./types";
 import { nowIso, uid } from "./utils";
 
 const AUDITOR_KEY = "haudy.auditor";
 const AUDITS_KEY = "haudy.audits";
 
 export const documentationElements = [
-  "As-built drawings",
-  "Riser diagram",
-  "Battery calculations",
-  "Voltage drop calculations",
-  "Sequence of operation",
-  "Service records",
-  "Inspection/test records",
-  "AIT records",
-  "Monitoring records",
-  "Previous deficiencies",
-  "Correction documentation",
+  "NFPA 72 2010 Edition",
+  "Record Drawings (As Builts)",
+  "Battery Calculations",
+  "Initial Acceptance Test (IAT)",
+  "Reacceptance Test",
+  "Record of Completion (ROC)",
+  "Periodic Testing Records",
+  "Sensitivity Testing",
+  "Contracts",
+  "Service Records",
+  "Owners Manuals",
+  "Codes and Standards",
+  "",
 ];
 
 export const installationElements = [
-  "Compatible/Listed Equipment",
+  "NFPA 72 2010 Edition",
+  "Compatible / Listed Equipment",
   "Control & Sub Control(s)",
-  "Transmitter/Communicator",
+  "Transmitter / Communicator",
   "Primary Power Requirements",
-  "Secondary Power (battery condition, date code)",
-  "Enclosure",
-  "Wiring workmanship",
-  "Conduit/cable protection",
-  "Grounding/bonding",
-  "Circuit identification",
-  "Panel labeling",
-  "Device labeling",
-  "Notification appliance condition",
-  "Initiating device condition",
-  "Waterflow + Tamper",
-  "Smoke/Heat/Duct detectors",
-  "Manual stations",
-  "Remote annunciator",
-  "Communication equipment",
-  "Central station connection",
-  "Code compliance",
+  "Secondary Power Requirements",
+  "Grounding / Supervision",
+  "Wiring / Workmanship",
+  "EOLR Placement",
+  "Transient Protection",
+  "Smoke Detectors (SD)",
+  "Heat Detectors (HD)",
+  "Duct Detectors (DD)",
+  "Manual Pull Stations (MP)",
+  "Waterflow Devices (WF)",
+  "Sprinkler Supervisory (SS)",
+  "Notification Appliances (NAC)",
+  "",
+  "",
 ];
 
 export function loadAuditor(): Auditor | null {
@@ -53,7 +53,7 @@ export function saveAuditor(name: string): Auditor {
 }
 
 export function loadAudits(): Audit[] {
-  return readJson<Audit[]>(AUDITS_KEY, []);
+  return readJson<Audit[]>(AUDITS_KEY, []).map(normalizeAudit);
 }
 
 export function saveAudits(audits: Audit[]) {
@@ -80,24 +80,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     signalLog: [{ id: uid("signal"), signalType: "", date: "", time: "", description: "", notes: "", updatedAt: now }],
     documentation: documentationElements.map((element) => row(element, auditorName, now)),
     installation: installationElements.map((element) => row(element, auditorName, now)),
-    deviceTests: [
-      {
-        id: uid("device"),
-        deviceType: "",
-        location: "",
-        deviceId: "",
-        signalType: "",
-        tripTime: "",
-        timeReceived: "",
-        signalReceived: false,
-        restoralReceived: false,
-        localIndication: false,
-        result: "",
-        notes: "",
-        photos: [],
-        updatedAt: now,
-      },
-    ],
+    deviceTests: Array.from({ length: 20 }, () => deviceRow(now)),
     comments: certificate.systemDeviations || "",
     editedFields: {},
   };
@@ -105,6 +88,58 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
 
 function row(element: string, auditorName: string, updatedAt: string) {
   return { id: uid("row"), element, status: "" as const, notes: "", photos: [], updatedAt, updatedBy: auditorName };
+}
+
+function deviceRow(updatedAt: string) {
+  return {
+    id: uid("device"),
+    deviceType: "",
+    location: "",
+    deviceId: "",
+    signalType: "" as const,
+    functional: false,
+    alarm: false,
+    supervisory: false,
+    trouble: false,
+    notApplicable: false,
+    tripTime: "",
+    timeReceived: "",
+    signalReceived: false,
+    restoralReceived: false,
+    localIndication: false,
+    result: "" as const,
+    notes: "",
+    photos: [],
+    updatedAt,
+  };
+}
+
+function normalizeAudit(audit: Audit): Audit {
+  const now = nowIso();
+  return {
+    ...audit,
+    documentation: normalizeRows(audit.documentation, documentationElements, audit.auditorName, now),
+    installation: normalizeRows(audit.installation, installationElements, audit.auditorName, now),
+    deviceTests: normalizeDeviceRows(audit.deviceTests, now),
+  };
+}
+
+function normalizeRows(rows: AuditRow[], elements: string[], auditorName: string, updatedAt: string) {
+  return elements.map((element) => rows.find((item) => item.element === element) || row(element, auditorName, updatedAt));
+}
+
+function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {
+  const normalized = rows.map((item) => ({
+    ...deviceRow(updatedAt),
+    ...item,
+    functional: item.functional ?? false,
+    alarm: item.alarm ?? item.signalType === "Alarm",
+    supervisory: item.supervisory ?? item.signalType === "Supervisory",
+    trouble: item.trouble ?? item.signalType === "Trouble",
+    notApplicable: item.notApplicable ?? false,
+  }));
+  while (normalized.length < 20) normalized.push(deviceRow(updatedAt));
+  return normalized;
 }
 
 function readJson<T>(key: string, fallback: T): T {

@@ -69,6 +69,11 @@ export interface DeviceTestRow {
   location: string;
   deviceId: string;
   signalType: SignalType | "";
+  functional?: boolean;
+  alarm?: boolean;
+  supervisory?: boolean;
+  trouble?: boolean;
+  notApplicable?: boolean;
   tripTime: string;
   timeReceived: string;
   signalReceived: boolean;
