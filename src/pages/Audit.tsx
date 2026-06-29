@@ -67,7 +67,12 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           </div>
         </section>
         <InstallationSection rows={audit.installation} auditorName={auditorName} onChange={(installation) => update({ ...audit, installation })} />
-        <DeviceTestSection rows={audit.deviceTests} onChange={(deviceTests) => update({ ...audit, deviceTests })} />
+        <DeviceTestSection
+          rows={audit.deviceTests}
+          localSystem={audit.deviceSystemLocal}
+          onLocalSystemChange={(deviceSystemLocal) => update({ ...audit, deviceSystemLocal })}
+          onChange={(deviceTests) => update({ ...audit, deviceTests })}
+        />
       </div>
     </main>
   );

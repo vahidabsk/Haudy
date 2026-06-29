@@ -106,6 +106,7 @@ export interface Audit {
   installationReviewed: boolean;
   matchesCertificateStatus: ReviewStatus | "";
   certificateDisplayedStatus: DisplayStatus | "";
+  deviceSystemLocal: boolean;
   certificates: ParsedCertificate[];
   primaryCertificateIndex: number;
   matchesCertificate: boolean;

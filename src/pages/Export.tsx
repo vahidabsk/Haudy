@@ -52,11 +52,11 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
             </>
           }
         />
-        <DeviceTable rows={audit.deviceTests.slice(0, deviceRowsPage2)} localSystem />
+        <DeviceTable rows={audit.deviceTests.slice(0, deviceRowsPage2)} localSystem={audit.deviceSystemLocal} />
         <CommentsBox comments="" compact />
       </FieldNotesPage>
       <FieldNotesPage pageNumber={3} totalPages={totalPages} audit={audit}>
-        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} />
+        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} localSystem={audit.deviceSystemLocal} />
       </FieldNotesPage>
       {chunk(attachmentRows, 4).map((rows, index) => (
         <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={4 + index} totalPages={totalPages} />
@@ -164,7 +164,7 @@ function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title:
   );
 }
 
-function DeviceTable({ rows }: { rows: DeviceTestRow[]; localSystem?: boolean }) {
+function DeviceTable({ rows, localSystem }: { rows: DeviceTestRow[]; localSystem?: boolean }) {
   return (
     <table className="field-table device-table">
       <tbody>
@@ -174,7 +174,7 @@ function DeviceTable({ rows }: { rows: DeviceTestRow[]; localSystem?: boolean })
           <th>A</th>
           <th>S</th>
           <th>T</th>
-          <th colSpan={2} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble</th>
+          <th colSpan={3} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble {localSystem ? " Local System" : ""}</th>
         </tr>
         {rows.map((row, index) => (
           <tr key={row.id || index} className="device-row">
@@ -184,7 +184,8 @@ function DeviceTable({ rows }: { rows: DeviceTestRow[]; localSystem?: boolean })
             <td><Check checked={!!row.supervisory} /></td>
             <td><Check checked={!!row.trouble} /></td>
             <td>Trip Time: {row.tripTime}</td>
-            <td>Time Rcvd: {row.timeReceived}</td>
+            <td>Time Rcvd{localSystem ? " or N/A" : ""}: {localSystem ? "N/A" : row.timeReceived}</td>
+            <td><StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR</td>
           </tr>
         ))}
       </tbody>
