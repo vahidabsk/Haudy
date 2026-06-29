@@ -56,7 +56,7 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
         <CommentsBox comments="" compact />
       </FieldNotesPage>
       <FieldNotesPage pageNumber={3} totalPages={totalPages} audit={audit}>
-        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} includeNa />
+        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} />
       </FieldNotesPage>
       {chunk(attachmentRows, 4).map((rows, index) => (
         <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={4 + index} totalPages={totalPages} />
@@ -164,7 +164,7 @@ function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title:
   );
 }
 
-function DeviceTable({ rows, localSystem, includeNa }: { rows: DeviceTestRow[]; localSystem?: boolean; includeNa?: boolean }) {
+function DeviceTable({ rows }: { rows: DeviceTestRow[]; localSystem?: boolean }) {
   return (
     <table className="field-table device-table">
       <tbody>
@@ -174,7 +174,7 @@ function DeviceTable({ rows, localSystem, includeNa }: { rows: DeviceTestRow[]; 
           <th>A</th>
           <th>S</th>
           <th>T</th>
-          <th colSpan={4} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble {localSystem ? <>N/A <Check checked={false} /> = Local System</> : null}</th>
+          <th colSpan={2} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble</th>
         </tr>
         {rows.map((row, index) => (
           <tr key={row.id || index} className="device-row">
@@ -184,9 +184,7 @@ function DeviceTable({ rows, localSystem, includeNa }: { rows: DeviceTestRow[]; 
             <td><Check checked={!!row.supervisory} /></td>
             <td><Check checked={!!row.trouble} /></td>
             <td>Trip Time: {row.tripTime}</td>
-            <td>Time Rcvd{localSystem ? " or N/A" : ""}: {row.timeReceived}</td>
-            <td><StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR</td>
-            <td>{includeNa ? <><Check checked={!!row.notApplicable} /> N/A</> : null}</td>
+            <td>Time Rcvd: {row.timeReceived}</td>
           </tr>
         ))}
       </tbody>
