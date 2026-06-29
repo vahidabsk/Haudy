@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
 import { loadPhoto } from "../lib/photo-store";
@@ -13,6 +13,11 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
   const store = useAudits(auditorName);
   const audit = store.audits.find((item) => item.id === auditId);
   if (!audit) return <main className="p-6">Audit not found.</main>;
+
+  return <ExportDocument audit={audit} />;
+}
+
+function ExportDocument({ audit }: { audit: Audit }) {
   const currentAudit = audit;
 
   function csv() {
@@ -27,6 +32,15 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
 
   const attachmentRows = photoAttachments(audit);
   const totalPages = 3 + Math.ceil(attachmentRows.length / 4);
+  const exportFileName = fieldNotesName(audit);
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = exportFileName;
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [exportFileName]);
 
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
@@ -91,6 +105,42 @@ function Header({ audit }: { audit: Audit }) {
       </div>
     </div>
   );
+}
+
+function fieldNotesName(audit: Audit) {
+  const certificate = primaryCertificate(audit);
+  const year = (audit.auditDate || audit.createdAt || new Date().toISOString()).slice(0, 4);
+  const property = [audit.protectedProperty, propertyAddressForName(certificate?.propertyAddress || "")].filter(Boolean).join(" ").trim();
+  return [
+    `Filed Notes_${year}`,
+    property.toUpperCase(),
+    certificate?.fileNo || fileScnParts(audit.fileScn).file,
+    `SCN ${certificate?.ccn || fileScnParts(audit.fileScn).scn || "0"}`,
+    categoryOutputCode(certificate?.categoryCode || ""),
+  ].filter(Boolean).join("_");
+}
+
+function primaryCertificate(audit: Audit) {
+  return audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
+}
+
+function propertyAddressForName(address: string) {
+  return address
+    .replace(/\s+UNITED STATES$/i, "")
+    .replace(/,\s*(California|CA)\s+\d{5}(?:-\d{4})?$/i, "")
+    .replace(/,/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function fileScnParts(value: string) {
+  const [file = "", scn = ""] = value.split("/").map((part) => part.trim());
+  return { file, scn };
+}
+
+function categoryOutputCode(category: string) {
+  const codes: Record<string, string> = { UUJS: "FA", UUFX: "FD" };
+  return codes[category.toUpperCase()] || category.toUpperCase();
 }
 
 function SignalReview({ audit }: { audit: Audit }) {
