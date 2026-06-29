@@ -27,29 +27,30 @@ textarea {
 }
 
 .field-page {
-  width: 8.5in;
-  min-height: 11in;
+  width: 7.72in;
+  min-height: 10.15in;
   margin: 0 auto 24px;
-  padding: 0.42in 0.25in 0.3in;
+  padding: 0;
   font-family: "Times New Roman", Times, serif;
-  font-size: 13px;
-  line-height: 1.04;
+  font-size: 11.5px;
+  line-height: 1;
   color: #000;
   page-break-after: always;
+  overflow: hidden;
 }
 
 .field-title {
-  margin: 0 0 0.46in;
+  margin: 0 0 0.43in;
   text-align: center;
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 700;
 }
 
 .field-header {
   display: grid;
-  gap: 0.12in;
-  margin-bottom: 0.13in;
-  font-size: 15px;
+  gap: 0.11in;
+  margin-bottom: 0.12in;
+  font-size: 13.5px;
   font-weight: 700;
 }
 
@@ -76,11 +77,11 @@ textarea {
 }
 
 .field-header-row-top {
-  grid-template-columns: 1.55in 2.05in 2.05in 1.8in;
+  grid-template-columns: 1.45in 1.95in 1.95in 1.78in;
 }
 
 .field-header-row-bottom {
-  grid-template-columns: 3.35in 1fr;
+  grid-template-columns: 3.25in 1fr;
 }
 
 .field-header-item {
@@ -99,13 +100,13 @@ textarea {
   table-layout: fixed;
   border-collapse: collapse;
   border: 3px solid #000;
-  margin-bottom: 0.09in;
+  margin-bottom: 0.08in;
 }
 
 .field-table th,
 .field-table td {
   border: 1px solid #000;
-  padding: 1px 5px;
+  padding: 1px 4px;
   vertical-align: top;
 }
 
@@ -118,7 +119,7 @@ textarea {
 }
 
 .field-subhead {
-  font-size: 12px;
+  font-size: 11.25px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -128,11 +129,17 @@ textarea {
 }
 
 .field-small-row {
-  height: 0.145in;
+  height: 0.132in;
 }
 
 .field-small-row td {
-  height: 0.145in;
+  height: 0.132in;
+  overflow: hidden;
+}
+
+.field-small-row td:first-child,
+.device-row td {
+  white-space: nowrap;
 }
 
 .signal-table {
@@ -147,16 +154,16 @@ textarea {
 }
 
 .code-row td {
-  height: 0.33in;
+  height: 0.29in;
 }
 
 .code-label {
   display: block;
-  min-height: 0.28in;
+  min-height: 0.24in;
   padding: 3px;
   background: #fff200;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .field-check {
@@ -165,39 +172,40 @@ textarea {
 }
 
 .device-table {
-  font-size: 12.5px;
+  font-size: 10.6px;
 }
 
 .device-row {
-  height: 0.14in;
+  height: 0.118in;
 }
 
 .device-row td {
-  height: 0.14in;
+  height: 0.118in;
   padding-top: 1px;
   padding-bottom: 1px;
+  overflow: hidden;
 }
 
 .comments-box {
-  min-height: 2.78in;
+  min-height: 2.58in;
   border: 3px solid #000;
   padding: 4px 8px;
   font-family: "Times New Roman", Times, serif;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .comments-box-compact {
-  min-height: 1.0in;
+  min-height: 0.82in;
 }
 
 .field-footer {
   display: flex;
   justify-content: space-between;
   gap: 0.25in;
-  margin-top: 0.2in;
+  margin-top: 0.16in;
   padding: 0 0.12in;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 12px;
+  font-size: 10.5px;
   line-height: 1.2;
 }
 
@@ -259,10 +267,10 @@ textarea {
   }
 
   .field-page {
-    margin: 0;
-    width: 8.5in;
-    height: 11in;
-    min-height: 11in;
+    margin: 0.42in auto 0;
+    width: 7.72in;
+    height: 10.15in;
+    min-height: 10.15in;
     overflow: hidden;
   }
 }
