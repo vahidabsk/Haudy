@@ -21,14 +21,19 @@ textarea {
   font: inherit;
 }
 
+.field-page,
+.field-page * {
+  box-sizing: border-box;
+}
+
 .field-page {
   width: 8.5in;
   min-height: 11in;
   margin: 0 auto 24px;
-  padding: 0.42in 0.25in 0.32in;
+  padding: 0.42in 0.25in 0.3in;
   font-family: "Times New Roman", Times, serif;
-  font-size: 14px;
-  line-height: 1.08;
+  font-size: 13px;
+  line-height: 1.04;
   color: #000;
   page-break-after: always;
 }
@@ -42,9 +47,9 @@ textarea {
 
 .field-header {
   display: grid;
-  gap: 0.13in;
-  margin-bottom: 0.14in;
-  font-size: 16px;
+  gap: 0.12in;
+  margin-bottom: 0.13in;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -57,17 +62,44 @@ textarea {
   font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: clip;
 }
 
 .field-header > div {
   white-space: nowrap;
 }
 
+.field-header-row {
+  display: grid;
+  gap: 0.05in;
+  width: 100%;
+}
+
+.field-header-row-top {
+  grid-template-columns: 1.55in 2.05in 2.05in 1.8in;
+}
+
+.field-header-row-bottom {
+  grid-template-columns: 3.35in 1fr;
+}
+
+.field-header-item {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.field-header-item .field-line {
+  flex: 1;
+  min-width: 0;
+}
+
 .field-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   border: 3px solid #000;
-  margin-bottom: 0.11in;
+  margin-bottom: 0.09in;
 }
 
 .field-table th,
@@ -86,7 +118,7 @@ textarea {
 }
 
 .field-subhead {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -96,11 +128,11 @@ textarea {
 }
 
 .field-small-row {
-  height: 0.155in;
+  height: 0.145in;
 }
 
 .field-small-row td {
-  height: 0.155in;
+  height: 0.145in;
 }
 
 .signal-table {
@@ -133,15 +165,15 @@ textarea {
 }
 
 .device-table {
-  font-size: 14px;
+  font-size: 12.5px;
 }
 
 .device-row {
-  height: 0.153in;
+  height: 0.14in;
 }
 
 .device-row td {
-  height: 0.153in;
+  height: 0.14in;
   padding-top: 1px;
   padding-bottom: 1px;
 }
@@ -155,14 +187,14 @@ textarea {
 }
 
 .comments-box-compact {
-  min-height: 1.18in;
+  min-height: 1.0in;
 }
 
 .field-footer {
   display: flex;
   justify-content: space-between;
   gap: 0.25in;
-  margin-top: 0.28in;
+  margin-top: 0.2in;
   padding: 0 0.12in;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 12px;

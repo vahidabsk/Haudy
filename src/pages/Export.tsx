@@ -79,8 +79,16 @@ function FieldNotesPage({ audit, children, pageNumber, totalPages, showTitle }: 
 function Header({ audit }: { audit: Audit }) {
   return (
     <div className="field-header">
-      <div>Date: <Line value={audit.auditDate} width="1.15in" /> ASC: <Line value={audit.ascName} width="1.75in" /> File/SCN:<Line value={audit.fileScn} width="1.75in" /> Auditor:<Line value={audit.auditorName} width="1.55in" /></div>
-      <div>Certificate #:<Line value={audit.certificateNumber} width="2.45in" /> PP:<Line value={audit.protectedProperty} width="4.55in" /></div>
+      <div className="field-header-row field-header-row-top">
+        <span className="field-header-item">Date:<Line value={audit.auditDate} width="auto" /></span>
+        <span className="field-header-item">ASC:<Line value={audit.ascName} width="auto" /></span>
+        <span className="field-header-item">File/SCN:<Line value={audit.fileScn} width="auto" /></span>
+        <span className="field-header-item">Auditor:<Line value={audit.auditorName} width="auto" /></span>
+      </div>
+      <div className="field-header-row field-header-row-bottom">
+        <span className="field-header-item">Certificate #:<Line value={audit.certificateNumber} width="auto" /></span>
+        <span className="field-header-item">PP:<Line value={audit.protectedProperty} width="auto" /></span>
+      </div>
     </div>
   );
 }
