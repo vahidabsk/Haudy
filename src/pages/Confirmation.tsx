@@ -193,7 +193,7 @@ function formatDateRange(start: string, end: string) {
       const dayText = days.length === 2 ? `${days[0]} and ${days[1]}` : `${days.slice(0, -1).join(", ")} and ${days[days.length - 1]}`;
       return `${startDate.toLocaleDateString("en-US", { month: "long" })} ${dayText}, ${startDate.getFullYear()}`;
     }
-    return `${startDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} through ${endDate.toLocaleDateString("en-US", { day: "numeric", year: "numeric" })}`;
+    return `${startDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} through ${endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
   }
 
   if (sameYear) {
