@@ -75,7 +75,7 @@ export function ConfirmationPage({ auditorName }: { auditorName: string }) {
                   <tr key={audit.id}>
                     <td>{audit.certificateNumber}</td>
                     <td>{audit.protectedProperty}</td>
-                    <td>{primaryCertificate(audit)?.propertyAddress || ""}</td>
+                    <td>{formatSiteAddress(primaryCertificate(audit)?.propertyAddress || "")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -126,6 +126,14 @@ function referenceFiles(audits: Audit[]) {
     if (certificate?.ccn) references.add(certificate.ccn);
   }
   return Array.from(references).join(", ");
+}
+
+function formatSiteAddress(address: string) {
+  return address
+    .replace(/\s+UNITED STATES$/i, "")
+    .replace(/\bCA\b/g, "California")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function groupByCategory(audits: Audit[]) {
