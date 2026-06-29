@@ -16,14 +16,26 @@ export function useAudits(auditorName = "") {
       setAudits,
       createFromCertificate(certificate: ParsedCertificate) {
         const audit = createAuditFromCertificate(certificate, auditorName);
-        setAudits((current) => [audit, ...current]);
+        setAudits((current) => {
+          const next = [audit, ...current];
+          saveAudits(next);
+          return next;
+        });
         return audit;
       },
       deleteAudit(id: string) {
-        setAudits((current) => current.filter((audit) => audit.id !== id));
+        setAudits((current) => {
+          const next = current.filter((audit) => audit.id !== id);
+          saveAudits(next);
+          return next;
+        });
       },
       updateAudit(nextAudit: Audit) {
-        setAudits((current) => current.map((audit) => (audit.id === nextAudit.id ? nextAudit : audit)));
+        setAudits((current) => {
+          const next = current.map((audit) => (audit.id === nextAudit.id ? nextAudit : audit));
+          saveAudits(next);
+          return next;
+        });
       },
     }),
     [auditorName, audits]
