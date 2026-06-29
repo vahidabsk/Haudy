@@ -23,6 +23,15 @@ export function useAudits(auditorName = "") {
         });
         return audit;
       },
+      createManyFromCertificates(certificates: ParsedCertificate[]) {
+        const newAudits = certificates.map((certificate) => createAuditFromCertificate(certificate, auditorName));
+        setAudits((current) => {
+          const next = [...newAudits, ...current];
+          saveAudits(next);
+          return next;
+        });
+        return newAudits;
+      },
       deleteAudit(id: string) {
         setAudits((current) => {
           const next = current.filter((audit) => audit.id !== id);

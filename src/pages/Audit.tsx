@@ -41,9 +41,11 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
       <section className="sticky top-0 z-20 grid gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-lg shadow-slate-200/70 backdrop-blur">
-        <div className="grid gap-3 md:grid-cols-6">
+        <div className="grid gap-3 md:grid-cols-8">
           <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
           <input className="min-h-11 rounded-md border px-3" value={audit.ascName} onChange={(e) => update({ ...audit, ascName: e.target.value })} placeholder="ASC" />
+          <input className="min-h-11 rounded-md border px-3" value={audit.ascCity} onChange={(e) => update({ ...audit, ascCity: e.target.value })} placeholder="ASC city" />
+          <input className="min-h-11 rounded-md border px-3" value={audit.ascState} onChange={(e) => update({ ...audit, ascState: e.target.value.toUpperCase().slice(0, 2) })} placeholder="State" />
           <input className="min-h-11 rounded-md border px-3" value={audit.fileScn} onChange={(e) => update({ ...audit, fileScn: e.target.value })} placeholder="File / SCN" />
           <input className="min-h-11 rounded-md border px-3" list="code-edition-options" value={audit.codeEdition} onChange={(e) => update({ ...audit, codeEdition: e.target.value })} placeholder="NFPA edition" />
           <datalist id="code-edition-options">{codeEditionOptions.map((option) => <option key={option} value={option} />)}</datalist>

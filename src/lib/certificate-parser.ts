@@ -27,6 +27,7 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
   const monitoringBlock = monitoringLocationBlock(lines);
   const property = splitPropertyBlock(protectedBlock);
   const asc = splitAscBlock(ascBlock);
+  const ascLocation = cityStateFromAddress(asc.address);
   const monitoring = splitMonitoringBlock(monitoringBlock);
 
   const fileLine = firstLineMatching(lines, /^File No:/i) || "";
@@ -46,6 +47,8 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     propertyAddress: property.address,
     ascName: asc.name,
     ascAddress: asc.address,
+    ascCity: ascLocation.city,
+    ascState: ascLocation.state,
     areaCovered: labelValue(joined, "Area Covered"),
     ahj: labelValue(joined, "Authority Having Jurisdiction"),
     respondingFD: labelValue(joined, "Responding Fire Department"),
@@ -101,6 +104,19 @@ function splitPropertyBlock(block: string[]) {
 
 function splitAscBlock(block: string[]) {
   return { name: clean(block[0] || ""), address: block.slice(1).map(clean).filter(Boolean).join(", ") };
+}
+
+export function cityStateFromAddress(address?: string) {
+  const value = clean(address || "");
+  const match = value.match(/(?:^|,\s*)([A-Za-z][A-Za-z .'-]+?),?\s+([A-Z]{2})\s+\d{5}(?:-\d{4})?$/);
+  if (match) return { city: clean(match[1]), state: match[2] };
+
+  const parts = value.split(",").map(clean).filter(Boolean);
+  const last = parts[parts.length - 1] || "";
+  const stateMatch = last.match(/\b([A-Z]{2})\b/);
+  if (parts.length >= 2 && stateMatch) return { city: parts[parts.length - 2], state: stateMatch[1] };
+
+  return { city: "", state: "" };
 }
 
 function monitoringLocationBlock(lines: string[]) {

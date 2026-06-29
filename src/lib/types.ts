@@ -16,6 +16,8 @@ export interface ParsedCertificate {
   propertyAddress?: string;
   ascName?: string;
   ascAddress?: string;
+  ascCity?: string;
+  ascState?: string;
   areaCovered?: string;
   ahj?: string;
   respondingFD?: string;
@@ -94,6 +96,8 @@ export interface Audit {
   auditorName: string;
   auditDate: string;
   ascName: string;
+  ascCity: string;
+  ascState: string;
   certificateNumber: string;
   fileScn: string;
   protectedProperty: string;

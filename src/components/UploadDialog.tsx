@@ -4,47 +4,42 @@ import { parseCertificateText } from "../lib/certificate-parser";
 import { extractDocxText } from "../lib/docx-extract";
 import { ParsedCertificate } from "../lib/types";
 
-export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCertificate) => void }) {
-  const [draft, setDraft] = useState<ParsedCertificate | null>(null);
+export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCertificate[]) => void }) {
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const text = await extractDocxText(file);
-    const parsed = parseCertificateText(text, file.name);
-    setDraft(parsed);
-    setMessage(text.trim() ? "" : "No fields automatically detected. Fill manually before confirming.");
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    setBusy(true);
+    setMessage("");
+    try {
+      const certificates = await Promise.all(files.map(async (file) => {
+        const text = await extractDocxText(file);
+        return parseCertificateText(text, file.name);
+      }));
+      onParsed(certificates);
+      setMessage(`${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
+    } catch {
+      setMessage("One of the files could not be read. Please upload DOCX certificate files only.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 text-center font-semibold text-navy transition hover:border-sky-400 hover:bg-sky-50">
         <span className="grid h-11 w-11 place-items-center rounded-md bg-navy text-white"><UploadCloud size={23} /></span>
-        <span>Upload Certificate (.docx)</span>
-        <input className="hidden" type="file" accept=".docx" onChange={upload} />
+        <span>{busy ? "Reading certificates..." : "Upload Certificate (.docx)"}</span>
+        <input className="hidden" type="file" accept=".docx" multiple onChange={upload} disabled={busy} />
       </label>
-      {message ? <p className="mt-3 text-sm text-signal">{message}</p> : null}
-      {draft ? (
-        <div className="mt-4 grid gap-3">
-          <div className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
-            <FileCheck2 size={18} /> Certificate parsed
-          </div>
-          {Object.entries(draft)
-            .filter(([key]) => key !== "deviceCounts")
-            .map(([key, value]) => (
-              <label key={key} className="grid gap-1 text-sm">
-                <span className="font-medium text-slate-600">{key}</span>
-                <input
-                  className="min-h-11 rounded-md border px-3"
-                  value={String(value || "")}
-                  onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
-                />
-              </label>
-            ))}
-          <button className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => onParsed(draft)}>
-            Confirm and Create Audit
-          </button>
+      {message ? (
+        <div className={`mt-4 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${message.includes("uploaded") ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
+          {message.includes("uploaded") ? <FileCheck2 size={18} /> : null}
+          <span>{message}</span>
         </div>
       ) : null}
     </div>

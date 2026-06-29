@@ -1,4 +1,5 @@
 import { Audit, AuditRow, Auditor, ParsedCertificate } from "./types";
+import { cityStateFromAddress } from "./certificate-parser";
 import { nowIso, uid } from "./utils";
 
 const AUDITOR_KEY = "haudy.auditor";
@@ -63,6 +64,8 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     auditorName,
     auditDate: now.slice(0, 10),
     ascName: certificate.ascName || "",
+    ascCity: certificate.ascCity || "",
+    ascState: certificate.ascState || "",
     certificateNumber: certificate.certificateNumber || "",
     fileScn: [certificate.fileNo, certificate.ccn].filter(Boolean).join(" / "),
     protectedProperty: certificate.propertyName || "",
@@ -119,8 +122,12 @@ function deviceRow(updatedAt: string) {
 
 function normalizeAudit(audit: Audit): Audit {
   const now = nowIso();
+  const primaryCertificate = audit.certificates?.[audit.primaryCertificateIndex || 0] || audit.certificates?.[0];
+  const ascLocation = cityStateFromAddress(primaryCertificate?.ascAddress);
   return {
     ...audit,
+    ascCity: audit.ascCity ?? primaryCertificate?.ascCity ?? ascLocation.city,
+    ascState: audit.ascState ?? primaryCertificate?.ascState ?? ascLocation.state,
     signalProcessingReviewed: audit.signalProcessingReviewed ?? audit.signalLog.some((row) => row.signalType || row.date || row.time || row.description || row.notes),
     signalReviewStart: audit.signalReviewStart ?? "",
     signalReviewEnd: audit.signalReviewEnd ?? "",
