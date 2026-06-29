@@ -99,6 +99,12 @@ function SignalReview({ audit }: { audit: Audit }) {
   const troubles = audit.signalLog.filter((row) => row.signalType === "Trouble").length;
   return (
     <table className="field-table signal-table">
+      <colgroup>
+        <col className="signal-type-col" />
+        <col className="signal-date-col" />
+        <col className="signal-time-col" />
+        <col />
+      </colgroup>
       <tbody>
         <tr className="thick-row">
           <td colSpan={4} className="field-subhead">
@@ -135,6 +141,14 @@ function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title:
   const displayRows = checklistRows(title, rows);
   return (
     <table className="field-table checklist-table">
+      <colgroup>
+        <col className="checklist-element-col" />
+        <col className="checklist-status-col" />
+        <col className="checklist-status-col" />
+        <col className="checklist-status-col" />
+        <col className="checklist-status-col" />
+        <col />
+      </colgroup>
       <tbody>
         <tr className="thick-row">
           <td colSpan={6} className="field-subhead">
@@ -193,6 +207,16 @@ function blankChecklistRow(element: string, index = 0): AuditRow {
 function DeviceTable({ rows, localSystem, continued }: { rows: DeviceTestRow[]; localSystem?: boolean; continued?: boolean }) {
   return (
     <table className="field-table device-table">
+      <colgroup>
+        <col className="device-location-col" />
+        <col className="device-flag-col" />
+        <col className="device-flag-col" />
+        <col className="device-flag-col" />
+        <col className="device-flag-col" />
+        <col className="device-trip-col" />
+        <col className="device-received-col" />
+        <col className="device-result-col" />
+      </colgroup>
       <tbody>
         <tr className="field-table-head">
           <th className="w-[2in] text-left">Device Type Tested / Location</th>
