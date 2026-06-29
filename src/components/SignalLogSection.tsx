@@ -1,5 +1,6 @@
 import { SignalLogRow, SignalType } from "../lib/types";
 import { uid, nowIso } from "../lib/utils";
+import { DictationNotes } from "./DictationNotes";
 
 const signalTypes: SignalType[] = ["Alarm", "Supervisory", "Trouble"];
 
@@ -18,7 +19,8 @@ export function SignalLogSection({ rows, onChange }: { rows: SignalLogRow[]; onC
         <Counter label="Trouble" value={counts.Trouble} className="bg-red-50 text-red-800" />
       </div>
       {rows.map((row) => (
-        <div key={row.id} className="grid gap-3 rounded-lg border bg-white p-4 md:grid-cols-5">
+        <div key={row.id} className="grid gap-3 rounded-lg border bg-white p-4">
+          <div className="grid gap-3 md:grid-cols-5">
           <select className="min-h-11 rounded-md border px-2" value={row.signalType} onChange={(e) => patch(rows, row.id, { signalType: e.target.value as SignalType }, onChange)}>
             <option value="">Signal Type</option>
             {signalTypes.map((type) => <option key={type}>{type}</option>)}
@@ -26,6 +28,8 @@ export function SignalLogSection({ rows, onChange }: { rows: SignalLogRow[]; onC
           <input className="min-h-11 rounded-md border px-2" type="date" value={row.date} onChange={(e) => patch(rows, row.id, { date: e.target.value }, onChange)} />
           <input className="min-h-11 rounded-md border px-2" type="time" value={row.time} onChange={(e) => patch(rows, row.id, { time: e.target.value }, onChange)} />
           <input className="min-h-11 rounded-md border px-2 md:col-span-2" placeholder="Description" value={row.description} onChange={(e) => patch(rows, row.id, { description: e.target.value }, onChange)} />
+          </div>
+          <DictationNotes rows={2} value={row.notes} onChange={(notes) => patch(rows, row.id, { notes }, onChange)} />
         </div>
       ))}
       <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", date: "", time: "", description: "", notes: "", updatedAt: nowIso() }])}>

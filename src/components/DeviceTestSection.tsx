@@ -1,7 +1,6 @@
 import { DeviceTestRow, StatusCode } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
-import { PhotoCapture } from "./PhotoCapture";
 import { StatusButtons } from "./StatusButtons";
 
 const deviceTypes = ["Smoke Detector (SD)", "Heat Detector (HD)", "Duct Detector (DD)", "Manual Pull Station (MP)", "Waterflow Device (WF)", "Sprinkler Supervisory (SS)", "Notification Appliance (NAC)", "Other"];
@@ -28,7 +27,6 @@ export function DeviceTestSection({ rows, onChange }: { rows: DeviceTestRow[]; o
           </div>
           <StatusButtons value={row.result} onChange={(result: StatusCode) => patch(rows, row.id, { result }, onChange)} />
           <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes }, onChange)} />
-          <PhotoCapture photos={row.photos} onChange={(photos) => patch(rows, row.id, { photos }, onChange)} required />
         </div>
       ))}
       <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", photos: [], updatedAt: nowIso() }])}>

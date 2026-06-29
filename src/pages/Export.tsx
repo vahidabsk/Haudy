@@ -271,12 +271,7 @@ interface PhotoAttachment {
 }
 
 function photoAttachments(audit: Audit): PhotoAttachment[] {
-  return [
-    ...rowPhotos("Installation", audit.installation),
-    ...audit.deviceTests.flatMap((row, index) =>
-      row.photos.map((id) => ({ id, section: "Device Testing", label: [row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ") || `Device row ${index + 1}` }))
-    ),
-  ];
+  return rowPhotos("Installation", audit.installation);
 }
 
 function rowPhotos(section: string, rows: AuditRow[]): PhotoAttachment[] {

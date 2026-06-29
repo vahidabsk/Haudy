@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Mic } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mic, MicOff } from "lucide-react";
 
 type SpeechRecognitionConstructor = new () => {
   continuous: boolean;
@@ -8,6 +8,7 @@ type SpeechRecognitionConstructor = new () => {
   onend: (() => void) | null;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   start: () => void;
+  stop: () => void;
 };
 
 interface SpeechRecognitionEvent {
@@ -16,20 +17,38 @@ interface SpeechRecognitionEvent {
 
 export function DictationNotes({ value, onChange, rows = 3 }: { value: string; onChange: (value: string) => void; rows?: number }) {
   const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<InstanceType<SpeechRecognitionConstructor> | null>(null);
+  const valueRef = useRef(value);
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const supported = Boolean(SpeechRecognition);
 
-  function dictate() {
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  function toggleDictation() {
     if (!SpeechRecognition) return;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+      setListening(false);
+      return;
+    }
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
     recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setListening(false);
+    };
     recognition.onresult = (event) => {
       const transcript = Array.from(event.results).map((result) => result[0]?.transcript || "").join(" ");
-      onChange([value, transcript].filter(Boolean).join(" "));
+      const nextValue = [valueRef.current, transcript].filter(Boolean).join(" ");
+      valueRef.current = nextValue;
+      onChange(nextValue);
     };
+    recognitionRef.current = recognition;
     recognition.start();
   }
 
@@ -38,12 +57,14 @@ export function DictationNotes({ value, onChange, rows = 3 }: { value: string; o
       <textarea className="w-full rounded-md border border-slate-300 p-3" rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />
       <button
         type="button"
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 px-3 text-sm disabled:opacity-50"
-        onClick={dictate}
+        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm disabled:opacity-50 ${
+          listening ? "border-red-300 bg-red-50 text-red-800" : "border-slate-300"
+        }`}
+        onClick={toggleDictation}
         disabled={!supported}
-        title={supported ? "Append voice dictation" : "Voice dictation not supported in this browser. Typing works as normal."}
+        title={supported ? "Start or stop voice dictation" : "Voice dictation not supported in this browser. Typing works as normal."}
       >
-        <Mic className="h-4 w-4" /> {listening ? "Listening..." : "Dictate"}
+        {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />} {listening ? "Stop Dictation" : "Start Dictation"}
       </button>
     </div>
   );
