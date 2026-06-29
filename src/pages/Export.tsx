@@ -52,11 +52,11 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
             </>
           }
         />
-        <DeviceTable rows={audit.deviceTests.slice(0, deviceRowsPage2)} localSystem={audit.deviceSystemLocal} />
+        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(0, deviceRowsPage2), deviceRowsPage2)} localSystem={audit.deviceSystemLocal} />
         <CommentsBox comments="" compact />
       </FieldNotesPage>
       <FieldNotesPage pageNumber={3} totalPages={totalPages} audit={audit}>
-        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} localSystem={audit.deviceSystemLocal} />
+        <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} localSystem={audit.deviceSystemLocal} continued />
       </FieldNotesPage>
       {chunk(attachmentRows, 4).map((rows, index) => (
         <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={4 + index} totalPages={totalPages} />
@@ -124,12 +124,14 @@ function SignalReview({ audit }: { audit: Audit }) {
 }
 
 function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title: string; rows: AuditRow[]; codeEdition: string; reviewed: boolean; extraHeader?: ReactNode }) {
+  const displayRows = checklistRows(title, rows);
   return (
     <table className="field-table checklist-table">
       <tbody>
         <tr className="thick-row">
           <td colSpan={6} className="field-subhead">
             {title} <Check checked={reviewed} /> YES <Check checked={!reviewed} /> NO
+            {title.startsWith("Documentation") ? <span className="ml-10">KEY:&nbsp;&nbsp;&nbsp; OK = In Conformance&nbsp;&nbsp;&nbsp; VAR = Variations Noted&nbsp;&nbsp;&nbsp; N/A = Not Applicable&nbsp;&nbsp;&nbsp; N/R = Not Reviewed</span> : null}
             {extraHeader ? <span className="ml-8">{extraHeader}</span> : null}
           </td>
         </tr>
@@ -149,7 +151,7 @@ function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title:
           <td />
           <td />
         </tr>
-        {rows.filter((row) => row.element.trim()).map((row) => (
+        {displayRows.map((row) => (
           <tr key={row.id} className="field-small-row">
             <td>{row.element}</td>
             <td><StatusCheck status={row.status} match="OK" /></td>
@@ -164,7 +166,23 @@ function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title:
   );
 }
 
-function DeviceTable({ rows, localSystem }: { rows: DeviceTestRow[]; localSystem?: boolean }) {
+function checklistRows(title: string, rows: AuditRow[]) {
+  const targetSize = title.startsWith("Documentation") ? 12 : title.startsWith("Installation") ? 18 : rows.length;
+  const baseRows = title.startsWith("Documentation") && !rows.some((row) => row.element === "Codes and Standards")
+    ? [...rows, blankChecklistRow("Codes and Standards")]
+    : rows;
+  const visibleRows = baseRows.filter((row) => row.element.trim() || row.status || row.notes);
+  return [
+    ...visibleRows,
+    ...Array.from({ length: Math.max(0, targetSize - visibleRows.length) }, (_, index) => blankChecklistRow("", index)),
+  ];
+}
+
+function blankChecklistRow(element: string, index = 0): AuditRow {
+  return { id: `blank-checklist-${element || index}`, element, status: "", notes: "", photos: [], updatedAt: "", updatedBy: "" };
+}
+
+function DeviceTable({ rows, localSystem, continued }: { rows: DeviceTestRow[]; localSystem?: boolean; continued?: boolean }) {
   return (
     <table className="field-table device-table">
       <tbody>
@@ -174,7 +192,10 @@ function DeviceTable({ rows, localSystem }: { rows: DeviceTestRow[]; localSystem
           <th>A</th>
           <th>S</th>
           <th>T</th>
-          <th colSpan={3} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble {localSystem ? " Local System" : ""}</th>
+          <th colSpan={3} className="text-left">
+            F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; S = Supervisory&nbsp;&nbsp;&nbsp; T = Trouble
+            {!continued ? <span className="float-right">N/A <Check checked={!!localSystem} /> = Local System</span> : null}
+          </th>
         </tr>
         {rows.map((row, index) => {
           const completed = hasDeviceContent(row);
@@ -186,10 +207,14 @@ function DeviceTable({ rows, localSystem }: { rows: DeviceTestRow[]; localSystem
               <td><Check checked={!!row.supervisory} /></td>
               <td><Check checked={!!row.trouble} /></td>
               <td>Trip Time: {row.tripTime}</td>
-              <td>Time Rcvd{localSystem ? " or N/A" : ""}: {localSystem && completed ? "N/A" : row.timeReceived}</td>
+              <td>
+                Time Rcvd{!continued ? " or N/A" : ""}:
+                {!continued ? <>&nbsp;<Check checked={!!localSystem && completed} /></> : null}
+                {localSystem && completed ? "" : row.timeReceived}
+              </td>
               <td>
                 <StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR
-                {localSystem ? <>&nbsp;&nbsp; <Check checked={completed} /> N/A</> : null}
+                {continued ? <>&nbsp;&nbsp; <Check checked={!!localSystem && completed} /> N/A</> : null}
               </td>
             </tr>
           );
