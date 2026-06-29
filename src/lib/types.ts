@@ -8,6 +8,7 @@ export interface ParsedCertificate {
   uploadedAt?: string;
   certificateNumber?: string;
   certificateType?: string;
+  categoryCode?: string;
   fileNo?: string;
   ccn?: string;
   issuedDate?: string;

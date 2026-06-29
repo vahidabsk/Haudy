@@ -39,6 +39,7 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     fileName,
     certificateNumber: firstValue(lines, /^SN:\s*(.+)$/i),
     certificateType: firstLineMatching(lines, /FIRE ALARM SYSTEM CERTIFICATE/i),
+    categoryCode: firstCategoryCode(joined),
     fileNo: fileLine.match(/File No:\s*([A-Z0-9.-]+)/i)?.[1],
     ccn: fileLine.match(/CCN:\s*([A-Z0-9.-]+)/i)?.[1],
     issuedDate: isoDate(issuedLine.match(/Issued:\s*([0-9/]+)/i)?.[1]),
@@ -159,6 +160,10 @@ function firstValue(lines: string[], pattern: RegExp) {
     if (match) return clean(match[1]);
   }
   return undefined;
+}
+
+function firstCategoryCode(text: string) {
+  return text.match(/\b(UUFX|UUJS|UUHX|UUFM)\b/i)?.[1]?.toUpperCase();
 }
 
 function labelValue(text: string, label: string) {

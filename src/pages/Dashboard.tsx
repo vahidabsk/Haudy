@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, Download, FilePenLine, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
-import { Audit } from "../lib/types";
+import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
+  const navigate = useNavigate();
   const groups = groupByAsc(audits.audits);
   const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [confirmationGroup, setConfirmationGroup] = useState<AscGroup | null>(null);
 
   useEffect(() => {
     function refresh() {
@@ -58,12 +60,17 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       <section className="grid gap-4">
         {audits.audits.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No certificates yet.</div> : null}
         {groups.map((group) => (
-          <Link key={group.key} to={`/asc/${encodeURIComponent(group.key)}`} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
+          <section key={group.key} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
                 <div>
-                  <h2 className="text-xl font-bold text-navy">{group.ascName}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link className="text-xl font-bold text-navy hover:text-sky-700" to={`/asc/${encodeURIComponent(group.key)}`}>{group.ascName}</Link>
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setConfirmationGroup(group)}>
+                      <CalendarCheck size={16} /> Confirmation
+                    </button>
+                  </div>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
                     <MapPin size={14} />
                     {group.location || "City and state not detected"}
@@ -77,10 +84,57 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <ShieldCheck className="hidden text-emerald-600 sm:block" size={24} />
               </div>
             </div>
-          </Link>
+          </section>
         ))}
       </section>
+      {confirmationGroup ? (
+        <ConfirmationDialog
+          group={confirmationGroup}
+          onClose={() => setConfirmationGroup(null)}
+          onCreate={(pocName, scheduledDate) => {
+            const params = new URLSearchParams({ poc: pocName, date: scheduledDate });
+            navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: () => void; onCreate: (pocName: string, scheduledDate: string) => void }) {
+  const [pocName, setPocName] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const ready = pocName.trim() && scheduledDate;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <form
+        className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (ready) onCreate(pocName.trim(), scheduledDate);
+        }}
+      >
+        <div>
+          <h2 className="text-xl font-bold text-navy">Audit Confirmation</h2>
+          <p className="mt-1 text-sm text-slate-600">{group.ascName} - {group.audits.length} selected site{group.audits.length === 1 ? "" : "s"}</p>
+        </div>
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          POC name
+          <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name for the letter" autoFocus />
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          Scheduled audit date
+          <input className="min-h-11 rounded-md border px-3" type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} />
+        </label>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancel</button>
+          <button type="submit" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={!ready}>
+            <CalendarCheck size={16} /> Create Letter
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -139,24 +193,4 @@ function Metric({ label, value }: { label: string; value: string | number }) {
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
     </div>
   );
-}
-
-function groupByAsc(audits: Audit[]) {
-  const groups = new Map<string, Audit[]>();
-  for (const audit of audits) {
-    const ascName = audit.ascName || "ASC not set";
-    const ascCity = audit.ascCity || "";
-    const ascState = audit.ascState || "";
-    const key = [ascName, ascCity, ascState].join("|");
-    groups.set(key, [...(groups.get(key) || []), audit]);
-  }
-  return Array.from(groups, ([key, groupAudits]) => {
-    const [ascName, ascCity, ascState] = key.split("|");
-    return {
-      key,
-      ascName,
-      location: [ascCity, ascState].filter(Boolean).join(", "),
-      audits: groupAudits.sort((a, b) => (a.protectedProperty || "").localeCompare(b.protectedProperty || "") || (a.certificateNumber || "").localeCompare(b.certificateNumber || "")),
-    };
-  }).sort((a, b) => a.ascName.localeCompare(b.ascName) || a.location.localeCompare(b.location));
 }
