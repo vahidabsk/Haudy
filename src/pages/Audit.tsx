@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ClipboardCheck, FileText, RadioTower, Save, Wrench, Zap } from "lucide-react";
 import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
 import { DocumentationSection } from "../components/DocumentationSection";
@@ -11,11 +12,11 @@ import { nowIso } from "../lib/utils";
 
 const codeEditionOptions = ["NFPA 72-2002", "NFPA 72-2007", "NFPA 72 2010 Edition", "NFPA 72-2013", "NFPA 72-2016", "NFPA 72-2019", "NFPA 72-2022"];
 type AuditTab = "signal" | "documentation" | "installation" | "device";
-const auditTabs: Array<{ id: AuditTab; label: string }> = [
-  { id: "signal", label: "Signal Processing" },
-  { id: "documentation", label: "Documentation" },
-  { id: "installation", label: "Installation" },
-  { id: "device", label: "Device Test" },
+const auditTabs: Array<{ id: AuditTab; label: string; Icon: typeof RadioTower }> = [
+  { id: "signal", label: "Signal Processing", Icon: RadioTower },
+  { id: "documentation", label: "Documentation", Icon: FileText },
+  { id: "installation", label: "Installation", Icon: Wrench },
+  { id: "device", label: "Device Test", Icon: Zap },
 ];
 
 export function AuditPage({ auditorName }: { auditorName: string }) {
@@ -39,7 +40,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
-      <section className="sticky top-0 z-20 grid gap-3 rounded-lg border bg-white/95 p-4 shadow-sm backdrop-blur">
+      <section className="sticky top-0 z-20 grid gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-lg shadow-slate-200/70 backdrop-blur">
         <div className="grid gap-3 md:grid-cols-6">
           <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
           <input className="min-h-11 rounded-md border px-3" value={audit.ascName} onChange={(e) => update({ ...audit, ascName: e.target.value })} placeholder="ASC" />
@@ -47,24 +48,25 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <input className="min-h-11 rounded-md border px-3" list="code-edition-options" value={audit.codeEdition} onChange={(e) => update({ ...audit, codeEdition: e.target.value })} placeholder="NFPA edition" />
           <datalist id="code-edition-options">{codeEditionOptions.map((option) => <option key={option} value={option} />)}</datalist>
           <input className="min-h-11 rounded-md border bg-slate-100 px-3" value={audit.auditorName} readOnly />
-          <button className="min-h-11 rounded-md bg-signal px-4 py-2 text-center font-semibold text-white" onClick={saveAndReturn}>Save</button>
+          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 py-2 text-center font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700" onClick={saveAndReturn}><Save size={17} />Save</button>
         </div>
         <div className="flex flex-wrap gap-2 rounded-md border bg-white p-2">
-          {auditTabs.map((tab) => (
+          {auditTabs.map(({ Icon, ...tab }) => (
             <button
               key={tab.id}
               type="button"
-              className={`min-h-11 rounded-md px-4 font-semibold transition ${activeTab === tab.id ? "bg-navy text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-md px-4 font-semibold transition ${activeTab === tab.id ? "bg-navy text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
               onClick={() => setActiveTab(tab.id)}
             >
+              <Icon size={17} />
               {tab.label}
             </button>
           ))}
         </div>
       </section>
       <CertificateSummary certificate={primary} />
-      <section className="grid gap-2 rounded-lg border bg-white p-4">
-        <h3 className="font-semibold text-navy">Certificates</h3>
+      <section className="grid gap-2 rounded-lg border bg-white p-4 shadow-sm">
+        <h3 className="flex items-center gap-2 font-semibold text-navy"><ClipboardCheck size={18} className="text-emerald-600" />Certificates</h3>
         {audit.certificates.map((certificate, index) => (
           <label key={certificate.fileName} className="flex items-center gap-3 rounded-md bg-slate-50 p-3">
             <input type="radio" checked={index === audit.primaryCertificateIndex} onChange={() => update({ ...audit, primaryCertificateIndex: index })} />

@@ -1,4 +1,5 @@
 import { ChangeEvent, useState } from "react";
+import { FileCheck2, UploadCloud } from "lucide-react";
 import { parseCertificateText } from "../lib/certificate-parser";
 import { extractDocxText } from "../lib/docx-extract";
 import { ParsedCertificate } from "../lib/types";
@@ -17,14 +18,18 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
   }
 
   return (
-    <div className="rounded-lg border bg-white p-4">
-      <label className="flex min-h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-400 bg-slate-50 px-4 text-center font-semibold text-navy">
-        Upload Certificate (.docx)
+    <div className="rounded-lg border border-white/70 bg-white p-4 shadow-xl shadow-navy/10">
+      <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-sky-300 bg-sky-50 px-4 text-center font-semibold text-navy transition hover:border-signal hover:bg-red-50">
+        <span className="grid h-12 w-12 place-items-center rounded-full bg-navy text-white shadow-md"><UploadCloud size={24} /></span>
+        <span>Upload Certificate (.docx)</span>
         <input className="hidden" type="file" accept=".docx" onChange={upload} />
       </label>
       {message ? <p className="mt-3 text-sm text-signal">{message}</p> : null}
       {draft ? (
         <div className="mt-4 grid gap-3">
+          <div className="flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+            <FileCheck2 size={18} /> Certificate parsed
+          </div>
           {Object.entries(draft)
             .filter(([key]) => key !== "deviceCounts")
             .map(([key, value]) => (
@@ -37,7 +42,7 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
                 />
               </label>
             ))}
-          <button className="min-h-12 rounded-md bg-signal px-4 font-semibold text-white" onClick={() => onParsed(draft)}>
+          <button className="min-h-12 rounded-md bg-signal px-4 font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700" onClick={() => onParsed(draft)}>
             Confirm and Create Audit
           </button>
         </div>
