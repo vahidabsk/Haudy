@@ -66,11 +66,11 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
       </section>
       <CertificateSummary certificate={primary} />
       <section className="grid gap-2 rounded-lg border bg-white p-4 shadow-sm">
-        <h3 className="flex items-center gap-2 font-semibold text-navy"><ClipboardCheck size={18} className="text-emerald-600" />Certificates</h3>
+        <h3 className="flex items-center gap-2 font-semibold text-navy"><ClipboardCheck size={18} className="text-emerald-600" />Certificate</h3>
         {audit.certificates.map((certificate, index) => (
           <label key={certificate.fileName} className="flex items-center gap-3 rounded-md bg-slate-50 p-3">
             <input type="radio" checked={index === audit.primaryCertificateIndex} onChange={() => update({ ...audit, primaryCertificateIndex: index })} />
-            <span>{certificate.fileName} — {certificate.certificateNumber || "No SN"}</span>
+            <span>{certificate.certificateNumber || "Certificate number not detected"}</span>
           </label>
         ))}
       </section>
