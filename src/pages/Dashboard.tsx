@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
+import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
@@ -14,6 +14,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
   const [confirmationGroup, setConfirmationGroup] = useState<AscGroup | null>(null);
+  const [reportGroup, setReportGroup] = useState<AscGroup | null>(null);
 
   useEffect(() => {
     function refresh() {
@@ -70,6 +71,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setConfirmationGroup(group)}>
                       <CalendarCheck size={16} /> Confirmation
                     </button>
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setReportGroup(group)}>
+                      <FileText size={16} /> Report
+                    </button>
                   </div>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
                     <MapPin size={14} />
@@ -97,7 +101,61 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
+      {reportGroup ? (
+        <ReportDialog
+          group={reportGroup}
+          onClose={() => setReportGroup(null)}
+          onCreate={(details) => {
+            const params = new URLSearchParams(details);
+            navigate(`/asc/${encodeURIComponent(reportGroup.key)}/report?${params.toString()}`);
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function ReportDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
+  const [pocName, setPocName] = useState("");
+  const [scn, setScn] = useState("");
+  const [psn, setPsn] = useState("");
+  const ready = pocName.trim() && scn.trim() && psn.trim();
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <form
+        className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (ready) onCreate({ poc: pocName.trim(), scn: scn.trim(), psn: psn.trim() });
+        }}
+      >
+        <div>
+          <h2 className="text-xl font-bold text-navy">Annual Audit Report</h2>
+          <p className="mt-1 text-sm text-slate-600">{group.ascName} - {group.audits.length} selected site{group.audits.length === 1 ? "" : "s"}</p>
+        </div>
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          POC name
+          <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name for the report" autoFocus />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            SCN number
+            <input className="min-h-11 rounded-md border px-3" value={scn} onChange={(event) => setScn(event.target.value)} placeholder="Example: 1" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            PSN number
+            <input className="min-h-11 rounded-md border px-3" value={psn} onChange={(event) => setPsn(event.target.value)} placeholder="Example: 634867" />
+          </label>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancel</button>
+          <button type="submit" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={!ready}>
+            <FileText size={16} /> Create Report
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

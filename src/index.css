@@ -428,6 +428,101 @@ textarea {
   width: 2.8in;
 }
 
+.report-page,
+.report-page * {
+  box-sizing: border-box;
+}
+
+.report-page {
+  position: relative;
+  width: 8.5in;
+  min-height: 11in;
+  margin: 0 auto 24px;
+  padding: 0.62in 0.78in 0.62in;
+  break-after: page;
+  page-break-after: always;
+  overflow: visible;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+}
+
+.report-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.report-letter {
+  font-size: 12.8px;
+  line-height: 1.28;
+}
+
+.report-letter p {
+  margin: 0 0 0.18in;
+}
+
+.report-late {
+  padding-top: 0.08in;
+}
+
+.report-signature {
+  margin-top: 0.34in !important;
+}
+
+.report-comments-page {
+  padding-top: 0.42in;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.report-comments-page h1 {
+  margin: 0;
+  text-align: center;
+  text-decoration: underline;
+  font-size: 16px;
+}
+
+.report-comments-intro {
+  margin: 0.06in 0 0.12in;
+  padding-bottom: 0.08in;
+  border-bottom: 3px solid #000;
+  text-align: center;
+}
+
+.report-audit-block {
+  margin: 0 0 0.22in;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-property {
+  margin: 0 0 0.16in;
+  line-height: 1.35;
+}
+
+.report-review-section h2 {
+  margin: 0.2in 0 0.16in;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.report-finding {
+  margin: 0 0 0.2in 0.5in;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-finding h3 {
+  margin: 0 0 0.08in -0.5in;
+  font-size: 13px;
+  font-weight: 400;
+  text-decoration: underline;
+}
+
+.report-finding p {
+  margin: 0 0 0.08in;
+}
+
 @media print {
   @page {
     size: letter;
@@ -456,6 +551,11 @@ textarea {
   }
 
   .confirmation-page {
+    margin: 0;
+    box-shadow: none !important;
+  }
+
+  .report-page {
     margin: 0;
     box-shadow: none !important;
   }

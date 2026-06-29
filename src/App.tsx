@@ -7,6 +7,7 @@ import { AscPropertiesPage, Dashboard } from "./pages/Dashboard";
 import { AuditPage } from "./pages/Audit";
 import { ExportPage } from "./pages/Export";
 import { ConfirmationPage } from "./pages/Confirmation";
+import { ReportPage } from "./pages/Report";
 
 export default function App() {
   const auditor = useAuditor();
@@ -53,6 +54,7 @@ export default function App() {
       <UlHeader auditor={auditor.auditor} onChange={() => auditor.setAuditorName("")} />
       <Routes>
         <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
+        <Route path="/asc/:ascKey/report" element={<ReportPage auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/asc/:ascKey/confirmation" element={<ConfirmationPage auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/asc/:ascKey" element={<AscPropertiesPage auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/audit/:auditId" element={<AuditPage auditorName={auditor.auditor?.name || ""} />} />
