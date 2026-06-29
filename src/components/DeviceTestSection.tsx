@@ -9,6 +9,7 @@ const deviceTypes = ["Smoke Detector (SD)", "Heat Detector (HD)", "Duct Detector
 export function DeviceTestSection({ rows, onChange }: { rows: DeviceTestRow[]; onChange: (rows: DeviceTestRow[]) => void }) {
   return (
     <section className="grid gap-4">
+      <h2 className="text-lg font-semibold text-navy">Device Testing</h2>
       {rows.map((row) => (
         <div key={row.id} className="grid gap-3 rounded-lg border bg-white p-4">
           <div className="grid gap-3 md:grid-cols-3">

@@ -25,7 +25,7 @@ textarea {
   width: 8.5in;
   min-height: 11in;
   margin: 0 auto 24px;
-  padding: 0.45in 0.26in 0.35in;
+  padding: 0.42in 0.26in 0.35in;
   font-family: "Times New Roman", Times, serif;
   font-size: 14px;
   line-height: 1.12;
@@ -34,7 +34,7 @@ textarea {
 }
 
 .field-title {
-  margin: 0 0 0.55in;
+  margin: 0 0 0.46in;
   text-align: center;
   font-size: 21px;
   font-weight: 700;
@@ -42,7 +42,7 @@ textarea {
 
 .field-header {
   display: grid;
-  gap: 0.16in;
+  gap: 0.13in;
   margin-bottom: 0.14in;
   font-size: 16px;
   font-weight: 700;
@@ -59,6 +59,10 @@ textarea {
   overflow: hidden;
 }
 
+.field-header > div {
+  white-space: nowrap;
+}
+
 .field-table {
   width: 100%;
   border-collapse: collapse;
@@ -69,7 +73,7 @@ textarea {
 .field-table th,
 .field-table td {
   border: 1px solid #000;
-  padding: 2px 6px;
+  padding: 2px 5px;
   vertical-align: top;
 }
 
@@ -82,7 +86,9 @@ textarea {
 }
 
 .field-subhead {
+  font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .thick-row td {

@@ -36,7 +36,7 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
       </div>
       <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>
         <SignalReview audit={audit} />
-        <Checklist title="Documentation Reviewed:" rows={audit.documentation} codeEdition={audit.codeEdition} />
+        <Checklist title="Documentation Reviewed:" rows={audit.documentation} codeEdition={audit.codeEdition} reviewed={audit.documentationReviewed} />
         <CommentsBox comments={audit.comments} />
       </FieldNotesPage>
       <FieldNotesPage pageNumber={2} totalPages={totalPages} audit={audit} showTitle>
@@ -44,10 +44,11 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
           title="Installation Reviewed:"
           rows={audit.installation}
           codeEdition={audit.codeEdition}
+          reviewed={audit.installationReviewed}
           extraHeader={
             <>
-              <span>Installation Matches Certificate Declarations?</span> <Check checked={audit.matchesCertificate} /> OK <Check checked={!audit.matchesCertificate} /> VAR
-              <span className="ml-6">Certificate Displayed?</span> <Check checked={audit.certificateDisplayed} /> OK <Check checked={!audit.certificateDisplayed} /> VAR <Check checked={false} /> N/A
+              <span>Installation Matches Certificate Declarations?</span> <StatusCheck status={audit.matchesCertificateStatus} match="OK" /> OK <StatusCheck status={audit.matchesCertificateStatus} match="VAR" /> VAR
+              <span className="ml-6">Certificate Displayed?</span> <StatusCheck status={audit.certificateDisplayedStatus} match="OK" /> OK <StatusCheck status={audit.certificateDisplayedStatus} match="VAR" /> VAR <StatusCheck status={audit.certificateDisplayedStatus} match="NA" /> N/A
             </>
           }
         />
@@ -93,14 +94,14 @@ function SignalReview({ audit }: { audit: Audit }) {
       <tbody>
         <tr className="thick-row">
           <td colSpan={4} className="field-subhead">
-            Signal Processing Reviewed: <Check checked={audit.signalLog.some(hasSignalContent)} /> YES <Check checked={!audit.signalLog.some(hasSignalContent)} /> NO
-            <span className="ml-12">SIGNAL PROCESSING REVIEW PERIOD:</span><Line width="1.35in" /> TO: <Line width="1.35in" />
+            Signal Processing Reviewed: <Check checked={audit.signalProcessingReviewed} /> YES <Check checked={!audit.signalProcessingReviewed} /> NO
+            <span className="ml-12">SIGNAL PROCESSING REVIEW PERIOD:</span><Line value={audit.signalReviewStart} width="1.35in" /> TO: <Line value={audit.signalReviewEnd} width="1.35in" />
           </td>
         </tr>
         <tr className="thick-row">
           <td colSpan={4} className="field-subhead">
             # of Alarms (A) = {alarms || ""}<span className="ml-24"># of Supervisory (S) = {supervisory || ""}</span><span className="ml-24"># of Troubles (T) = {troubles || ""}</span>
-            <span className="float-right">Auto Tests = <Check checked={false} /> OK <Check checked={false} /> VAR</span>
+            <span className="float-right">Auto Tests = <StatusCheck status={audit.autoTestsStatus} match="OK" /> OK <StatusCheck status={audit.autoTestsStatus} match="VAR" /> VAR</span>
           </td>
         </tr>
         <tr className="field-table-head">
@@ -122,13 +123,13 @@ function SignalReview({ audit }: { audit: Audit }) {
   );
 }
 
-function Checklist({ title, rows, codeEdition, extraHeader }: { title: string; rows: AuditRow[]; codeEdition: string; extraHeader?: ReactNode }) {
+function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title: string; rows: AuditRow[]; codeEdition: string; reviewed: boolean; extraHeader?: ReactNode }) {
   return (
     <table className="field-table checklist-table">
       <tbody>
         <tr className="thick-row">
           <td colSpan={6} className="field-subhead">
-            {title} <Check checked={rows.some((row) => row.status)} /> YES <Check checked={!rows.some((row) => row.status)} /> NO
+            {title} <Check checked={reviewed} /> YES <Check checked={!reviewed} /> NO
             {extraHeader ? <span className="ml-8">{extraHeader}</span> : <span className="ml-12">KEY: <b>OK</b> = In Conformance <span className="ml-4"><b>VAR</b> = Variations Noted</span> <span className="ml-4"><b>N/A</b> = Not Applicable</span> <span className="ml-4"><b>N/R</b> = Not Reviewed</span></span>}
           </td>
         </tr>
@@ -271,7 +272,6 @@ interface PhotoAttachment {
 
 function photoAttachments(audit: Audit): PhotoAttachment[] {
   return [
-    ...rowPhotos("Documentation", audit.documentation),
     ...rowPhotos("Installation", audit.installation),
     ...audit.deviceTests.flatMap((row, index) =>
       row.photos.map((id) => ({ id, section: "Device Testing", label: [row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ") || `Device row ${index + 1}` }))

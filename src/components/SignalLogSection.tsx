@@ -11,6 +11,7 @@ export function SignalLogSection({ rows, onChange }: { rows: SignalLogRow[]; onC
   };
   return (
     <section className="grid gap-4">
+      <h2 className="text-lg font-semibold text-navy">Signal Review Rows</h2>
       <div className="grid grid-cols-3 gap-3">
         <Counter label="Alarms" value={counts.Alarm} className="bg-emerald-50 text-emerald-800" />
         <Counter label="Supervisory" value={counts.Supervisory} className="bg-amber-50 text-amber-800" />

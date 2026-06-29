@@ -22,7 +22,7 @@ export function RowSection({ title, rows, auditorName, onChange, photoRequired }
           />
           <StatusButtons value={row.status} onChange={(status) => patch(rows, row.id, { status, updatedBy: auditorName }, onChange)} />
           <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes, updatedBy: auditorName }, onChange)} />
-          <PhotoCapture photos={row.photos} onChange={(photos) => patch(rows, row.id, { photos, updatedBy: auditorName }, onChange)} required={photoRequired} />
+          {photoRequired ? <PhotoCapture photos={row.photos} onChange={(photos) => patch(rows, row.id, { photos, updatedBy: auditorName }, onChange)} required /> : null}
           <div className="text-xs text-slate-500">Updated by {row.updatedBy || auditorName}</div>
         </div>
       ))}

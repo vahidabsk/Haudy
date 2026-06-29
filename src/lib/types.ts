@@ -1,4 +1,6 @@
 export type StatusCode = "OK" | "VAR" | "NA" | "NR";
+export type ReviewStatus = "OK" | "VAR";
+export type DisplayStatus = "OK" | "VAR" | "NA";
 export type SignalType = "Alarm" | "Supervisory" | "Trouble";
 
 export interface ParsedCertificate {
@@ -96,6 +98,14 @@ export interface Audit {
   fileScn: string;
   protectedProperty: string;
   codeEdition: string;
+  signalProcessingReviewed: boolean;
+  signalReviewStart: string;
+  signalReviewEnd: string;
+  autoTestsStatus: ReviewStatus | "";
+  documentationReviewed: boolean;
+  installationReviewed: boolean;
+  matchesCertificateStatus: ReviewStatus | "";
+  certificateDisplayedStatus: DisplayStatus | "";
   certificates: ParsedCertificate[];
   primaryCertificateIndex: number;
   matchesCertificate: boolean;
