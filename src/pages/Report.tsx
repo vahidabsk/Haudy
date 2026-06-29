@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { Audit } from "../lib/types";
-import { bestFinding, collectVariationCandidates, VariationCandidate } from "../lib/report-findings";
+import { bestFinding, collectVariationCandidates, noFindingSelectedId, VariationCandidate } from "../lib/report-findings";
 
 export function ReportPage({ auditorName }: { auditorName: string }) {
   const { ascKey = "" } = useParams();
@@ -26,7 +26,7 @@ export function ReportPage({ auditorName }: { auditorName: string }) {
 
 function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscGroup; auditorName: string; pocName: string; scn: string; psn: string }) {
   const candidates = useMemo(() => collectVariationCandidates(group.audits), [group.audits]);
-  const [selected, setSelected] = useState<Record<string, string>>(() => Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.matches[0]?.finding.Finding_ID || ""])));
+  const [selected, setSelected] = useState<Record<string, string>>(() => Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.matches[0]?.finding.Finding_ID || noFindingSelectedId])));
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -39,11 +39,13 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
     };
   }, [reportName]);
 
-  const numbered = candidates.map((candidate, index) => ({
+  const candidateResults = candidates.map((candidate, index) => ({
     candidate,
     finding: bestFinding(candidate, selected[candidate.id]),
     number: index + 1,
-  })).filter((item) => item.finding);
+  }));
+  const numbered = candidateResults.filter((item): item is { candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number } => Boolean(item.finding));
+  const unmatched = candidateResults.filter((item) => !item.finding).map((item) => item.candidate);
 
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
@@ -56,7 +58,7 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
         </div>
         <div>
           <h2 className="text-xl font-bold text-navy">Report Findings Review</h2>
-          <p className="mt-1 text-sm text-slate-600">{candidates.length} variation{candidates.length === 1 ? "" : "s"} found. Haudy selected the best match from the findings database.</p>
+          <p className="mt-1 text-sm text-slate-600">{candidates.length} variation{candidates.length === 1 ? "" : "s"} found. Haudy matches only findings with the same NFPA edition when available.</p>
         </div>
         {candidates.length ? (
           <div className="grid gap-3">
@@ -64,10 +66,14 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
               <div key={candidate.id} className="grid gap-2 rounded-md border bg-slate-50 p-3">
                 <div className="text-sm font-semibold text-navy">{candidate.audit.protectedProperty} - {candidate.reviewType} - {candidate.category}</div>
                 <div className="text-sm text-slate-600">{candidate.notes || "No note entered."}</div>
-                <select className="min-h-11 rounded-md border bg-white px-3 text-sm" value={selected[candidate.id] || ""} onChange={(event) => setSelected((current) => ({ ...current, [candidate.id]: event.target.value }))}>
+                {!candidate.matches.length ? (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">Haudy was not able to find a good finding match. This review item will stay blank in the report until a match is available.</div>
+                ) : null}
+                <select className="min-h-11 rounded-md border bg-white px-3 text-sm" value={selected[candidate.id] || noFindingSelectedId} onChange={(event) => setSelected((current) => ({ ...current, [candidate.id]: event.target.value }))}>
+                  <option value={noFindingSelectedId}>No good match found - leave blank</option>
                   {candidate.matches.map((match) => (
                     <option key={match.finding.Finding_ID} value={match.finding.Finding_ID}>
-                      {match.finding.Finding_ID} - {match.finding.Category || match.finding.Review_Type} - {match.finding.Finding_Type}
+                      {match.finding.Finding_ID} - NFPA {match.finding.Edition} - {match.finding.Category || match.finding.Review_Type} - {match.finding.Finding_Type}
                     </option>
                   ))}
                 </select>
@@ -81,7 +87,7 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
 
       <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditorName={auditorName} />
-      <AuditCommentsPage group={group} numbered={numbered} />
+      <AuditCommentsPage group={group} numbered={numbered} unmatched={unmatched} />
     </main>
   );
 }
@@ -129,19 +135,20 @@ function LateResponsePage({ auditorName }: { auditorName: string }) {
   );
 }
 
-function AuditCommentsPage({ group, numbered }: { group: AscGroup; numbered: Array<{ candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number }> }) {
+function AuditCommentsPage({ group, numbered, unmatched }: { group: AscGroup; numbered: Array<{ candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number }>; unmatched: VariationCandidate[] }) {
   return (
     <section className="report-page report-comments-page print-page bg-white text-black shadow-sm print:shadow-none">
       <h1>Audit Comments</h1>
       <p className="report-comments-intro">Provide in your response to this report a brief description of the action taken to correct any issues noted below.</p>
       {group.audits.map((audit) => {
         const auditFindings = numbered.filter((item) => item.candidate.audit.id === audit.id);
+        const auditCandidatesWithoutMatch = unmatched.filter((candidate) => candidate.audit.id === audit.id);
         const certificate = primaryCertificate(audit);
         return (
           <div key={audit.id} className="report-audit-block">
             <p className="report-property"><b>SN: {audit.certificateNumber}</b><br /><b>CCN: {certificate?.categoryCode || ""}</b><br /><b>{audit.protectedProperty}</b><br /><b>{certificate?.propertyAddress || ""}</b></p>
             {["Documentation Review", "Installation Review", "Signal Processing Review", "Device Test"].map((section) => (
-              <ReportSection key={section} title={section} items={auditFindings.filter((item) => item.candidate.reviewType === section)} />
+              <ReportSection key={section} title={section} items={auditFindings.filter((item) => item.candidate.reviewType === section)} unmatched={auditCandidatesWithoutMatch.filter((candidate) => candidate.reviewType === section)} />
             ))}
           </div>
         );
@@ -151,12 +158,15 @@ function AuditCommentsPage({ group, numbered }: { group: AscGroup; numbered: Arr
   );
 }
 
-function ReportSection({ title, items }: { title: string; items: Array<{ candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number }> }) {
-  if (!items.length && title !== "Documentation Review" && title !== "Installation Review") return null;
+function ReportSection({ title, items, unmatched }: { title: string; items: Array<{ candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number }>; unmatched: VariationCandidate[] }) {
+  if (!items.length && !unmatched.length && title !== "Documentation Review" && title !== "Installation Review") return null;
   return (
     <div className="report-review-section">
       <h2>----{title}----</h2>
-      {!items.length ? <p>** No non-compliance issues were identified during the audit.</p> : null}
+      {!items.length && !unmatched.length ? <p>** No non-compliance issues were identified during the audit.</p> : null}
+      {unmatched.map((candidate) => (
+        <p key={candidate.id} className="report-unmatched">Haudy was not able to find a good finding match for: {candidate.category}{candidate.notes ? ` - ${candidate.notes}` : ""}</p>
+      ))}
       {items.map((item) => (
         <div key={item.candidate.id} className="report-finding">
           <h3>{item.candidate.category}</h3>

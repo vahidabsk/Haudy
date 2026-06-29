@@ -523,6 +523,11 @@ textarea {
   margin: 0 0 0.08in;
 }
 
+.report-unmatched {
+  margin: 0.08in 0 0.12in;
+  font-style: italic;
+}
+
 @media print {
   @page {
     size: letter;

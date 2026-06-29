@@ -16,6 +16,8 @@ export interface FindingMatch {
   score: number;
 }
 
+export const minimumReportMatchScore = 0.42;
+
 export function collectVariationCandidates(audits: Audit[]): VariationCandidate[] {
   return audits.flatMap((audit) => [
     ...audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalVariation(audit, row)),
@@ -26,6 +28,7 @@ export function collectVariationCandidates(audits: Audit[]): VariationCandidate[
 }
 
 export function bestFinding(candidate: VariationCandidate, selectedId?: string) {
+  if (selectedId === noFindingSelectedId) return undefined;
   return findingsDatabase.find((finding) => finding.Finding_ID === selectedId) || candidate.matches[0]?.finding;
 }
 
@@ -38,9 +41,13 @@ export function matchFindings(candidate: Omit<VariationCandidate, "matches">): F
   ].join(" ");
   const queryTokens = tokens(query);
 
-  return findingsDatabase
+  const edition = editionYear(candidate.codeEdition);
+  const editionMatches = edition ? findingsDatabase.filter((finding) => finding.Edition === edition) : [];
+  const searchRecords = editionMatches.length ? editionMatches : findingsDatabase;
+
+  return searchRecords
     .map((finding) => ({ finding, score: scoreFinding(finding, candidate, queryTokens, query.toLowerCase()) }))
-    .filter((match) => match.score > 0)
+    .filter((match) => match.score >= minimumReportMatchScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, 8);
 }
@@ -95,13 +102,18 @@ function scoreFinding(finding: FindingRecord, candidate: Omit<VariationCandidate
 
   if (candidate.reviewType && haystack.includes(candidate.reviewType.toLowerCase())) score += 0.35;
   if (candidate.category && haystack.includes(candidate.category.toLowerCase())) score += 0.25;
-  if (candidate.codeEdition && finding.Edition && candidate.codeEdition.includes(finding.Edition)) score += 0.15;
 
   for (const phrase of phraseBoosts) {
     if (query.includes(phrase) && haystack.includes(phrase)) score += 0.22;
   }
 
   return score;
+}
+
+export const noFindingSelectedId = "__NO_FINDING__";
+
+function editionYear(value: string) {
+  return value.match(/\b(19|20)\d{2}\b/)?.[0] || "";
 }
 
 const phraseBoosts = [
