@@ -37,9 +37,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   </div>
                   <p className="text-xs text-slate-500">Updated {relativeTime(audit.updatedAt)}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Link className="min-h-11 rounded-md bg-navy px-4 py-2 text-center font-semibold text-white" to={`/audit/${audit.id}`}>Edit Field Note</Link>
-                    <Link className="min-h-11 rounded-md border bg-white px-4 py-2 text-center" to={`/audit/${audit.id}/export`}>Export Field Note</Link>
-                    <button className="min-h-11 rounded-md border bg-white px-4 py-2" onClick={() => audits.deleteAudit(audit.id)}>Delete Field Note</button>
+                    <Link className="min-h-11 rounded-md bg-sky-700 px-4 py-2 text-center font-semibold text-white shadow-sm hover:bg-sky-800" to={`/audit/${audit.id}`}>Edit Field Note</Link>
+                    <Link className="min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-center font-semibold text-white shadow-sm hover:bg-emerald-800" to={`/audit/${audit.id}/export`}>Export Field Note</Link>
+                    <button className="min-h-11 rounded-md bg-red-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-red-800" onClick={() => audits.deleteAudit(audit.id)}>Delete Field Note</button>
                   </div>
                 </article>
               ))}
