@@ -1,7 +1,6 @@
 import { ChangeEvent, useState } from "react";
 import { parseCertificateText } from "../lib/certificate-parser";
 import { extractDocxText } from "../lib/docx-extract";
-import { extractPdfText } from "../lib/pdf-extract";
 import { ParsedCertificate } from "../lib/types";
 
 export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCertificate) => void }) {
@@ -11,7 +10,7 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const text = file.name.toLowerCase().endsWith(".docx") ? await extractDocxText(file) : await extractPdfText(file);
+    const text = await extractDocxText(file);
     const parsed = parseCertificateText(text, file.name);
     setDraft(parsed);
     setMessage(text.trim() ? "" : "No fields automatically detected. Fill manually before confirming.");
@@ -20,8 +19,8 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
   return (
     <div className="rounded-lg border bg-white p-4">
       <label className="flex min-h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-slate-400 bg-slate-50 px-4 text-center font-semibold text-navy">
-        Upload Certificate (.docx or .pdf)
-        <input className="hidden" type="file" accept=".docx,.pdf" onChange={upload} />
+        Upload Certificate (.docx)
+        <input className="hidden" type="file" accept=".docx" onChange={upload} />
       </label>
       {message ? <p className="mt-3 text-sm text-signal">{message}</p> : null}
       {draft ? (

@@ -31,7 +31,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
       <section className="rounded-xl bg-reserve p-6">
         <h2 className="text-2xl font-bold text-navy">Upload Certificate</h2>
-        <p className="mt-2 max-w-2xl text-slate-700">Start a fire alarm system audit by uploading the DOCX certificate. PDF extraction is best-effort.</p>
+        <p className="mt-2 max-w-2xl text-slate-700">Start a fire alarm system audit by uploading the DOCX certificate.</p>
         <div className={`mt-4 rounded-md border px-3 py-2 text-sm font-medium ${offlineReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
           {offlineReady ? "Offline ready on this device" : online ? "Preparing offline access. Keep this screen open online until ready." : "Offline access is not ready on this device yet."}
         </div>
