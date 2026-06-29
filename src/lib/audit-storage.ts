@@ -5,7 +5,6 @@ const AUDITOR_KEY = "haudy.auditor";
 const AUDITS_KEY = "haudy.audits";
 
 export const documentationElements = [
-  "NFPA 72 2010 Edition",
   "Record Drawings (As Builts)",
   "Battery Calculations",
   "Initial Acceptance Test (IAT)",
@@ -16,12 +15,9 @@ export const documentationElements = [
   "Contracts",
   "Service Records",
   "Owners Manuals",
-  "Codes and Standards",
-  "",
 ];
 
 export const installationElements = [
-  "NFPA 72 2010 Edition",
   "Compatible / Listed Equipment",
   "Control & Sub Control(s)",
   "Transmitter / Communicator",
@@ -38,8 +34,6 @@ export const installationElements = [
   "Waterflow Devices (WF)",
   "Sprinkler Supervisory (SS)",
   "Notification Appliances (NAC)",
-  "",
-  "",
 ];
 
 export function loadAuditor(): Auditor | null {
@@ -80,7 +74,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     signalLog: [{ id: uid("signal"), signalType: "", date: "", time: "", description: "", notes: "", updatedAt: now }],
     documentation: documentationElements.map((element) => row(element, auditorName, now)),
     installation: installationElements.map((element) => row(element, auditorName, now)),
-    deviceTests: Array.from({ length: 20 }, () => deviceRow(now)),
+    deviceTests: [deviceRow(now)],
     comments: certificate.systemDeviations || "",
     editedFields: {},
   };
@@ -125,7 +119,9 @@ function normalizeAudit(audit: Audit): Audit {
 }
 
 function normalizeRows(rows: AuditRow[], elements: string[], auditorName: string, updatedAt: string) {
-  return elements.map((element) => rows.find((item) => item.element === element) || row(element, auditorName, updatedAt));
+  const fixedRows = elements.map((element) => rows.find((item) => item.element === element) || row(element, auditorName, updatedAt));
+  const customRows = rows.filter((item) => item.element && !elements.includes(item.element) && !item.element.startsWith("NFPA"));
+  return [...fixedRows, ...customRows];
 }
 
 function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {
@@ -138,8 +134,7 @@ function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {
     trouble: item.trouble ?? item.signalType === "Trouble",
     notApplicable: item.notApplicable ?? false,
   }));
-  while (normalized.length < 20) normalized.push(deviceRow(updatedAt));
-  return normalized;
+  return normalized.length ? normalized : [deviceRow(updatedAt)];
 }
 
 function readJson<T>(key: string, fallback: T): T {

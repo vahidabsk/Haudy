@@ -8,6 +8,8 @@ import { useAudits } from "../hooks/use-audits";
 import { Audit } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
+const codeEditionOptions = ["NFPA 72-2002", "NFPA 72-2007", "NFPA 72 2010 Edition", "NFPA 72-2013", "NFPA 72-2016", "NFPA 72-2019", "NFPA 72-2022"];
+
 export function AuditPage({ auditorName }: { auditorName: string }) {
   const { auditId } = useParams();
   const store = useAudits(auditorName);
@@ -21,10 +23,12 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const primary = audit.certificates[audit.primaryCertificateIndex];
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
-      <section className="sticky top-0 z-10 grid gap-3 rounded-lg border bg-white/95 p-4 shadow-sm backdrop-blur md:grid-cols-5">
+      <section className="sticky top-0 z-10 grid gap-3 rounded-lg border bg-white/95 p-4 shadow-sm backdrop-blur md:grid-cols-6">
         <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
         <input className="min-h-11 rounded-md border px-3" value={audit.ascName} onChange={(e) => update({ ...audit, ascName: e.target.value })} placeholder="ASC" />
         <input className="min-h-11 rounded-md border px-3" value={audit.fileScn} onChange={(e) => update({ ...audit, fileScn: e.target.value })} placeholder="File / SCN" />
+        <input className="min-h-11 rounded-md border px-3" list="code-edition-options" value={audit.codeEdition} onChange={(e) => update({ ...audit, codeEdition: e.target.value })} placeholder="NFPA edition" />
+        <datalist id="code-edition-options">{codeEditionOptions.map((option) => <option key={option} value={option} />)}</datalist>
         <input className="min-h-11 rounded-md border px-3 bg-slate-100" value={audit.auditorName} readOnly />
         <Link className="min-h-11 rounded-md bg-signal px-4 py-2 text-center font-semibold text-white" to={`/audit/${audit.id}/export`}>Export</Link>
       </section>

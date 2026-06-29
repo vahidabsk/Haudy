@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { ReactNode } from "react";
 import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
+import { loadPhoto } from "../lib/photo-store";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow, StatusCode } from "../lib/types";
 
 const deviceRowsPage2 = 20;
@@ -24,21 +25,25 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
     URL.revokeObjectURL(url);
   }
 
+  const attachmentRows = photoAttachments(audit);
+  const totalPages = 3 + Math.ceil(attachmentRows.length / 4);
+
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
       <div className="no-print mb-4 flex justify-end gap-2">
         <button className="min-h-11 rounded-md border px-4" onClick={csv}>Download CSV</button>
         <button className="min-h-11 rounded-md bg-navy px-4 font-semibold text-white" onClick={() => window.print()}>Print PDF</button>
       </div>
-      <FieldNotesPage pageNumber={1} totalPages={3} audit={audit} showTitle>
+      <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>
         <SignalReview audit={audit} />
-        <Checklist title="Documentation Reviewed:" rows={audit.documentation} />
+        <Checklist title="Documentation Reviewed:" rows={audit.documentation} codeEdition={audit.codeEdition} />
         <CommentsBox comments={audit.comments} />
       </FieldNotesPage>
-      <FieldNotesPage pageNumber={2} totalPages={3} audit={audit} showTitle>
+      <FieldNotesPage pageNumber={2} totalPages={totalPages} audit={audit} showTitle>
         <Checklist
           title="Installation Reviewed:"
           rows={audit.installation}
+          codeEdition={audit.codeEdition}
           extraHeader={
             <>
               <span>Installation Matches Certificate Declarations?</span> <Check checked={audit.matchesCertificate} /> OK <Check checked={!audit.matchesCertificate} /> VAR
@@ -49,9 +54,12 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
         <DeviceTable rows={audit.deviceTests.slice(0, deviceRowsPage2)} localSystem />
         <CommentsBox comments="" compact />
       </FieldNotesPage>
-      <FieldNotesPage pageNumber={3} totalPages={3} audit={audit}>
+      <FieldNotesPage pageNumber={3} totalPages={totalPages} audit={audit}>
         <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} includeNa />
       </FieldNotesPage>
+      {chunk(attachmentRows, 4).map((rows, index) => (
+        <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={4 + index} totalPages={totalPages} />
+      ))}
     </main>
   );
 }
@@ -114,7 +122,7 @@ function SignalReview({ audit }: { audit: Audit }) {
   );
 }
 
-function Checklist({ title, rows, extraHeader }: { title: string; rows: AuditRow[]; extraHeader?: ReactNode }) {
+function Checklist({ title, rows, codeEdition, extraHeader }: { title: string; rows: AuditRow[]; codeEdition: string; extraHeader?: ReactNode }) {
   return (
     <table className="field-table checklist-table">
       <tbody>
@@ -132,13 +140,21 @@ function Checklist({ title, rows, extraHeader }: { title: string; rows: AuditRow
           <th className="vertical-head">N/R</th>
           <th className="text-left">Comments and / or Variations Noted - Variations shall be included in report</th>
         </tr>
-        {rows.map((row) => (
-          <tr key={row.id} className={row.element.startsWith("NFPA") ? "code-row" : "field-small-row"}>
-            <td><span className={row.element.startsWith("NFPA") ? "code-label" : ""}>{row.element}</span></td>
-            <td>{row.element.startsWith("NFPA") ? "" : <StatusCheck status={row.status} match="OK" />}</td>
-            <td>{row.element.startsWith("NFPA") ? "" : <StatusCheck status={row.status} match="VAR" />}</td>
-            <td>{row.element.startsWith("NFPA") ? "" : <StatusCheck status={row.status} match="NA" />}</td>
-            <td>{row.element.startsWith("NFPA") ? "" : <StatusCheck status={row.status} match="NR" />}</td>
+        <tr className="code-row">
+          <td><span className="code-label">{codeEdition || "NFPA 72"}</span></td>
+          <td />
+          <td />
+          <td />
+          <td />
+          <td />
+        </tr>
+        {rows.filter((row) => row.element.trim()).map((row) => (
+          <tr key={row.id} className="field-small-row">
+            <td>{row.element}</td>
+            <td><StatusCheck status={row.status} match="OK" /></td>
+            <td><StatusCheck status={row.status} match="VAR" /></td>
+            <td><StatusCheck status={row.status} match="NA" /></td>
+            <td><StatusCheck status={row.status} match="NR" /></td>
             <td>{row.notes}</td>
           </tr>
         ))}
@@ -195,6 +211,27 @@ function Footer({ pageNumber, totalPages }: { pageNumber: number; totalPages: nu
   );
 }
 
+function AttachmentPage({ audit, rows, pageNumber, totalPages }: { audit: Audit; rows: PhotoAttachment[]; pageNumber: number; totalPages: number }) {
+  return (
+    <section className="print-page field-page bg-white text-black shadow-sm print:shadow-none">
+      <Header audit={audit} />
+      <h2 className="attachment-title">Photo Attachments</h2>
+      <div className="attachment-grid">
+        {rows.map((row) => (
+          <figure key={row.id} className="attachment-card">
+            <img src={loadPhoto(row.id)} alt="" />
+            <figcaption>
+              <b>{row.section}</b>
+              <span>{row.label}</span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      <Footer pageNumber={pageNumber} totalPages={totalPages} />
+    </section>
+  );
+}
+
 function Line({ value = "", width }: { value?: string; width: string }) {
   return <span className="field-line" style={{ width }}>{value}</span>;
 }
@@ -224,4 +261,30 @@ function padSignalRows(rows: SignalLogRow[], size: number) {
 
 function padDeviceRows(rows: DeviceTestRow[], size: number) {
   return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-device-${index}`, deviceType: "", location: "", deviceId: "", signalType: "" as const, functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "" as const, notes: "", photos: [], updatedAt: "" }))].slice(0, size);
+}
+
+interface PhotoAttachment {
+  id: string;
+  section: string;
+  label: string;
+}
+
+function photoAttachments(audit: Audit): PhotoAttachment[] {
+  return [
+    ...rowPhotos("Documentation", audit.documentation),
+    ...rowPhotos("Installation", audit.installation),
+    ...audit.deviceTests.flatMap((row, index) =>
+      row.photos.map((id) => ({ id, section: "Device Testing", label: [row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ") || `Device row ${index + 1}` }))
+    ),
+  ];
+}
+
+function rowPhotos(section: string, rows: AuditRow[]): PhotoAttachment[] {
+  return rows.flatMap((row) => row.photos.map((id) => ({ id, section, label: row.element || "Additional row" })));
+}
+
+function chunk<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
 }
