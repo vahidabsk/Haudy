@@ -48,7 +48,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <input className="min-h-11 rounded-md border px-3" list="code-edition-options" value={audit.codeEdition} onChange={(e) => update({ ...audit, codeEdition: e.target.value })} placeholder="NFPA edition" />
           <datalist id="code-edition-options">{codeEditionOptions.map((option) => <option key={option} value={option} />)}</datalist>
           <input className="min-h-11 rounded-md border bg-slate-100 px-3" value={audit.auditorName} readOnly />
-          <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-signal px-4 py-2 text-center font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700" onClick={saveAndReturn}><Save size={17} />Save</button>
+          <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
         </div>
         <div className="flex flex-wrap gap-2 rounded-md border bg-white p-2">
           {auditTabs.map(({ Icon, ...tab }) => (

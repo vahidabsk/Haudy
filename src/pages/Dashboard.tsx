@@ -79,9 +79,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   </div>
                   <p className="text-xs text-slate-500">Updated {relativeTime(audit.updatedAt)}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Link className="inline-flex min-h-11 items-center gap-2 rounded-md bg-sky-700 px-4 py-2 text-center font-semibold text-white shadow-sm hover:bg-sky-800" to={`/audit/${audit.id}`}><FilePenLine size={17} /> Edit Field Note</Link>
-                    <Link className="inline-flex min-h-11 items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-center font-semibold text-white shadow-sm hover:bg-emerald-800" to={`/audit/${audit.id}/export`}><Download size={17} /> Export Field Note</Link>
-                    <button className="inline-flex min-h-11 items-center gap-2 rounded-md bg-red-700 px-4 py-2 font-semibold text-white shadow-sm hover:bg-red-800" onClick={() => audits.deleteAudit(audit.id)}><Trash2 size={17} /> Delete Field Note</button>
+                    <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit Field Note</Link>
+                    <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" to={`/audit/${audit.id}/export`}><Download size={16} /> Export Field Note</Link>
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => audits.deleteAudit(audit.id)}><Trash2 size={16} /> Delete Field Note</button>
                   </div>
                 </article>
               ))}

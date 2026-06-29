@@ -42,7 +42,7 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
                 />
               </label>
             ))}
-          <button className="min-h-12 rounded-md bg-signal px-4 font-semibold text-white hover:bg-red-700" onClick={() => onParsed(draft)}>
+          <button className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => onParsed(draft)}>
             Confirm and Create Audit
           </button>
         </div>

@@ -31,8 +31,8 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
       <div className="no-print mb-4 flex justify-end gap-2">
-        <button className="min-h-11 rounded-md border px-4" onClick={csv}>Download CSV</button>
-        <button className="min-h-11 rounded-md bg-navy px-4 font-semibold text-white" onClick={() => window.print()}>Print PDF</button>
+        <button className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={csv}>Download CSV</button>
+        <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
       </div>
       <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>
         <SignalReview audit={audit} />

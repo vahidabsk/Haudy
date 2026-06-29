@@ -25,7 +25,7 @@ export function AuditorGate({ auditor, onSave, children }: { auditor: Auditor | 
               placeholder="Auditor name"
               autoFocus
             />
-            <button className="mt-4 h-12 w-full rounded-md bg-signal px-4 font-semibold text-white" type="submit">
+            <button className="mt-4 min-h-10 w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" type="submit">
               Continue
             </button>
           </form>
