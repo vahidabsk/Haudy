@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
-import { groupByAsc } from "../lib/asc-groups";
+import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { Audit, ParsedCertificate } from "../lib/types";
 
 export function ConfirmationPage({ auditorName }: { auditorName: string }) {
@@ -17,12 +18,32 @@ export function ConfirmationPage({ auditorName }: { auditorName: string }) {
 
   if (!group) return <main className="p-6">ASC not found.</main>;
 
+  return <ConfirmationDocument group={group} auditorName={auditorName} pocName={pocName} startDate={startDate} endDate={endDate} scn={scn} psn={psn} />;
+}
+
+function ConfirmationDocument({ group, auditorName, pocName, startDate, endDate, scn, psn }: { group: AscGroup; auditorName: string; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
   const fileReferences = referenceFiles(group.audits);
   const selectedSites = groupByCategory(group.audits);
   const scheduledYear = startDate ? dateParts(startDate).year : today.getFullYear().toString();
+  const confirmationFileName = confirmationName({
+    year: scheduledYear,
+    ascName: group.ascName,
+    ascAddress,
+    files: fileReferences,
+    scn,
+    categories: selectedSites.map((section) => section.category),
+  });
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = confirmationFileName;
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [confirmationFileName]);
 
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
@@ -127,6 +148,43 @@ function referenceFiles(audits: Audit[]) {
     if (certificate?.ccn) references.add(certificate.ccn);
   }
   return Array.from(references).join(", ");
+}
+
+function confirmationName({ year, ascName, ascAddress, files, scn, categories }: { year: string; ascName: string; ascAddress: string; files: string; scn: string; categories: string[] }) {
+  const cityState = cityStateCode(ascAddress);
+  const categorySuffix = categories.map(categoryOutputCode).filter(Boolean).join("_");
+  return [
+    `Confirmation_${year}_${ascName.trim().toUpperCase()}${cityState ? `-${cityState}` : ""}`,
+    filesForName(files),
+    `SCN${scn || ""}`,
+    categorySuffix,
+  ].filter(Boolean).join("_");
+}
+
+function filesForName(files: string) {
+  const values = files.split(",").map((value) => value.trim()).filter(Boolean);
+  if (!values.length) return "";
+  return values.map((value, index) => (index === 0 ? value : ` ${value}`)).join("_");
+}
+
+function cityStateCode(address: string) {
+  const lines = formatAscAddressLines(address);
+  const location = lines[1] || lines[0] || "";
+  const match = location.match(/^([^,]+),\s*([A-Za-z]+|[A-Z]{2})\b/);
+  if (!match) return "";
+  const city = match[1].trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const state = stateCode(match[2].trim());
+  return [city, state].filter(Boolean).join("-");
+}
+
+function stateCode(value: string) {
+  const states: Record<string, string> = { CALIFORNIA: "CA", CA: "CA" };
+  return states[value.toUpperCase()] || value.toUpperCase();
+}
+
+function categoryOutputCode(category: string) {
+  const codes: Record<string, string> = { UUJS: "FA", UUFX: "FD" };
+  return codes[category.toUpperCase()] || category.toUpperCase();
 }
 
 function formatSiteAddress(address: string) {
