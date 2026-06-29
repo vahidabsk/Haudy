@@ -119,14 +119,14 @@ function SignalReview({ audit }: { audit: Audit }) {
           </td>
         </tr>
         <tr className="field-table-head">
-          <th className="w-[1.1in]">Signal Type<br />(A, S, T)</th>
+          <th>Signal Type</th>
           <th className="w-[0.85in]">Date</th>
           <th className="w-[0.75in]">Time</th>
           <th>Comments and / or Signals Not Properly Handled - Variations shall be included in report</th>
         </tr>
         {padSignalRows(audit.signalLog, 9).map((row, index) => (
           <tr key={row.id || index} className="field-small-row">
-            <td>{signalCode(row.signalType)}</td>
+            <td>{row.signalType}</td>
             <td>{row.date}</td>
             <td>{row.time}</td>
             <td>{[row.description, row.notes].filter(Boolean).join(" - ")}</td>
@@ -313,13 +313,6 @@ function hasSignalContent(row: SignalLogRow) {
 
 function hasDeviceContent(row: DeviceTestRow) {
   return Boolean(row.deviceType || row.location || row.deviceId || row.functional || row.alarm || row.supervisory || row.trouble || row.tripTime || row.timeReceived || row.result || row.notes);
-}
-
-function signalCode(signalType: SignalLogRow["signalType"]) {
-  if (signalType === "Alarm") return "A";
-  if (signalType === "Supervisory") return "S";
-  if (signalType === "Trouble") return "T";
-  return "";
 }
 
 function padSignalRows(rows: SignalLogRow[], size: number) {
