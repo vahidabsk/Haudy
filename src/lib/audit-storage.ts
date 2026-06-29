@@ -1,4 +1,4 @@
-import { Audit, AuditRow, Auditor, ParsedCertificate } from "./types";
+import { Audit, AuditRow, Auditor, ParsedCertificate, SignalHandlingStatus, SignalType } from "./types";
 import { cityStateFromAddress } from "./certificate-parser";
 import { nowIso, uid } from "./utils";
 
@@ -83,7 +83,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     primaryCertificateIndex: 0,
     matchesCertificate: false,
     certificateDisplayed: false,
-    signalLog: [{ id: uid("signal"), signalType: "", date: "", time: "", description: "", notes: "", updatedAt: now }],
+    signalLog: [{ id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", updatedAt: now }],
     documentation: documentationElements.map((element) => row(element, auditorName, now)),
     installation: installationElements.map((element) => row(element, auditorName, now)),
     deviceTests: [deviceRow(now)],
@@ -137,10 +137,25 @@ function normalizeAudit(audit: Audit): Audit {
     matchesCertificateStatus: audit.matchesCertificateStatus ?? (audit.matchesCertificate ? "OK" : ""),
     certificateDisplayedStatus: audit.certificateDisplayedStatus ?? (audit.certificateDisplayed ? "OK" : ""),
     deviceSystemLocal: audit.deviceSystemLocal ?? false,
+    signalLog: normalizeSignalRows(audit.signalLog, now),
     documentation: normalizeRows(audit.documentation, documentationElements, audit.auditorName, now),
     installation: normalizeRows(audit.installation, installationElements, audit.auditorName, now),
     deviceTests: normalizeDeviceRows(audit.deviceTests, now),
   };
+}
+
+function normalizeSignalRows(rows: Audit["signalLog"], updatedAt: string): Audit["signalLog"] {
+  const normalized = rows.map((item) => ({
+    id: item.id || uid("signal"),
+    signalType: (item.signalType || "") as SignalType | "",
+    handlingStatus: (item.handlingStatus || "") as SignalHandlingStatus | "",
+    date: item.date || "",
+    time: item.time || "",
+    description: item.description || "",
+    notes: item.notes || "",
+    updatedAt: item.updatedAt || updatedAt,
+  }));
+  return normalized.length ? normalized : [{ id: uid("signal"), signalType: "" as const, handlingStatus: "" as const, date: "", time: "", description: "", notes: "", updatedAt }];
 }
 
 function normalizeRows(rows: AuditRow[], elements: string[], auditorName: string, updatedAt: string) {

@@ -366,7 +366,7 @@ function hasDeviceContent(row: DeviceTestRow) {
 }
 
 function padSignalRows(rows: SignalLogRow[], size: number) {
-  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-signal-${index}`, signalType: "" as const, date: "", time: "", description: "", notes: "", updatedAt: "" }))].slice(0, size);
+  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-signal-${index}`, signalType: "" as const, handlingStatus: "" as const, date: "", time: "", description: "", notes: "", updatedAt: "" }))].slice(0, size);
 }
 
 function padDeviceRows(rows: DeviceTestRow[], size: number) {

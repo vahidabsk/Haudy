@@ -21,17 +21,33 @@ export function SignalLogSection({ rows, onChange }: { rows: SignalLogRow[]; onC
       {rows.map((row) => (
         <div key={row.id} className="grid gap-3 rounded-lg border bg-white p-4">
           <div className="grid gap-3 md:grid-cols-3">
-          <select className="min-h-11 rounded-md border px-2" value={row.signalType} onChange={(e) => patch(rows, row.id, { signalType: e.target.value as SignalType }, onChange)}>
-            <option value="">Signal Type</option>
-            {signalTypes.map((type) => <option key={type}>{type}</option>)}
-          </select>
-          <input className="min-h-11 rounded-md border px-2" type="date" value={row.date} onChange={(e) => patch(rows, row.id, { date: e.target.value }, onChange)} />
-          <input className="min-h-11 rounded-md border px-2" type="time" value={row.time} onChange={(e) => patch(rows, row.id, { time: e.target.value }, onChange)} />
+            <select className="min-h-11 rounded-md border px-2" value={row.signalType} onChange={(e) => patch(rows, row.id, { signalType: e.target.value as SignalType }, onChange)}>
+              <option value="">Signal Type</option>
+              {signalTypes.map((type) => <option key={type}>{type}</option>)}
+            </select>
+            <input className="min-h-11 rounded-md border px-2" type="date" value={row.date} onChange={(e) => patch(rows, row.id, { date: e.target.value }, onChange)} />
+            <input className="min-h-11 rounded-md border px-2" type="time" value={row.time} onChange={(e) => patch(rows, row.id, { time: e.target.value }, onChange)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`min-h-10 rounded-md border px-3 py-2 text-sm font-medium ${row.handlingStatus === "OK" ? "border-emerald-300 bg-emerald-600 text-white" : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"}`}
+              onClick={() => patch(rows, row.id, { handlingStatus: row.handlingStatus === "OK" ? "" : "OK" }, onChange)}
+            >
+              Signal handled correctly
+            </button>
+            <button
+              type="button"
+              className={`min-h-10 rounded-md border px-3 py-2 text-sm font-medium ${row.handlingStatus === "VAR" ? "border-amber-300 bg-amber-500 text-white" : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"}`}
+              onClick={() => patch(rows, row.id, { handlingStatus: row.handlingStatus === "VAR" ? "" : "VAR" }, onChange)}
+            >
+              Variation noted
+            </button>
           </div>
           <DictationNotes rows={2} value={row.notes || row.description} onChange={(notes) => patch(rows, row.id, { notes, description: "" }, onChange)} />
         </div>
       ))}
-      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", date: "", time: "", description: "", notes: "", updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", updatedAt: nowIso() }])}>
         Add Signal Row
       </button>
     </section>

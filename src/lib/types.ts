@@ -2,6 +2,7 @@ export type StatusCode = "OK" | "VAR" | "NA" | "NR";
 export type ReviewStatus = "OK" | "VAR";
 export type DisplayStatus = "OK" | "VAR" | "NA";
 export type SignalType = "Alarm" | "Supervisory" | "Trouble";
+export type SignalHandlingStatus = "OK" | "VAR";
 
 export interface ParsedCertificate {
   fileName: string;
@@ -61,6 +62,7 @@ export interface AuditRow {
 export interface SignalLogRow {
   id: string;
   signalType: SignalType | "";
+  handlingStatus?: SignalHandlingStatus | "";
   date: string;
   time: string;
   description: string;
