@@ -18,9 +18,9 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
   }
 
   return (
-    <div className="rounded-lg border border-white/70 bg-white p-4 shadow-xl shadow-navy/10">
-      <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-sky-300 bg-sky-50 px-4 text-center font-semibold text-navy transition hover:border-signal hover:bg-red-50">
-        <span className="grid h-12 w-12 place-items-center rounded-full bg-navy text-white shadow-md"><UploadCloud size={24} /></span>
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 text-center font-semibold text-navy transition hover:border-sky-400 hover:bg-sky-50">
+        <span className="grid h-11 w-11 place-items-center rounded-md bg-navy text-white"><UploadCloud size={23} /></span>
         <span>Upload Certificate (.docx)</span>
         <input className="hidden" type="file" accept=".docx" onChange={upload} />
       </label>
@@ -42,7 +42,7 @@ export function UploadDialog({ onParsed }: { onParsed: (certificate: ParsedCerti
                 />
               </label>
             ))}
-          <button className="min-h-12 rounded-md bg-signal px-4 font-semibold text-white shadow-md shadow-red-900/20 hover:bg-red-700" onClick={() => onParsed(draft)}>
+          <button className="min-h-12 rounded-md bg-signal px-4 font-semibold text-white hover:bg-red-700" onClick={() => onParsed(draft)}>
             Confirm and Create Audit
           </button>
         </div>

@@ -12,9 +12,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    linear-gradient(135deg, rgba(20, 58, 99, 0.05) 0 25%, transparent 25% 50%, rgba(215, 25, 32, 0.035) 50% 75%, transparent 75%) 0 0 / 48px 48px,
-    linear-gradient(180deg, #f8fafc 0%, #eef5f8 100%);
+  background: #f4f7fa;
 }
 
 button,
