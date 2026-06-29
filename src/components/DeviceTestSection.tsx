@@ -3,7 +3,8 @@ import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
 
 const deviceTypes = ["Smoke Detector (SD)", "Heat Detector (HD)", "Duct Detector (DD)", "Manual Pull Station (MP)", "Waterflow Device (WF)", "Sprinkler Supervisory (SS)", "Notification Appliance (NAC)", "Other"];
-const testOptions: Array<{ key: keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">; label: string; active: string; idle: string }> = [
+type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
+const testOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
   { key: "functional", label: "Functional", active: "border-sky-700 bg-sky-700 text-white", idle: "border-sky-200 bg-sky-50 text-sky-800" },
   { key: "alarm", label: "Alarm", active: "border-red-700 bg-red-700 text-white", idle: "border-red-200 bg-red-50 text-red-800" },
   { key: "supervisory", label: "Supervisory", active: "border-amber-700 bg-amber-600 text-white", idle: "border-amber-200 bg-amber-50 text-amber-800" },
@@ -50,7 +51,7 @@ export function DeviceTestSection({ rows, localSystem, onLocalSystemChange, onCh
                 key={option.key}
                 type="button"
                 className={`min-h-11 rounded-md border px-3 font-medium ${row[option.key] ? option.active : option.idle}`}
-                onClick={() => patch(rows, row.id, { [option.key]: !row[option.key] }, onChange)}
+                onClick={() => toggleTestFlag(rows, row.id, option.key, onChange)}
               >
                 {option.label}
               </button>
@@ -80,4 +81,19 @@ export function DeviceTestSection({ rows, localSystem, onLocalSystemChange, onCh
 
 function patch(rows: DeviceTestRow[], id: string, update: Partial<DeviceTestRow>, onChange: (rows: DeviceTestRow[]) => void) {
   onChange(rows.map((row) => (row.id === id ? { ...row, ...update, updatedAt: nowIso() } : row)));
+}
+
+function toggleTestFlag(rows: DeviceTestRow[], id: string, key: DeviceTestFlag, onChange: (rows: DeviceTestRow[]) => void) {
+  const row = rows.find((item) => item.id === id);
+  if (!row) return;
+  if (key === "functional") {
+    patch(rows, id, { functional: !row.functional }, onChange);
+    return;
+  }
+  const nextSelected = !row[key];
+  patch(rows, id, {
+    alarm: key === "alarm" ? nextSelected : false,
+    supervisory: key === "supervisory" ? nextSelected : false,
+    trouble: key === "trouble" ? nextSelected : false,
+  }, onChange);
 }
