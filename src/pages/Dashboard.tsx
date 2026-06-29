@@ -91,8 +91,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         <ConfirmationDialog
           group={confirmationGroup}
           onClose={() => setConfirmationGroup(null)}
-          onCreate={(pocName, scheduledDate) => {
-            const params = new URLSearchParams({ poc: pocName, date: scheduledDate });
+          onCreate={(details) => {
+            const params = new URLSearchParams(details);
             navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
           }}
         />
@@ -101,10 +101,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   );
 }
 
-function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: () => void; onCreate: (pocName: string, scheduledDate: string) => void }) {
+function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
   const [pocName, setPocName] = useState("");
-  const [scheduledDate, setScheduledDate] = useState("");
-  const ready = pocName.trim() && scheduledDate;
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [scn, setScn] = useState("");
+  const [psn, setPsn] = useState("");
+  const ready = pocName.trim() && startDate && endDate && scn.trim() && psn.trim();
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
@@ -112,7 +115,7 @@ function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onC
         className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onCreate(pocName.trim(), scheduledDate);
+          if (ready) onCreate({ poc: pocName.trim(), start: startDate, end: endDate, scn: scn.trim(), psn: psn.trim() });
         }}
       >
         <div>
@@ -123,10 +126,29 @@ function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onC
           POC name
           <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name for the letter" autoFocus />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
-          Scheduled audit date
-          <input className="min-h-11 rounded-md border px-3" type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} />
-        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit start date
+            <input className="min-h-11 rounded-md border px-3" type="date" value={startDate} onChange={(event) => {
+              setStartDate(event.target.value);
+              if (!endDate) setEndDate(event.target.value);
+            }} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit end date
+            <input className="min-h-11 rounded-md border px-3" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} />
+          </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            SCN number
+            <input className="min-h-11 rounded-md border px-3" value={scn} onChange={(event) => setScn(event.target.value)} placeholder="Example: 1" />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            PSN number
+            <input className="min-h-11 rounded-md border px-3" value={psn} onChange={(event) => setPsn(event.target.value)} placeholder="Example: 634867" />
+          </label>
+        </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancel</button>
           <button type="submit" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={!ready}>

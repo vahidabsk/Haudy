@@ -10,15 +10,19 @@ export function ConfirmationPage({ auditorName }: { auditorName: string }) {
   const store = useAudits(auditorName);
   const group = groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
   const pocName = searchParams.get("poc") || "";
-  const scheduledDate = searchParams.get("date") || "";
+  const startDate = searchParams.get("start") || searchParams.get("date") || "";
+  const endDate = searchParams.get("end") || startDate;
+  const scn = searchParams.get("scn") || "";
+  const psn = searchParams.get("psn") || "";
 
   if (!group) return <main className="p-6">ASC not found.</main>;
 
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+  const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
   const fileReferences = referenceFiles(group.audits);
   const selectedSites = groupByCategory(group.audits);
-  const scheduledYear = scheduledDate ? dateParts(scheduledDate).year : today.getFullYear().toString();
+  const scheduledYear = startDate ? dateParts(startDate).year : today.getFullYear().toString();
 
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
@@ -36,12 +40,12 @@ export function ConfirmationPage({ auditorName }: { auditorName: string }) {
           <p>
             {pocName}<br />
             {group.ascName}<br />
-            {ascAddress || group.location}
+            {ascAddressLines.map((line) => <span key={line}>{line}<br /></span>)}
           </p>
-          <p>Our Reference: FILE(s): {fileReferences || "Not listed"}</p>
+          <p>Our Reference: FILE(s): {fileReferences || "Not listed"}<span className="confirmation-reference-gap">SCN: {scn || ""}</span><span className="confirmation-reference-gap">PSN: {psn || ""}</span></p>
           <p>Subject: Annual Audit Confirmation</p>
           <p>Dear {firstName(pocName)} ,</p>
-          <p>This is to confirm our conversation on {formatLongDate(today)} during which we scheduled the annual audit of the referenced file for {formatLongDate(scheduledDate)}.</p>
+          <p>This is to confirm our conversation on {formatLongDate(today)} during which we scheduled the annual audit of the referenced file for {formatDateRange(startDate, endDate)}.</p>
           <p>As noted in the Service Agreement that your organization executed with UL, your continued Listing is contingent upon your continued ability to deliver Code/Standard compliant service. Your organization was granted a Listing based on a favorable assessment of its ability to fulfill this obligation. Our audit this year is intended to verify this ability.</p>
           <p>We will review compliance to the applicable standards for the category or categories being audited. This could include but is not limited to certificated field installations, documentation, records, signal handling, operational procedures, response procedures, and/or monitoring facilities.</p>
           <p>Our objective is to verify that your organization is still capable of delivering Code/Standard compliant service. Our desire is to make the process as smooth as possible. Our experience is that preparation is key to success on both counts.</p>
@@ -90,11 +94,8 @@ export function ConfirmationPage({ auditorName }: { auditorName: string }) {
 function ConfirmationHeader() {
   return (
     <header className="confirmation-header">
-      <div className="confirmation-brand">
-        <span className="confirmation-ul-mark">UL</span>
-        <span>Solutions</span>
-      </div>
-      <div className="confirmation-tagline">Safety. Science. Transformation.</div>
+      <img className="confirmation-logo" src="/confirmation-logo.png" alt="UL Solutions" />
+      <img className="confirmation-safety" src="/confirmation-safety.png" alt="Safety. Science. Transformation." />
     </header>
   );
 }
@@ -136,6 +137,24 @@ function formatSiteAddress(address: string) {
     .trim();
 }
 
+function formatAscAddressLines(address: string) {
+  const normalized = address.replace(/\s+/g, " ").trim();
+  const match = normalized.match(/^(.*?),\s*([^,]+),\s*([A-Z]{2}|[A-Za-z]+)\s+([0-9-]+)(?:\s+(UNITED STATES|United States))?$/);
+  if (!match) return normalized ? [normalized] : [];
+
+  const street = match[1].trim();
+  const city = match[2].trim().toUpperCase();
+  const state = stateName(match[3].trim());
+  const postalCode = match[4].trim();
+  const country = match[5]?.toUpperCase() || "UNITED STATES";
+  return [street, `${city}, ${state} ${postalCode} ${country}`];
+}
+
+function stateName(value: string) {
+  const states: Record<string, string> = { CA: "California" };
+  return states[value.toUpperCase()] || value;
+}
+
 function groupByCategory(audits: Audit[]) {
   const groups = new Map<string, Audit[]>();
   for (const audit of audits) {
@@ -157,6 +176,41 @@ function firstName(name: string) {
 function formatLongDate(value: string | Date) {
   const date = value instanceof Date ? value : dateParts(value).date;
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function formatDateRange(start: string, end: string) {
+  if (!start) return "";
+  if (!end || start === end) return formatLongDate(start);
+
+  const startDate = dateParts(start).date;
+  const endDate = dateParts(end).date;
+  const sameYear = startDate.getFullYear() === endDate.getFullYear();
+  const sameMonth = sameYear && startDate.getMonth() === endDate.getMonth();
+
+  if (sameMonth) {
+    const days = daysBetween(startDate, endDate);
+    if (days.length > 1 && days.length <= 5) {
+      const dayText = days.length === 2 ? `${days[0]} and ${days[1]}` : `${days.slice(0, -1).join(", ")} and ${days[days.length - 1]}`;
+      return `${startDate.toLocaleDateString("en-US", { month: "long" })} ${dayText}, ${startDate.getFullYear()}`;
+    }
+    return `${startDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} through ${endDate.toLocaleDateString("en-US", { day: "numeric", year: "numeric" })}`;
+  }
+
+  if (sameYear) {
+    return `${startDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} through ${endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+  }
+
+  return `${formatLongDate(start)} through ${formatLongDate(end)}`;
+}
+
+function daysBetween(start: Date, end: Date) {
+  const days: number[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    days.push(cursor.getDate());
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
 }
 
 function dateParts(value: string) {

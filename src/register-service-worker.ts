@@ -16,7 +16,7 @@ export function registerServiceWorker() {
 }
 
 function currentAppFileUrls() {
-  const urls = ["/", "/index.html", "/manifest.webmanifest", "/sw.js"];
+  const urls = ["/", "/index.html", "/manifest.webmanifest", "/sw.js", "/confirmation-logo.png", "/confirmation-safety.png"];
   document.querySelectorAll<HTMLScriptElement | HTMLLinkElement>("script[src], link[href]").forEach((element) => {
     const rawUrl = element instanceof HTMLScriptElement ? element.src : element.href;
     const url = new URL(rawUrl, window.location.href);
