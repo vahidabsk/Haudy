@@ -1,4 +1,4 @@
-const CACHE_NAME = "haudy-offline-v1";
+const CACHE_NAME = "haudy-offline-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,9 +8,27 @@ const APP_SHELL = [
   "/icons/icon-512.png"
 ];
 
+async function cacheAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(APP_SHELL.map((url) => cache.add(url).catch(() => undefined)));
+
+  const indexResponse = await fetch("/index.html", { cache: "no-store" });
+  if (!indexResponse.ok) return;
+
+  await cache.put("/", indexResponse.clone());
+  await cache.put("/index.html", indexResponse.clone());
+
+  const html = await indexResponse.text();
+  const assetUrls = Array.from(html.matchAll(/(?:src|href)="([^"]+)"/g))
+    .map((match) => match[1])
+    .filter((url) => url.startsWith("/assets/"));
+
+  await Promise.all([...new Set(assetUrls)].map((url) => cache.add(url).catch(() => undefined)));
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+    cacheAppShell().then(() => self.skipWaiting())
   );
 });
 
@@ -34,10 +52,13 @@ self.addEventListener("fetch", (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy));
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put("/", copy.clone());
+            cache.put("/index.html", copy);
+          });
           return response;
         })
-        .catch(() => caches.match("/index.html"))
+        .catch(() => caches.match("/index.html").then((cached) => cached || caches.match("/")))
     );
     return;
   }
