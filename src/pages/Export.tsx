@@ -130,7 +130,7 @@ function Checklist({ title, rows, codeEdition, reviewed, extraHeader }: { title:
         <tr className="thick-row">
           <td colSpan={6} className="field-subhead">
             {title} <Check checked={reviewed} /> YES <Check checked={!reviewed} /> NO
-            {extraHeader ? <span className="ml-8">{extraHeader}</span> : <span className="ml-12">KEY: <b>OK</b> = In Conformance <span className="ml-4"><b>VAR</b> = Variations Noted</span> <span className="ml-4"><b>N/A</b> = Not Applicable</span> <span className="ml-4"><b>N/R</b> = Not Reviewed</span></span>}
+            {extraHeader ? <span className="ml-8">{extraHeader}</span> : null}
           </td>
         </tr>
         <tr className="field-table-head">

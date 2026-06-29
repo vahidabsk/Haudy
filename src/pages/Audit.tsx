@@ -47,8 +47,8 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <h2 className="text-lg font-semibold text-navy">Signal Processing Review</h2>
           <div className="grid gap-3 md:grid-cols-4">
             <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed })} />
-            <input className="min-h-11 rounded-md border px-3" value={audit.signalReviewStart} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} placeholder="Review period from" />
-            <input className="min-h-11 rounded-md border px-3" value={audit.signalReviewEnd} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} placeholder="Review period to" />
+            <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewStart} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
+            <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewEnd} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
             <ReviewStatusControl label="Auto tests" value={audit.autoTestsStatus} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
           </div>
         </section>
@@ -56,7 +56,6 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
         <section className="grid gap-3 rounded-lg border bg-white p-4">
           <h2 className="text-lg font-semibold text-navy">Documentation Reviewed</h2>
           <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} onChange={(documentationReviewed) => update({ ...audit, documentationReviewed })} />
-          <p className="text-sm text-slate-600">KEY: OK = In Conformance, VAR = Variations Noted, N/A = Not Applicable, N/R = Not Reviewed</p>
         </section>
         <DocumentationSection rows={audit.documentation} auditorName={auditorName} onChange={(documentation) => update({ ...audit, documentation })} />
         <section className="grid gap-3 rounded-lg border bg-white p-4">
