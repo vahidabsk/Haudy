@@ -5,7 +5,7 @@ import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
-import { Audit, AuditRow, Auditor, DeviceTestRow, SignalLogRow } from "../lib/types";
+import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, SignalLogRow } from "../lib/types";
 import { DictationNotes } from "../components/DictationNotes";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
@@ -201,8 +201,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
 }
 
 function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: AscGroup; pocName: string; date: Date; files: string; scn: string; psn: string }) {
-  const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
-  const ascAddressLines = propertyAddressLines(ascAddress || group.location);
+  const ascCertificate = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress);
+  const ascAddressLines = ascReportAddressLines(ascCertificate, group.location);
   return (
     <section className="report-page print-page bg-white text-black shadow-sm print:shadow-none">
       <ReportHeader />
@@ -635,6 +635,28 @@ function propertyAddressLines(address: string) {
   const parts = cleanAddress.split(",").map((part) => part.trim()).filter(Boolean);
   if (parts.length <= 1) return [cleanAddress];
   return [parts[0], parts.slice(1).join(", ")];
+}
+
+function ascReportAddressLines(certificate: ParsedCertificate | undefined, fallback: string) {
+  const cleanAddress = (certificate?.ascAddress || fallback).replace(/\s+/g, " ").trim();
+  if (!cleanAddress) return [];
+
+  const city = (certificate?.ascCity || "").replace(/\s+/g, " ").trim();
+  const state = (certificate?.ascState || "").replace(/\s+/g, " ").trim();
+  if (city && state) {
+    const cityStatePattern = new RegExp(`\\b${escapeRegExp(city)}\\s*,?\\s+${escapeRegExp(state)}\\s+\\d{5}(?:-\\d{4})?(?:\\s+UNITED STATES)?$`, "i");
+    const cityStateMatch = cleanAddress.match(cityStatePattern);
+    if (cityStateMatch?.index !== undefined && cityStateMatch.index > 0) {
+      const street = cleanAddress.slice(0, cityStateMatch.index).replace(/,\s*$/, "").trim();
+      return [street, cityStateMatch[0].replace(/\s+UNITED STATES$/i, " UNITED STATES").trim()].filter(Boolean);
+    }
+  }
+
+  return propertyAddressLines(cleanAddress);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function formatCodeReference(item: ReportItem) {
