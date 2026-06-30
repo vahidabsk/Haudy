@@ -460,6 +460,17 @@ textarea {
   margin: 0 0 0.18in;
 }
 
+.report-late-list {
+  margin: -0.04in 0 0.18in 0.44in;
+  padding: 0;
+  line-height: 1.28;
+}
+
+.report-late-list li {
+  margin: 0 0 0.08in;
+  padding-left: 0.08in;
+}
+
 .report-late {
   padding-top: 0.08in;
 }

@@ -101,12 +101,13 @@ function ReportDocument({ group, auditorName, pocName, scn, psn, onUpdateAudit }
 
 function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: AscGroup; pocName: string; date: Date; files: string; scn: string; psn: string }) {
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+  const ascAddressLines = propertyAddressLines(ascAddress || group.location);
   return (
     <section className="report-page print-page bg-white text-black shadow-sm print:shadow-none">
       <ReportHeader />
       <div className="report-letter">
         <p>{formatLongDate(date)}</p>
-        <p>{pocName}<br />{group.ascName}<br />{formatAscAddress(ascAddress || group.location)}</p>
+        <p>{pocName}<br />{group.ascName}<br />{ascAddressLines.map((line) => <span key={line}>{formatAscAddress(line)}<br /></span>)}</p>
         <p>Our Reference: FILE(s): {files || "Not listed"}<span className="confirmation-reference-gap">SCN: {scn}</span><span className="confirmation-reference-gap">PSN: {psn}</span></p>
         <p>Subject: Annual Audit Report</p>
         <p>Dear {pocName || "Customer"},</p>
@@ -129,10 +130,19 @@ function LateResponsePage({ auditorName }: { auditorName: string }) {
       <div className="report-letter report-late">
         <p><b>LATE RESPONSE</b></p>
         <p>To preserve the integrity of the UL Mark, timely resolution of issues noted as not being in compliance with the applicable codes, standards and /or program requirements is critical. If your reply is not received within 30 days from the date of this letter, where applicable based on the Listing type(s), the following actions will occur:</p>
-        <p>1. For certificate issuing Files, the ability to issue new or change existing protected property Certificates will be suspended.</p>
-        <p>2. For monitoring facility Files, the ability to be designated as the monitoring location for alarm systems covered by newly issued Certificates will be suspended.</p>
-        <p>If your reply has still not been received within the established timeline, a mandatory billable project may be opened to help defray the additional administrative expense associated with handling late responses.</p>
-        <p>If your reply has still not been received within the established timeline, where applicable, the Listing(s) will be withdrawn and active Certificates will be canceled for the affected File(s).</p>
+        <ol className="report-late-list">
+          <li>For certificate issuing Files, the ability to issue new or change existing protected property Certificates will be suspended.</li>
+          <li>For monitoring facility Files, the ability to be designated as the monitoring location for alarm systems covered by newly issued Certificates will be suspended.</li>
+        </ol>
+        <p>If your reply has still not been received within the established timeline, the following actions will occur:</p>
+        <ol className="report-late-list">
+          <li>A mandatory billable project in the amount of $1368 will be opened to help defray the additional administrative expense associated with handling late responses.</li>
+        </ol>
+        <p>If your reply has still not been received within the established timeline, the following actions will occur:</p>
+        <ol className="report-late-list" start={2}>
+          <li>For certificate issuing Files, the Listing(s) will be withdrawn, and all active Certificates will be canceled for the affected File(s).</li>
+          <li>For monitoring facility Files, the Listing(s) will be withdrawn, and all active Certificates naming your organization as the monitoring location will be cancelled for the affected File(s).</li>
+        </ol>
         <p>The procedure that we will follow for Late Response actions has been outlined in detail at this time so that there will be no misunderstanding of the procedure that will be followed.</p>
         <p>Please do not hesitate to contact this office if you have any questions.</p>
         <p className="report-signature">Sincerely,</p>
