@@ -58,13 +58,16 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
       {disabled ? <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">{disabledMessage}</div> : null}
       {rows.map((row) => {
         const isWaterflow = row.deviceType === "Waterflow switch";
-        const waterflowSeconds = isWaterflow ? secondsBetween(row.tripTime, row.timeReceived || currentTime) : null;
-        const waterflowRunning = isWaterflow && row.tripTime && !row.timeReceived;
+        const waterflowMode = row.waterflowEntryMode || "";
+        const waterflowAutomatic = isWaterflow && waterflowMode === "automatic";
+        const waterflowManual = isWaterflow && waterflowMode === "manual";
+        const waterflowSeconds = waterflowAutomatic ? secondsBetween(row.tripTime, row.timeReceived || currentTime) : null;
+        const waterflowRunning = waterflowAutomatic && row.tripTime && !row.timeReceived;
         const waterflowOverdue = Boolean(waterflowRunning && waterflowSeconds !== null && waterflowSeconds >= 90);
         return (
         <div key={row.id} className={`grid gap-3 rounded-lg border bg-white p-4 ${disabled ? "opacity-60" : ""}`}>
           <div className="grid gap-3 md:grid-cols-3">
-            <select className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : row.deviceType} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceType: e.target.value }, onChange)}><option value="">Device Type Tested</option>{deviceTypes.map((item) => <option key={item}>{item}</option>)}</select>
+            <select className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : row.deviceType} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceType: e.target.value, waterflowEntryMode: "", tripTime: "", timeReceived: "", result: "", notes: "" }, onChange)}><option value="">Device Type Tested</option>{deviceTypes.map((item) => <option key={item}>{item}</option>)}</select>
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Location" value={disabled ? "" : row.location} disabled={disabled} onChange={(e) => patch(rows, row.id, { location: e.target.value }, onChange)} />
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Device ID / Zone" value={disabled ? "" : row.deviceId} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceId: e.target.value }, onChange)} />
             {!isWaterflow ? (
@@ -81,6 +84,41 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
             ) : null}
           </div>
           {isWaterflow ? (
+            <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-semibold text-navy">Waterflow entry method</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className={`min-h-10 rounded-md border px-3 text-sm font-semibold ${waterflowMode === "manual" ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"}`}
+                  disabled={disabled}
+                  onClick={() => patch(rows, row.id, { waterflowEntryMode: "manual", tripTime: "", timeReceived: "", result: "", notes: "" }, onChange)}
+                >
+                  Manual Entry
+                </button>
+                <button
+                  type="button"
+                  className={`min-h-10 rounded-md border px-3 text-sm font-semibold ${waterflowMode === "automatic" ? "border-sky-700 bg-sky-700 text-white" : "border-sky-300 bg-white text-sky-900 hover:bg-sky-50"}`}
+                  disabled={disabled}
+                  onClick={() => patch(rows, row.id, { waterflowEntryMode: "automatic", tripTime: "", timeReceived: "", result: "", notes: "" }, onChange)}
+                >
+                  Automatic Stopwatch
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {waterflowManual ? (
+            <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Trip Time
+                <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" step={1} value={disabled ? "" : row.tripTime} disabled={disabled} onChange={(e) => patch(rows, row.id, { tripTime: e.target.value }, onChange)} />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Time Received
+                <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" step={1} value={localSystem || disabled ? "" : row.timeReceived} disabled={localSystem || disabled} onChange={(e) => patch(rows, row.id, { timeReceived: e.target.value }, onChange)} />
+              </label>
+            </div>
+          ) : null}
+          {waterflowAutomatic ? (
             <div className="grid gap-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
               <div className="grid gap-2 text-sm text-sky-950 sm:grid-cols-3">
                 <div>
@@ -93,7 +131,7 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
                 </div>
                 <div>
                   <div className="text-xs font-semibold uppercase text-sky-700">Elapsed</div>
-                  <div className={`font-mono text-lg font-bold ${waterflowOverdue ? "text-red-700" : "text-sky-950"}`}>{waterflowSeconds === null ? "--" : formatElapsed(waterflowSeconds)}</div>
+                  <div className={`rounded-md px-2 py-1 font-mono text-lg font-bold ${elapsedColorClass(waterflowSeconds)}`}>{waterflowSeconds === null ? "--" : formatElapsed(waterflowSeconds)}</div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -164,7 +202,7 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
         </div>
         );
       })}
-      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", waterflowEntryMode: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
         Add Device Row
       </button>
     </section>
@@ -207,6 +245,15 @@ function timeStamp(value: Date) {
 
 function formatElapsed(seconds: number) {
   return `${seconds}s`;
+}
+
+function elapsedColorClass(seconds: number | null) {
+  if (seconds === null) return "bg-slate-100 text-slate-600";
+  if (seconds < 60) return "bg-emerald-100 text-emerald-800";
+  if (seconds < 75) return "bg-lime-100 text-lime-800";
+  if (seconds < 85) return "bg-amber-100 text-amber-900";
+  if (seconds < 90) return "bg-orange-100 text-orange-900";
+  return "bg-red-100 text-red-800";
 }
 
 function toggleTestFlag(rows: DeviceTestRow[], id: string, key: DeviceTestFlag, onChange: (rows: DeviceTestRow[]) => void) {

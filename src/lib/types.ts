@@ -83,6 +83,7 @@ export interface SignalLogRow {
 export interface DeviceTestRow {
   id: string;
   deviceType: string;
+  waterflowEntryMode?: "manual" | "automatic" | "";
   location: string;
   deviceId: string;
   signalType: SignalType | "";

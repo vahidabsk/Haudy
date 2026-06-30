@@ -180,6 +180,7 @@ function deviceRow(updatedAt: string) {
   return {
     id: uid("device"),
     deviceType: "",
+    waterflowEntryMode: "" as const,
     location: "",
     deviceId: "",
     signalType: "" as const,
