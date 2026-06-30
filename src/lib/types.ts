@@ -125,6 +125,14 @@ export interface Audit {
   installationReviewed: boolean;
   matchesCertificateStatus: ReviewStatus | "";
   certificateDisplayedStatus: DisplayStatus | "";
+  certificateMatchReportFinding: string;
+  certificateMatchReportRequiredAction: string;
+  certificateMatchReportCodeEdition: string;
+  certificateMatchReportCodeSection: string;
+  certificateDisplayedReportFinding: string;
+  certificateDisplayedReportRequiredAction: string;
+  certificateDisplayedReportCodeEdition: string;
+  certificateDisplayedReportCodeSection: string;
   deviceSystemLocal: boolean;
   certificates: ParsedCertificate[];
   primaryCertificateIndex: number;

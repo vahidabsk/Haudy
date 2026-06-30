@@ -261,6 +261,7 @@ function collectReportItems(audit: Audit): ReportItem[] {
   return [
     ...audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalItem(row)),
     ...audit.documentation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Documentation Review")),
+    ...certificateConditionItems(audit),
     ...audit.installation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Installation Review")),
     ...audit.deviceTests.filter((row) => row.result === "VAR").map((row) => deviceItem(row)),
   ];
@@ -311,6 +312,39 @@ function deviceItem(row: DeviceTestRow): ReportItem {
   };
 }
 
+function certificateConditionItems(audit: Audit): ReportItem[] {
+  const items: ReportItem[] = [];
+  if (audit.matchesCertificateStatus === "VAR") {
+    items.push({
+      id: `certificate-match-${audit.id}`,
+      source: "installation",
+      rowId: `certificate-match-${audit.id}`,
+      reviewType: "Installation Review",
+      category: "Certificate - Installation Matches Certificate Declarations",
+      note: "",
+      finding: audit.certificateMatchReportFinding,
+      requiredAction: audit.certificateMatchReportRequiredAction,
+      codeEdition: audit.certificateMatchReportCodeEdition,
+      codeSection: audit.certificateMatchReportCodeSection,
+    });
+  }
+  if (audit.certificateDisplayedStatus === "VAR") {
+    items.push({
+      id: `certificate-displayed-${audit.id}`,
+      source: "installation",
+      rowId: `certificate-displayed-${audit.id}`,
+      reviewType: "Installation Review",
+      category: "Certificate - Certificate Displayed",
+      note: "",
+      finding: audit.certificateDisplayedReportFinding,
+      requiredAction: audit.certificateDisplayedReportRequiredAction,
+      codeEdition: audit.certificateDisplayedReportCodeEdition,
+      codeSection: audit.certificateDisplayedReportCodeSection,
+    });
+  }
+  return items;
+}
+
 function reportValue(item: ReportItem): ReportFindingValue {
   return {
     reportFinding: item.finding,
@@ -335,6 +369,26 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
     return { ...audit, updatedAt, documentation: audit.documentation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
   }
   if (item.source === "installation") {
+    if (item.rowId.startsWith("certificate-match-")) {
+      return {
+        ...audit,
+        updatedAt,
+        certificateMatchReportFinding: patch.reportFinding ?? audit.certificateMatchReportFinding,
+        certificateMatchReportRequiredAction: patch.reportRequiredAction ?? audit.certificateMatchReportRequiredAction,
+        certificateMatchReportCodeEdition: patch.reportCodeEdition ?? audit.certificateMatchReportCodeEdition,
+        certificateMatchReportCodeSection: patch.reportCodeSection ?? audit.certificateMatchReportCodeSection,
+      };
+    }
+    if (item.rowId.startsWith("certificate-displayed-")) {
+      return {
+        ...audit,
+        updatedAt,
+        certificateDisplayedReportFinding: patch.reportFinding ?? audit.certificateDisplayedReportFinding,
+        certificateDisplayedReportRequiredAction: patch.reportRequiredAction ?? audit.certificateDisplayedReportRequiredAction,
+        certificateDisplayedReportCodeEdition: patch.reportCodeEdition ?? audit.certificateDisplayedReportCodeEdition,
+        certificateDisplayedReportCodeSection: patch.reportCodeSection ?? audit.certificateDisplayedReportCodeSection,
+      };
+    }
     return { ...audit, updatedAt, installation: audit.installation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
   }
   return { ...audit, updatedAt, deviceTests: audit.deviceTests.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };

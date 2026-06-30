@@ -5,6 +5,7 @@ import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
 import { DocumentationSection } from "../components/DocumentationSection";
 import { InstallationSection } from "../components/InstallationSection";
+import { ReportFindingFields } from "../components/ReportFindingFields";
 import { SignalLogSection } from "../components/SignalLogSection";
 import { useAudits } from "../hooks/use-audits";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
@@ -109,6 +110,40 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                 <ReviewStatusControl label="Matches certificate declarations?" value={audit.matchesCertificateStatus} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
                 <DisplayStatusControl label="Certificate displayed?" value={audit.certificateDisplayedStatus} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
               </div>
+              {audit.matchesCertificateStatus === "VAR" ? (
+                <ReportFindingFields
+                  value={{
+                    reportFinding: audit.certificateMatchReportFinding,
+                    reportRequiredAction: audit.certificateMatchReportRequiredAction,
+                    reportCodeEdition: audit.certificateMatchReportCodeEdition,
+                    reportCodeSection: audit.certificateMatchReportCodeSection,
+                  }}
+                  onChange={(fields) => update({
+                    ...audit,
+                    certificateMatchReportFinding: fields.reportFinding ?? audit.certificateMatchReportFinding,
+                    certificateMatchReportRequiredAction: fields.reportRequiredAction ?? audit.certificateMatchReportRequiredAction,
+                    certificateMatchReportCodeEdition: fields.reportCodeEdition ?? audit.certificateMatchReportCodeEdition,
+                    certificateMatchReportCodeSection: fields.reportCodeSection ?? audit.certificateMatchReportCodeSection,
+                  })}
+                />
+              ) : null}
+              {audit.certificateDisplayedStatus === "VAR" ? (
+                <ReportFindingFields
+                  value={{
+                    reportFinding: audit.certificateDisplayedReportFinding,
+                    reportRequiredAction: audit.certificateDisplayedReportRequiredAction,
+                    reportCodeEdition: audit.certificateDisplayedReportCodeEdition,
+                    reportCodeSection: audit.certificateDisplayedReportCodeSection,
+                  }}
+                  onChange={(fields) => update({
+                    ...audit,
+                    certificateDisplayedReportFinding: fields.reportFinding ?? audit.certificateDisplayedReportFinding,
+                    certificateDisplayedReportRequiredAction: fields.reportRequiredAction ?? audit.certificateDisplayedReportRequiredAction,
+                    certificateDisplayedReportCodeEdition: fields.reportCodeEdition ?? audit.certificateDisplayedReportCodeEdition,
+                    certificateDisplayedReportCodeSection: fields.reportCodeSection ?? audit.certificateDisplayedReportCodeSection,
+                  })}
+                />
+              ) : null}
             </section>
             <InstallationSection rows={audit.installation} auditorName={auditorName} onChange={(installation) => update({ ...audit, installation })} />
           </div>
