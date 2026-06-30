@@ -338,6 +338,21 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
       codeSection: audit.installationReviewReportCodeSection,
     });
   }
+  if (!audit.deviceTestingReviewed && (audit.editedFields?.deviceTestingReviewed || audit.deviceTestingNotes)) {
+    items.push({
+      id: `section-device-${audit.id}`,
+      source: "sectionReview",
+      rowId: "deviceTestingReviewed",
+      reviewType: "Installation Review",
+      category: "Device Testing Review Not Completed",
+      note: audit.deviceTestingNotes,
+      finding: audit.deviceTestingReportFinding,
+      requiredAction: audit.deviceTestingReportRequiredAction,
+      codeStandard: audit.deviceTestingReportCodeStandard,
+      codeEdition: audit.deviceTestingReportCodeEdition,
+      codeSection: audit.deviceTestingReportCodeSection,
+    });
+  }
   return items;
 }
 
@@ -470,6 +485,17 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
         documentationReviewReportCodeStandard: patch.reportCodeStandard ?? audit.documentationReviewReportCodeStandard,
         documentationReviewReportCodeEdition: patch.reportCodeEdition ?? audit.documentationReviewReportCodeEdition,
         documentationReviewReportCodeSection: patch.reportCodeSection ?? audit.documentationReviewReportCodeSection,
+      };
+    }
+    if (item.rowId === "deviceTestingReviewed") {
+      return {
+        ...audit,
+        updatedAt,
+        deviceTestingReportFinding: patch.reportFinding ?? audit.deviceTestingReportFinding,
+        deviceTestingReportRequiredAction: patch.reportRequiredAction ?? audit.deviceTestingReportRequiredAction,
+        deviceTestingReportCodeStandard: patch.reportCodeStandard ?? audit.deviceTestingReportCodeStandard,
+        deviceTestingReportCodeEdition: patch.reportCodeEdition ?? audit.deviceTestingReportCodeEdition,
+        deviceTestingReportCodeSection: patch.reportCodeSection ?? audit.deviceTestingReportCodeSection,
       };
     }
     return {

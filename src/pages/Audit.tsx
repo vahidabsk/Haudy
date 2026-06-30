@@ -36,6 +36,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const currentAudit = audit;
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
+  const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   function saveAndReturn() {
     update(currentAudit);
     navigate("/");
@@ -102,9 +103,9 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   }
                 />
                 <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} disabled={audit.deviceSystemLocal} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed, editedFields: { ...audit.editedFields, signalProcessingReviewed: true } })} />
-                <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={audit.deviceSystemLocal ? "" : audit.signalReviewStart} disabled={audit.deviceSystemLocal} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
-                <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={audit.deviceSystemLocal ? "" : audit.signalReviewEnd} disabled={audit.deviceSystemLocal} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
-                <ReviewStatusControl label="Auto tests" value={audit.deviceSystemLocal ? "" : audit.autoTestsStatus} disabled={audit.deviceSystemLocal} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
+                <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={signalControlsDisabled ? "" : audit.signalReviewStart} disabled={signalControlsDisabled} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
+                <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={signalControlsDisabled ? "" : audit.signalReviewEnd} disabled={signalControlsDisabled} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
+                <ReviewStatusControl label="Auto tests" value={signalControlsDisabled ? "" : audit.autoTestsStatus} disabled={signalControlsDisabled} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
               </div>
               {!audit.deviceSystemLocal && !audit.signalProcessingReviewed ? (
                 <SectionReviewNote
@@ -139,8 +140,8 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
               <h2 className="text-lg font-semibold text-navy">Installation Review Conditions</h2>
               <div className="grid gap-3 md:grid-cols-3">
                 <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} onChange={(installationReviewed) => update({ ...audit, installationReviewed, editedFields: { ...audit.editedFields, installationReviewed: true } })} />
-                <ReviewStatusControl label="Matches certificate declarations?" value={audit.matchesCertificateStatus} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
-                <DisplayStatusControl label="Certificate displayed?" value={audit.certificateDisplayedStatus} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
+                <ReviewStatusControl label="Matches certificate declarations?" value={audit.installationReviewed ? audit.matchesCertificateStatus : ""} disabled={!audit.installationReviewed} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
+                <DisplayStatusControl label="Certificate displayed?" value={audit.installationReviewed ? audit.certificateDisplayedStatus : ""} disabled={!audit.installationReviewed} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
               </div>
               {!audit.installationReviewed ? (
                 <SectionReviewNote
@@ -149,7 +150,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   onChange={(installationReviewNotes) => update({ ...audit, installationReviewNotes, editedFields: { ...audit.editedFields, installationReviewed: true } })}
                 />
               ) : null}
-              {audit.matchesCertificateStatus === "VAR" ? (
+              {audit.installationReviewed && audit.matchesCertificateStatus === "VAR" ? (
                 <ReportFindingFields
                   value={{
                     reportFinding: audit.certificateMatchReportFinding,
@@ -168,7 +169,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   })}
                 />
               ) : null}
-              {audit.certificateDisplayedStatus === "VAR" ? (
+              {audit.installationReviewed && audit.certificateDisplayedStatus === "VAR" ? (
                 <ReportFindingFields
                   value={{
                     reportFinding: audit.certificateDisplayedReportFinding,
@@ -192,18 +193,33 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           </div>
         ) : null}
         {activeTab === "device" ? (
-          <DeviceTestSection
-            rows={audit.deviceTests}
-            localSystem={audit.deviceSystemLocal}
-            onLocalSystemChange={(deviceSystemLocal) =>
-              update({
-                ...audit,
-                deviceSystemLocal,
-                deviceTests: deviceSystemLocal ? audit.deviceTests.map((row) => ({ ...row, timeReceived: "", updatedAt: nowIso() })) : audit.deviceTests,
-              })
-            }
-            onChange={(deviceTests) => update({ ...audit, deviceTests })}
-          />
+          <div className="grid gap-6">
+            <section className="grid gap-3 rounded-lg border bg-white p-4">
+              <h2 className="text-lg font-semibold text-navy">Device Testing Review</h2>
+              <YesNoControl label="Device testing reviewed?" value={audit.deviceTestingReviewed} onChange={(deviceTestingReviewed) => update({ ...audit, deviceTestingReviewed, editedFields: { ...audit.editedFields, deviceTestingReviewed: true } })} />
+              {!audit.deviceTestingReviewed ? (
+                <SectionReviewNote
+                  title="Device testing review variation"
+                  value={audit.deviceTestingNotes}
+                  onChange={(deviceTestingNotes) => update({ ...audit, deviceTestingNotes, editedFields: { ...audit.editedFields, deviceTestingReviewed: true } })}
+                />
+              ) : null}
+            </section>
+            <DeviceTestSection
+              rows={audit.deviceTests}
+              localSystem={audit.deviceSystemLocal}
+              disabled={!audit.deviceTestingReviewed}
+              disabledMessage="Device testing review marked No. Use the general variation note above to explain why device testing was not completed."
+              onLocalSystemChange={(deviceSystemLocal) =>
+                update({
+                  ...audit,
+                  deviceSystemLocal,
+                  deviceTests: deviceSystemLocal ? audit.deviceTests.map((row) => ({ ...row, timeReceived: "", updatedAt: nowIso() })) : audit.deviceTests,
+                })
+              }
+              onChange={(deviceTests) => update({ ...audit, deviceTests })}
+            />
+          </div>
         ) : null}
       </section>
     </main>
@@ -245,11 +261,11 @@ function ReviewStatusControl({ label, value, disabled, onChange }: { label: stri
   );
 }
 
-function DisplayStatusControl({ label, value, onChange }: { label: string; value: DisplayStatus | ""; onChange: (value: DisplayStatus | "") => void }) {
+function DisplayStatusControl({ label, value, disabled, onChange }: { label: string; value: DisplayStatus | ""; disabled?: boolean; onChange: (value: DisplayStatus | "") => void }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
       {label}
-      <select className="min-h-11 rounded-md border px-3" value={value} onChange={(event) => onChange(event.target.value as DisplayStatus | "")}>
+      <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as DisplayStatus | "")}>
         <option value="">Not selected</option>
         <option value="OK">OK</option>
         <option value="VAR">VAR</option>

@@ -42,6 +42,10 @@ export function auditHasProgress(audit: Audit) {
     audit.installationReviewReportFinding ||
     audit.installationReviewReportRequiredAction ||
     audit.installationReviewReportCodeSection ||
+    audit.deviceTestingNotes ||
+    audit.deviceTestingReportFinding ||
+    audit.deviceTestingReportRequiredAction ||
+    audit.deviceTestingReportCodeSection ||
     audit.certificateMatchReportFinding ||
     audit.certificateMatchReportRequiredAction ||
     audit.certificateDisplayedReportFinding ||

@@ -144,6 +144,13 @@ export interface Audit {
   installationReviewReportCodeStandard: string;
   installationReviewReportCodeEdition: string;
   installationReviewReportCodeSection: string;
+  deviceTestingReviewed: boolean;
+  deviceTestingNotes: string;
+  deviceTestingReportFinding: string;
+  deviceTestingReportRequiredAction: string;
+  deviceTestingReportCodeStandard: string;
+  deviceTestingReportCodeEdition: string;
+  deviceTestingReportCodeSection: string;
   matchesCertificateStatus: ReviewStatus | "";
   certificateDisplayedStatus: DisplayStatus | "";
   certificateMatchReportFinding: string;
