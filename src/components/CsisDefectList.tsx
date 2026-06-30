@@ -38,10 +38,10 @@ export function CsisDefectList({ initialStandard = "", initialYear = "", onSelec
         <Search size={16} /> CSIS Defect List
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
-          <div className="grid max-h-[88vh] w-full max-w-4xl grid-rows-[auto_auto_1fr] overflow-hidden rounded-lg bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-slate-950/45 p-3">
+          <div className="grid max-h-[92vh] w-[min(100%,64rem)] max-w-[calc(100vw-1.5rem)] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-lg font-bold text-navy">CSIS Defect List</h3>
                 <p className="text-sm text-slate-600">Search the standard, edition, category, or wording. Select a result to fill the code reference for this deficiency.</p>
               </div>
@@ -76,21 +76,21 @@ export function CsisDefectList({ initialStandard = "", initialYear = "", onSelec
                 </select>
               </label>
             </div>
-            <div className="overflow-y-auto p-4">
+            <div className="min-w-0 overflow-y-auto p-4">
               <div className="mb-3 text-sm font-medium text-slate-600">{results.length} result{results.length === 1 ? "" : "s"} shown</div>
               <div className="grid gap-3">
                 {results.map((result, index) => (
-                  <div key={`${result.standard}-${result.year}-${result.section}-${result.category}-${index}`} className="grid gap-3 rounded-md border border-slate-200 bg-white p-3">
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <div key={`${result.standard}-${result.year}-${result.section}-${result.category}-${index}`} className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       <span>{result.standard || "Standard not listed"}</span>
                       <span className="text-slate-300">|</span>
                       <span>{result.year ? `${result.year} Edition` : "Edition not listed"}</span>
                       <span className="text-slate-300">|</span>
                       <span>{result.section ? `Section ${result.section}` : "Section not listed"}</span>
                       <span className="text-slate-300">|</span>
-                      <span>{result.category || "No category"}</span>
+                      <span className="break-words">{result.category || "No category"}</span>
                     </div>
-                    <p className="text-sm leading-6 text-slate-700">{result.defect}</p>
+                    <p className="max-w-full break-words text-sm leading-6 text-slate-700">{result.defect}</p>
                     <div>
                       <button
                         type="button"

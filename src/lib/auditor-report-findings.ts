@@ -45,12 +45,12 @@ export function searchAuditorReportFindings(filters: AuditorReportSearchFilters,
 }
 
 function scoreFinding(row: AuditorReportFinding, terms: string[], standard: string, year: string, reviewType: string, category: string) {
-  const haystack = normalize([row.standard, row.year, row.reviewType, row.category, row.findingType, row.section, row.finding, row.requiredAction, row.keywords, row.examples].join(" "));
+  const keywordHaystack = normalize(row.finding);
   if (standard && normalize(row.standard) !== standard) return 0;
   if (year && normalize(row.year) !== year) return 0;
   if (reviewType && normalize(row.reviewType) !== reviewType) return 0;
   if (category && normalize(row.category) !== category) return 0;
-  if (terms.length && !terms.every((term) => haystack.includes(term))) return 0;
+  if (terms.length && !terms.every((term) => keywordHaystack.includes(term))) return 0;
 
   let score = 1;
   if (standard) score += 25;
@@ -61,9 +61,7 @@ function scoreFinding(row: AuditorReportFinding, terms: string[], standard: stri
     if (normalize(row.category).includes(term)) score += 10;
     if (normalize(row.findingType).includes(term)) score += 10;
     if (normalize(row.section).includes(term)) score += 8;
-    if (normalize(row.finding).includes(term)) score += 5;
-    if (normalize(row.requiredAction).includes(term)) score += 5;
-    if (normalize(row.keywords).includes(term)) score += 4;
+    if (keywordHaystack.includes(term)) score += 12;
   });
   return score;
 }

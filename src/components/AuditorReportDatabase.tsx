@@ -47,18 +47,18 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
         <Search size={16} /> Report DB
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
-          <div className="grid max-h-[88vh] w-full max-w-5xl grid-rows-[auto_auto_1fr] overflow-hidden rounded-lg bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-slate-950/45 p-3">
+          <div className="grid max-h-[92vh] w-[min(100%,72rem)] max-w-[calc(100vw-1.5rem)] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-lg font-bold text-navy">Auditor Report Database</h3>
-                <p className="text-sm text-slate-600">Search report wording and select a result to fill Finding, Required Action, and Code Reference for this deficiency.</p>
+                <p className="text-sm text-slate-600">Search report wording and select a result to fill Finding, Required Action, and Code Reference.</p>
               </div>
               <button type="button" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800" onClick={() => setOpen(false)} aria-label="Close Auditor Report Database">
                 <X size={20} />
               </button>
             </div>
-            <div className="grid gap-3 border-b bg-slate-50 p-4 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+            <div className="grid gap-3 border-b bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_0.8fr_1fr_1fr]">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Keyword
                 <input className="min-h-11 rounded-md border bg-white px-3" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="signal history, as-built, battery..." autoFocus />
@@ -92,12 +92,12 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
                 </select>
               </label>
             </div>
-            <div className="overflow-y-auto p-4">
+            <div className="min-w-0 overflow-y-auto p-4">
               <div className="mb-3 text-sm font-medium text-slate-600">{results.length} result{results.length === 1 ? "" : "s"} shown</div>
               <div className="grid gap-3">
                 {results.map((result) => (
-                  <div key={result.id} className="grid gap-3 rounded-md border border-slate-200 bg-white p-3">
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <div key={result.id} className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       <span>{result.standard || "Standard not listed"}</span>
                       <span className="text-slate-300">|</span>
                       <span>{result.year ? `${result.year} Edition` : "Edition not listed"}</span>
@@ -106,11 +106,11 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
                       <span className="text-slate-300">|</span>
                       <span>{result.reviewType || "Review not listed"}</span>
                       <span className="text-slate-300">|</span>
-                      <span>{result.category || "No category"}</span>
+                      <span className="break-words">{result.category || "No category"}</span>
                     </div>
-                    <div className="grid gap-2 rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                      <p><span className="font-semibold text-navy">Finding:</span> {result.finding}</p>
-                      <p><span className="font-semibold text-navy">Required Action:</span> {result.requiredAction}</p>
+                    <div className="grid min-w-0 gap-2 rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                      <p className="max-w-full break-words"><span className="font-semibold text-navy">Finding:</span> {result.finding}</p>
+                      <p className="max-w-full break-words"><span className="font-semibold text-navy">Required Action:</span> {result.requiredAction}</p>
                     </div>
                     <div>
                       <button
