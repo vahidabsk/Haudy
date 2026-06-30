@@ -6,6 +6,7 @@ import { useAudits } from "../hooks/use-audits";
 import { clearAscDocuments, deleteAscDocuments, loadAscDocuments } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
+import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { prepareStorageFolders } from "../lib/local-document-storage";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
@@ -68,7 +69,28 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 setAscProfiles(clearAscProfiles());
                 setAscDocuments(clearAscDocuments());
               }
+              const existingByKey = new Map(audits.audits.map((audit) => [auditIdentity(audit), audit]));
+              const duplicates = certificate.map((item) => ({ certificate: item, audit: existingByKey.get(certificateIdentity(item)) })).filter((item) => item.audit);
+              if (duplicates.length) {
+                const hasProgress = duplicates.some(({ audit }) => audit && auditHasProgress(audit));
+                const names = duplicates.map(({ certificate }) => certificate.propertyName || certificate.certificateNumber || certificate.fileName).join("\n");
+                const warning = [
+                  `${duplicates.length} uploaded certificate${duplicates.length === 1 ? "" : "s"} already exist${duplicates.length === 1 ? "s" : ""}:`,
+                  names,
+                  "",
+                  hasProgress ? "Replacing will delete the existing field note and all audit notes for those properties." : "Replacing will reset the existing field note for those properties.",
+                  "Do you want to replace the existing certificate data?",
+                ].join("\n");
+                if (!window.confirm(warning)) return "Upload canceled. Existing certificate data was kept.";
+                audits.replaceManyFromCertificates(certificate);
+                duplicates.forEach(({ audit }) => {
+                  if (audit) deleteAscDocuments(auditIdentityAscKey(audit));
+                });
+                setAscDocuments(loadAscDocuments());
+                return `${certificate.length} certificate${certificate.length === 1 ? "" : "s"} uploaded and duplicate ${duplicates.length === 1 ? "property was" : "properties were"} replaced.`;
+              }
               audits.createManyFromCertificates(certificate);
+              return undefined;
             }} />
             <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
               <div>
@@ -391,6 +413,10 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
 
 function primaryCertificateAddress(audit: { primaryCertificateIndex: number; certificates: Array<{ propertyAddress?: string }> }) {
   return audit.certificates[audit.primaryCertificateIndex]?.propertyAddress || audit.certificates[0]?.propertyAddress || "";
+}
+
+function auditIdentityAscKey(audit: { ascName: string; ascCity: string; ascState: string }) {
+  return [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {

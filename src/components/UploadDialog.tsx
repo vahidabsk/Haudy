@@ -4,7 +4,7 @@ import { parseCertificateText } from "../lib/certificate-parser";
 import { extractDocxText } from "../lib/docx-extract";
 import { ParsedCertificate } from "../lib/types";
 
-export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCertificate[]) => void }) {
+export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCertificate[]) => string | void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -20,8 +20,7 @@ export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCert
         const text = await extractDocxText(file);
         return parseCertificateText(text, file.name);
       }));
-      onParsed(certificates);
-      setMessage(`${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
+      setMessage(onParsed(certificates) || `${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
     } catch {
       setMessage("One of the files could not be read. Please upload DOCX certificate files only.");
     } finally {
@@ -37,8 +36,8 @@ export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCert
         <input className="hidden" type="file" accept=".docx" multiple onChange={upload} disabled={busy} />
       </label>
       {message ? (
-        <div className={`mt-4 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${message.includes("uploaded") ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
-          {message.includes("uploaded") ? <FileCheck2 size={18} /> : null}
+        <div className={`mt-4 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold ${message.includes("uploaded") || message.includes("replaced") ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
+          {message.includes("uploaded") || message.includes("replaced") ? <FileCheck2 size={18} /> : null}
           <span>{message}</span>
         </div>
       ) : null}

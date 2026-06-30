@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { createAuditFromCertificate, loadAudits, saveAudits } from "../lib/audit-storage";
 import { removeAuditPhotos } from "../lib/photo-store";
+import { auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 
 export function useAudits(auditorName = "") {
   const [audits, setAudits] = useState<Audit[]>(() => loadAudits());
@@ -28,6 +29,18 @@ export function useAudits(auditorName = "") {
         const newAudits = certificates.map((certificate) => createAuditFromCertificate(certificate, auditorName));
         setAudits((current) => {
           const next = [...newAudits, ...current];
+          saveAudits(next);
+          return next;
+        });
+        return newAudits;
+      },
+      replaceManyFromCertificates(certificates: ParsedCertificate[]) {
+        const replacementKeys = new Set(certificates.map(certificateIdentity));
+        const newAudits = certificates.map((certificate) => createAuditFromCertificate(certificate, auditorName));
+        setAudits((current) => {
+          current.filter((audit) => replacementKeys.has(auditIdentity(audit))).forEach(removeAuditPhotos);
+          const keptAudits = current.filter((audit) => !replacementKeys.has(auditIdentity(audit)));
+          const next = [...newAudits, ...keptAudits];
           saveAudits(next);
           return next;
         });
