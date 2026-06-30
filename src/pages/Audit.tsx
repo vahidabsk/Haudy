@@ -7,6 +7,7 @@ import { DocumentationSection } from "../components/DocumentationSection";
 import { InstallationSection } from "../components/InstallationSection";
 import { ReportFindingFields } from "../components/ReportFindingFields";
 import { SignalLogSection } from "../components/SignalLogSection";
+import { DictationNotes } from "../components/DictationNotes";
 import { useAudits } from "../hooks/use-audits";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
@@ -34,6 +35,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
 
   const currentAudit = audit;
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
+  const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   function saveAndReturn() {
     update(currentAudit);
     navigate("/");
@@ -99,22 +101,36 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                     })
                   }
                 />
-                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} disabled={audit.deviceSystemLocal} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed })} />
+                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} disabled={audit.deviceSystemLocal} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed, editedFields: { ...audit.editedFields, signalProcessingReviewed: true } })} />
                 <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={audit.deviceSystemLocal ? "" : audit.signalReviewStart} disabled={audit.deviceSystemLocal} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
                 <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={audit.deviceSystemLocal ? "" : audit.signalReviewEnd} disabled={audit.deviceSystemLocal} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
                 <ReviewStatusControl label="Auto tests" value={audit.deviceSystemLocal ? "" : audit.autoTestsStatus} disabled={audit.deviceSystemLocal} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
               </div>
+              {!audit.deviceSystemLocal && !audit.signalProcessingReviewed ? (
+                <SectionReviewNote
+                  title="Signal processing review variation"
+                  value={audit.signalReviewNotes}
+                  onChange={(signalReviewNotes) => update({ ...audit, signalReviewNotes, editedFields: { ...audit.editedFields, signalProcessingReviewed: true } })}
+                />
+              ) : null}
             </section>
-            <SignalLogSection rows={audit.signalLog} disabled={audit.deviceSystemLocal} onChange={(signalLog) => update({ ...audit, signalLog })} />
+            <SignalLogSection rows={audit.signalLog} disabled={signalRowsDisabled} disabledMessage={audit.deviceSystemLocal ? "Local system selected. Signal processing review is not applicable." : "Signal processing review marked No. Use the general variation note above to explain why the signal history was not reviewed."} onChange={(signalLog) => update({ ...audit, signalLog })} />
           </div>
         ) : null}
         {activeTab === "documentation" ? (
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Documentation Reviewed</h2>
-              <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} onChange={(documentationReviewed) => update({ ...audit, documentationReviewed })} />
+              <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} onChange={(documentationReviewed) => update({ ...audit, documentationReviewed, editedFields: { ...audit.editedFields, documentationReviewed: true } })} />
+              {!audit.documentationReviewed ? (
+                <SectionReviewNote
+                  title="Documentation review variation"
+                  value={audit.documentationReviewNotes}
+                  onChange={(documentationReviewNotes) => update({ ...audit, documentationReviewNotes, editedFields: { ...audit.editedFields, documentationReviewed: true } })}
+                />
+              ) : null}
             </section>
-            <DocumentationSection rows={audit.documentation} auditorName={auditorName} onChange={(documentation) => update({ ...audit, documentation })} />
+            <DocumentationSection rows={audit.documentation} auditorName={auditorName} disabled={!audit.documentationReviewed} onChange={(documentation) => update({ ...audit, documentation })} />
           </div>
         ) : null}
         {activeTab === "installation" ? (
@@ -122,10 +138,17 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Installation Review Conditions</h2>
               <div className="grid gap-3 md:grid-cols-3">
-                <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} onChange={(installationReviewed) => update({ ...audit, installationReviewed })} />
+                <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} onChange={(installationReviewed) => update({ ...audit, installationReviewed, editedFields: { ...audit.editedFields, installationReviewed: true } })} />
                 <ReviewStatusControl label="Matches certificate declarations?" value={audit.matchesCertificateStatus} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
                 <DisplayStatusControl label="Certificate displayed?" value={audit.certificateDisplayedStatus} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
               </div>
+              {!audit.installationReviewed ? (
+                <SectionReviewNote
+                  title="Installation review variation"
+                  value={audit.installationReviewNotes}
+                  onChange={(installationReviewNotes) => update({ ...audit, installationReviewNotes, editedFields: { ...audit.editedFields, installationReviewed: true } })}
+                />
+              ) : null}
               {audit.matchesCertificateStatus === "VAR" ? (
                 <ReportFindingFields
                   value={{
@@ -165,7 +188,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                 />
               ) : null}
             </section>
-            <InstallationSection rows={audit.installation} auditorName={auditorName} onChange={(installation) => update({ ...audit, installation })} />
+            <InstallationSection rows={audit.installation} auditorName={auditorName} disabled={!audit.installationReviewed} onChange={(installation) => update({ ...audit, installation })} />
           </div>
         ) : null}
         {activeTab === "device" ? (
@@ -196,6 +219,16 @@ function YesNoControl({ label, value, disabled, onChange }: { label: string; val
         <option value="YES">Yes</option>
       </select>
     </label>
+  );
+}
+
+function SectionReviewNote({ title, value, onChange }: { title: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+      <div className="text-sm font-semibold text-amber-950">{title}</div>
+      <p className="text-sm text-amber-900">Use this note to explain why the review was not completed.</p>
+      <DictationNotes rows={3} value={value} onChange={onChange} />
+    </div>
   );
 }
 

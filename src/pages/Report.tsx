@@ -9,7 +9,7 @@ import { Audit, AuditRow, Auditor, DeviceTestRow, SignalLogRow } from "../lib/ty
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
-type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests";
+type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests" | "sectionReview";
 
 interface ReportItem {
   id: string;
@@ -282,12 +282,63 @@ function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
 
 function collectReportItems(audit: Audit): ReportItem[] {
   return [
+    ...sectionReviewItems(audit),
     ...(audit.deviceSystemLocal ? [] : audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalItem(row))),
     ...audit.documentation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Documentation Review")),
     ...certificateConditionItems(audit),
     ...audit.installation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Installation Review")),
     ...audit.deviceTests.filter((row) => row.result === "VAR").map((row) => deviceItem(row)),
   ];
+}
+
+function sectionReviewItems(audit: Audit): ReportItem[] {
+  const items: ReportItem[] = [];
+  if (!audit.deviceSystemLocal && !audit.signalProcessingReviewed && (audit.editedFields?.signalProcessingReviewed || audit.signalReviewNotes)) {
+    items.push({
+      id: `section-signal-${audit.id}`,
+      source: "sectionReview",
+      rowId: "signalProcessingReviewed",
+      reviewType: "Signal Processing Review",
+      category: "Signal Processing Review Not Completed",
+      note: audit.signalReviewNotes,
+      finding: audit.signalReviewReportFinding,
+      requiredAction: audit.signalReviewReportRequiredAction,
+      codeStandard: audit.signalReviewReportCodeStandard,
+      codeEdition: audit.signalReviewReportCodeEdition,
+      codeSection: audit.signalReviewReportCodeSection,
+    });
+  }
+  if (!audit.documentationReviewed && (audit.editedFields?.documentationReviewed || audit.documentationReviewNotes)) {
+    items.push({
+      id: `section-documentation-${audit.id}`,
+      source: "sectionReview",
+      rowId: "documentationReviewed",
+      reviewType: "Documentation Review",
+      category: "Documentation Review Not Completed",
+      note: audit.documentationReviewNotes,
+      finding: audit.documentationReviewReportFinding,
+      requiredAction: audit.documentationReviewReportRequiredAction,
+      codeStandard: audit.documentationReviewReportCodeStandard,
+      codeEdition: audit.documentationReviewReportCodeEdition,
+      codeSection: audit.documentationReviewReportCodeSection,
+    });
+  }
+  if (!audit.installationReviewed && (audit.editedFields?.installationReviewed || audit.installationReviewNotes)) {
+    items.push({
+      id: `section-installation-${audit.id}`,
+      source: "sectionReview",
+      rowId: "installationReviewed",
+      reviewType: "Installation Review",
+      category: "Installation Review Not Completed",
+      note: audit.installationReviewNotes,
+      finding: audit.installationReviewReportFinding,
+      requiredAction: audit.installationReviewReportRequiredAction,
+      codeStandard: audit.installationReviewReportCodeStandard,
+      codeEdition: audit.installationReviewReportCodeEdition,
+      codeSection: audit.installationReviewReportCodeSection,
+    });
+  }
+  return items;
 }
 
 function signalItem(row: SignalLogRow): ReportItem {
@@ -397,6 +448,39 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
   }
   if (item.source === "documentation") {
     return { ...audit, updatedAt, documentation: audit.documentation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
+  }
+  if (item.source === "sectionReview") {
+    if (item.rowId === "signalProcessingReviewed") {
+      return {
+        ...audit,
+        updatedAt,
+        signalReviewReportFinding: patch.reportFinding ?? audit.signalReviewReportFinding,
+        signalReviewReportRequiredAction: patch.reportRequiredAction ?? audit.signalReviewReportRequiredAction,
+        signalReviewReportCodeStandard: patch.reportCodeStandard ?? audit.signalReviewReportCodeStandard,
+        signalReviewReportCodeEdition: patch.reportCodeEdition ?? audit.signalReviewReportCodeEdition,
+        signalReviewReportCodeSection: patch.reportCodeSection ?? audit.signalReviewReportCodeSection,
+      };
+    }
+    if (item.rowId === "documentationReviewed") {
+      return {
+        ...audit,
+        updatedAt,
+        documentationReviewReportFinding: patch.reportFinding ?? audit.documentationReviewReportFinding,
+        documentationReviewReportRequiredAction: patch.reportRequiredAction ?? audit.documentationReviewReportRequiredAction,
+        documentationReviewReportCodeStandard: patch.reportCodeStandard ?? audit.documentationReviewReportCodeStandard,
+        documentationReviewReportCodeEdition: patch.reportCodeEdition ?? audit.documentationReviewReportCodeEdition,
+        documentationReviewReportCodeSection: patch.reportCodeSection ?? audit.documentationReviewReportCodeSection,
+      };
+    }
+    return {
+      ...audit,
+      updatedAt,
+      installationReviewReportFinding: patch.reportFinding ?? audit.installationReviewReportFinding,
+      installationReviewReportRequiredAction: patch.reportRequiredAction ?? audit.installationReviewReportRequiredAction,
+      installationReviewReportCodeStandard: patch.reportCodeStandard ?? audit.installationReviewReportCodeStandard,
+      installationReviewReportCodeEdition: patch.reportCodeEdition ?? audit.installationReviewReportCodeEdition,
+      installationReviewReportCodeSection: patch.reportCodeSection ?? audit.installationReviewReportCodeSection,
+    };
   }
   if (item.source === "installation") {
     if (item.rowId.startsWith("certificate-match-")) {

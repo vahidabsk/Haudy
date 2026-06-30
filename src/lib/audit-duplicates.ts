@@ -27,9 +27,21 @@ export function auditHasProgress(audit: Audit) {
     audit.installationReviewed ||
     audit.signalReviewStart ||
     audit.signalReviewEnd ||
+    audit.signalReviewNotes ||
+    audit.signalReviewReportFinding ||
+    audit.signalReviewReportRequiredAction ||
+    audit.signalReviewReportCodeSection ||
     audit.autoTestsStatus ||
     audit.matchesCertificateStatus ||
     audit.certificateDisplayedStatus ||
+    audit.documentationReviewNotes ||
+    audit.documentationReviewReportFinding ||
+    audit.documentationReviewReportRequiredAction ||
+    audit.documentationReviewReportCodeSection ||
+    audit.installationReviewNotes ||
+    audit.installationReviewReportFinding ||
+    audit.installationReviewReportRequiredAction ||
+    audit.installationReviewReportCodeSection ||
     audit.certificateMatchReportFinding ||
     audit.certificateMatchReportRequiredAction ||
     audit.certificateDisplayedReportFinding ||

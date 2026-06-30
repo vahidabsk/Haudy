@@ -5,7 +5,7 @@ import { ReportFindingFields } from "./ReportFindingFields";
 
 const signalTypes: SignalType[] = ["Alarm", "Supervisory", "Trouble"];
 
-export function SignalLogSection({ rows, disabled, onChange }: { rows: SignalLogRow[]; disabled?: boolean; onChange: (rows: SignalLogRow[]) => void }) {
+export function SignalLogSection({ rows, disabled, disabledMessage = "Local system selected. Signal processing review is not applicable.", onChange }: { rows: SignalLogRow[]; disabled?: boolean; disabledMessage?: string; onChange: (rows: SignalLogRow[]) => void }) {
   const counts = {
     Alarm: rows.filter((row) => row.signalType === "Alarm").length,
     Supervisory: rows.filter((row) => row.signalType === "Supervisory").length,
@@ -19,7 +19,7 @@ export function SignalLogSection({ rows, disabled, onChange }: { rows: SignalLog
         <Counter label="Supervisory" value={counts.Supervisory} className="bg-amber-50 text-amber-800" />
         <Counter label="Trouble" value={counts.Trouble} className="bg-red-50 text-red-800" />
       </div>
-      {disabled ? <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">Local system selected. Signal processing review is not applicable.</div> : null}
+      {disabled ? <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">{disabledMessage}</div> : null}
       {rows.map((row) => (
         <div key={row.id} className={`grid gap-3 rounded-lg border bg-white p-4 ${disabled ? "opacity-60" : ""}`}>
           <div className="grid gap-3 md:grid-cols-3">
