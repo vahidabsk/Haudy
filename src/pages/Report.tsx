@@ -105,9 +105,11 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           <div className="grid gap-3">
             {reportItems.map(({ audit, item }) => {
               const missing = !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+              const certificateEdition = certificateNfpa72Edition(audit);
               return (
                 <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
                   <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
+                  {certificateEdition ? <div className="text-xs font-medium text-slate-500">Certificate declared: NFPA 72, {certificateEdition} Edition</div> : null}
                   <div className="text-sm text-slate-600">{item.note || "No field note entered."}</div>
                   <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
                   <ReportFindingFields
@@ -467,6 +469,12 @@ function ReportFooter() {
 
 function primaryCertificate(audit: Audit) {
   return audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
+}
+
+function certificateNfpa72Edition(audit: Audit) {
+  const declaredStandard = primaryCertificate(audit)?.standardReferenced || audit.codeEdition || "";
+  const match = declaredStandard.match(/\b(19|20)\d{2}\b/);
+  return match?.[0] || "";
 }
 
 function referenceFiles(audits: Audit[]) {
