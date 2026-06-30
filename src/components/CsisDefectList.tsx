@@ -4,10 +4,12 @@ import { CsisDefect, csisCategories, csisStandards, csisYears, searchCsisDefects
 
 interface CsisDefectListProps {
   initialKeyword?: string;
+  initialStandard?: string;
+  initialYear?: string;
   onSelect: (defect: CsisDefect) => void;
 }
 
-export function CsisDefectList({ initialKeyword = "", onSelect }: CsisDefectListProps) {
+export function CsisDefectList({ initialKeyword = "", initialStandard = "", initialYear = "", onSelect }: CsisDefectListProps) {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [standard, setStandard] = useState("");
@@ -17,6 +19,8 @@ export function CsisDefectList({ initialKeyword = "", onSelect }: CsisDefectList
 
   function openSearch() {
     setKeyword((current) => current || initialKeyword);
+    setStandard(initialStandard);
+    setYear(initialYear);
     setOpen(true);
   }
 

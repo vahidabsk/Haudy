@@ -105,11 +105,11 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           <div className="grid gap-3">
             {reportItems.map(({ audit, item }) => {
               const missing = !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
-              const certificateEdition = certificateNfpa72Edition(audit);
+              const certificateCode = certificateCodeReference(audit);
               return (
                 <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
                   <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
-                  {certificateEdition ? <div className="text-xs font-medium text-slate-500">Certificate declared: NFPA 72, {certificateEdition} Edition</div> : null}
+                  {certificateCode.year ? <div className="text-xs font-medium text-slate-500">Certificate declared: {certificateCode.standard}, {certificateCode.year} Edition</div> : null}
                   {item.note ? (
                     <div className="text-sm font-medium text-red-700">
                       <span className="font-bold">Field Note:</span> {item.note}
@@ -122,6 +122,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                     value={reportValue(item)}
                     showCsisHelp
                     helpKeyword={[item.category, item.note].filter(Boolean).join(" ")}
+                    helpStandard={certificateCode.standard}
+                    helpYear={certificateCode.year}
                     onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
                   />
                 </div>
@@ -477,10 +479,12 @@ function primaryCertificate(audit: Audit) {
   return audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
 }
 
-function certificateNfpa72Edition(audit: Audit) {
+function certificateCodeReference(audit: Audit) {
   const declaredStandard = primaryCertificate(audit)?.standardReferenced || audit.codeEdition || "";
-  const match = declaredStandard.match(/\b(19|20)\d{2}\b/);
-  return match?.[0] || "";
+  return {
+    standard: declaredStandard.match(/\bNFPA\s*(70|71|72)\b/i)?.[0]?.replace(/\s+/g, " ").toUpperCase() || "NFPA 72",
+    year: declaredStandard.match(/\b(19|20)\d{2}\b/)?.[0] || "",
+  };
 }
 
 function referenceFiles(audits: Audit[]) {

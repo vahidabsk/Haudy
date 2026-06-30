@@ -12,7 +12,7 @@ export interface ReportFindingValue {
 const editionOptions = ["2022", "2019", "2016", "2013", "2010", "2007", "2002"];
 const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70"];
 
-export function ReportFindingFields({ value, onChange, showCsisHelp, helpKeyword }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpKeyword?: string }) {
+export function ReportFindingFields({ value, onChange, showCsisHelp, helpKeyword, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpKeyword?: string; helpStandard?: string; helpYear?: string }) {
   const selectedStandard = value.reportCodeStandard || "NFPA 72";
   const selectedEdition = value.reportCodeEdition;
   return (
@@ -22,6 +22,8 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpKeyword
         {showCsisHelp ? (
           <CsisDefectList
             initialKeyword={helpKeyword}
+            initialStandard={helpStandard}
+            initialYear={helpYear}
             onSelect={(defect) => onChange({
               reportCodeStandard: defect.standard || "NFPA 72",
               reportCodeEdition: defect.year || "",
