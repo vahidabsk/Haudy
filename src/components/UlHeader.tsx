@@ -13,8 +13,8 @@ export function UlHeader({ auditor, onChange }: { auditor: Auditor | null; onCha
               <Flame size={24} strokeWidth={2.4} />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wide text-white/70">Haudy</p>
-              <h1 className="text-lg font-semibold">Fire Alarm Field Notes</h1>
+              <p className="text-xs uppercase tracking-wide text-white/70">Haudy Audit Suite</p>
+              <h1 className="text-lg font-semibold">Fire Alarm Certificate Audits</h1>
             </div>
           </Link>
           <div className="flex items-center gap-2 text-sm">

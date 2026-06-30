@@ -1,7 +1,7 @@
 {
-  "name": "Haudy Fire Alarm Field Notes",
+  "name": "Haudy Audit Suite",
   "short_name": "Haudy",
-  "description": "Offline fire alarm audit field notes for certificate reviews.",
+  "description": "Fire alarm certificate audits, field notes, confirmations, and reports in one workspace.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

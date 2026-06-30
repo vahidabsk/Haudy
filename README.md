@@ -1,6 +1,6 @@
-# Haudy
+# Haudy Audit Suite
 
-Tablet-friendly browser portal for UL fire alarm system audit field notes. This v1 is a frontend-only React/Vite app that stores data in the browser.
+Tablet-friendly browser workspace for fire alarm certificate audits, field notes, confirmation letters, and reports. This v1 is a frontend-only React/Vite app that stores data in the browser.
 
 ## Run Locally
 
