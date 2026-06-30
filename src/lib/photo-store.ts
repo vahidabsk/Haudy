@@ -1,4 +1,5 @@
 import { uid } from "./utils";
+import { Audit } from "./types";
 
 export async function storePhoto(file: File) {
   const dataUrl = await downscale(file);
@@ -13,6 +14,15 @@ export function loadPhoto(id: string) {
 
 export function removePhoto(id: string) {
   localStorage.removeItem(`haudy.photos.${id}`);
+}
+
+export function removeAuditPhotos(audit: Audit) {
+  const photoIds = [
+    ...audit.documentation.flatMap((row) => row.photos),
+    ...audit.installation.flatMap((row) => row.photos),
+    ...audit.deviceTests.flatMap((row) => row.photos),
+  ];
+  photoIds.forEach(removePhoto);
 }
 
 async function downscale(file: File) {

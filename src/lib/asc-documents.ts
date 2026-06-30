@@ -30,6 +30,15 @@ export function saveAscDocuments(documents: AscDocuments) {
   localStorage.setItem(ASC_DOCUMENT_KEY, JSON.stringify(documents));
 }
 
+export function deleteAscDocuments(ascKey: string) {
+  const documents = loadAscDocuments();
+  if (!(ascKey in documents)) return documents;
+  const next = { ...documents };
+  delete next[ascKey];
+  saveAscDocuments(next);
+  return next;
+}
+
 export function saveAscDocument(ascKey: string, type: keyof AscDocumentState, status: Omit<SavedDocumentStatus, "saved" | "updatedAt">) {
   const documents = loadAscDocuments();
   const next: AscDocuments = {

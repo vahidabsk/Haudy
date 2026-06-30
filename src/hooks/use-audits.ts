@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { createAuditFromCertificate, loadAudits, saveAudits } from "../lib/audit-storage";
+import { removeAuditPhotos } from "../lib/photo-store";
 
 export function useAudits(auditorName = "") {
   const [audits, setAudits] = useState<Audit[]>(() => loadAudits());
@@ -34,6 +35,8 @@ export function useAudits(auditorName = "") {
       },
       deleteAudit(id: string) {
         setAudits((current) => {
+          const deletedAudit = current.find((audit) => audit.id === id);
+          if (deletedAudit) removeAuditPhotos(deletedAudit);
           const next = current.filter((audit) => audit.id !== id);
           saveAudits(next);
           return next;

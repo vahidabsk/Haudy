@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
-import { loadAscDocuments } from "../lib/asc-documents";
-import { AscProfile, completeAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
+import { deleteAscDocuments, loadAscDocuments } from "../lib/asc-documents";
+import { AscProfile, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { prepareStorageFolders } from "../lib/local-document-storage";
 import { relativeTime } from "../lib/utils";
@@ -342,7 +342,14 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
             <div className="flex flex-wrap gap-2">
               <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit Field Note</Link>
               <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" to={`/audit/${audit.id}/export`}><Download size={16} /> Export Field Note</Link>
-              <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => audits.deleteAudit(audit.id)}><Trash2 size={16} /> Delete Field Note</button>
+              <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => {
+                const deletingLastPropertyForAsc = group.audits.length === 1;
+                audits.deleteAudit(audit.id);
+                if (deletingLastPropertyForAsc) {
+                  deleteAscDocuments(group.key);
+                  deleteAscProfile(group.key);
+                }
+              }}><Trash2 size={16} /> Delete Field Note</button>
             </div>
           </article>
         ))}
