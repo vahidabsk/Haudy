@@ -189,8 +189,8 @@ function SignalReportSection({ audit, items, numbers }: { audit: Audit; items: R
   return (
     <div className="report-review-section">
       <h3>----Signal Processing Review----</h3>
-      <p>A total of {counts.alarm} alarm, {counts.supervisory} supervisory, and {counts.trouble} trouble signal event(s) has been reviewed.</p>
-      {!items.length ? <p>** No non-compliance issues were identified during the signal review.</p> : null}
+      <p className="report-aligned-note">A total of {counts.alarm} alarm, {counts.supervisory} supervisory, and {counts.trouble} trouble signal event(s) has been reviewed.</p>
+      {!items.length ? <p className="report-aligned-note">** No non-compliance issues were identified during the signal review.</p> : null}
       {items.map((item) => <ReportFinding key={item.id} item={item} number={numbers.get(deficiencyKey(audit.id, item.id)) || 0} />)}
     </div>
   );
@@ -200,7 +200,7 @@ function ReportSection({ title, items, emptyText, numbers, auditId }: { title: R
   return (
     <div className="report-review-section">
       <h3>----{title}----</h3>
-      {!items.length ? <p>{emptyText}</p> : null}
+      {!items.length ? <p className="report-aligned-note">{emptyText}</p> : null}
       {items.map((item) => <ReportFinding key={item.id} item={item} number={numbers.get(deficiencyKey(auditId, item.id)) || 0} />)}
     </div>
   );

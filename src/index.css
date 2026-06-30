@@ -514,6 +514,10 @@ textarea {
   font-weight: 400;
 }
 
+.report-aligned-note {
+  margin: 0 0 0.08in 0.35in;
+}
+
 .report-finding {
   margin: 0 0 0.2in 0.5in;
   break-inside: avoid;
