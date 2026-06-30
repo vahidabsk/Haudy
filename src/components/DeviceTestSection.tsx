@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { DeviceTestRow } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
@@ -33,6 +34,13 @@ const resultOptions = [
 ];
 
 export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage = "Device testing review marked No. Use the general variation note above to explain why device testing was not completed.", onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; disabled?: boolean; disabledMessage?: string; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
+  const [currentTime, setCurrentTime] = useState(() => timeStamp(new Date()));
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(timeStamp(new Date())), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   function setLocalSystem(nextLocalSystem: boolean) {
     onLocalSystemChange(nextLocalSystem);
   }
@@ -48,21 +56,84 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
         </select>
       </label>
       {disabled ? <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">{disabledMessage}</div> : null}
-      {rows.map((row) => (
+      {rows.map((row) => {
+        const isWaterflow = row.deviceType === "Waterflow switch";
+        const waterflowSeconds = isWaterflow ? secondsBetween(row.tripTime, row.timeReceived || currentTime) : null;
+        const waterflowRunning = isWaterflow && row.tripTime && !row.timeReceived;
+        const waterflowOverdue = Boolean(waterflowRunning && waterflowSeconds !== null && waterflowSeconds >= 90);
+        return (
         <div key={row.id} className={`grid gap-3 rounded-lg border bg-white p-4 ${disabled ? "opacity-60" : ""}`}>
           <div className="grid gap-3 md:grid-cols-3">
             <select className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : row.deviceType} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceType: e.target.value }, onChange)}><option value="">Device Type Tested</option>{deviceTypes.map((item) => <option key={item}>{item}</option>)}</select>
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Location" value={disabled ? "" : row.location} disabled={disabled} onChange={(e) => patch(rows, row.id, { location: e.target.value }, onChange)} />
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Device ID / Zone" value={disabled ? "" : row.deviceId} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceId: e.target.value }, onChange)} />
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              Trip Time
-              <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" value={disabled ? "" : row.tripTime} disabled={disabled} onChange={(e) => patch(rows, row.id, { tripTime: e.target.value }, onChange)} />
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-slate-700">
-              Time Received
-              <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" value={localSystem || disabled ? "" : row.timeReceived} disabled={localSystem || disabled} onChange={(e) => patch(rows, row.id, { timeReceived: e.target.value }, onChange)} />
-            </label>
+            {!isWaterflow ? (
+              <>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Trip Time
+                  <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" value={disabled ? "" : row.tripTime} disabled={disabled} onChange={(e) => patch(rows, row.id, { tripTime: e.target.value }, onChange)} />
+                </label>
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Time Received
+                  <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" value={localSystem || disabled ? "" : row.timeReceived} disabled={localSystem || disabled} onChange={(e) => patch(rows, row.id, { timeReceived: e.target.value }, onChange)} />
+                </label>
+              </>
+            ) : null}
           </div>
+          {isWaterflow ? (
+            <div className="grid gap-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+              <div className="grid gap-2 text-sm text-sky-950 sm:grid-cols-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase text-sky-700">Trig time</div>
+                  <div className="font-mono text-lg font-bold">{row.tripTime || "--:--:--"}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase text-sky-700">Received time</div>
+                  <div className="font-mono text-lg font-bold">{row.timeReceived || "--:--:--"}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase text-sky-700">Elapsed</div>
+                  <div className={`font-mono text-lg font-bold ${waterflowOverdue ? "text-red-700" : "text-sky-950"}`}>{waterflowSeconds === null ? "--" : formatElapsed(waterflowSeconds)}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="min-h-10 rounded-md border border-sky-300 bg-white px-3 text-sm font-semibold text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={disabled}
+                  onClick={() => patch(rows, row.id, { tripTime: timeStamp(new Date()), timeReceived: "", result: "", notes: "" }, onChange)}
+                >
+                  Flow Water
+                </button>
+                <button
+                  type="button"
+                  className="min-h-10 rounded-md border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={disabled || localSystem || !row.tripTime}
+                  onClick={() => completeWaterflowTest(rows, row.id, timeStamp(new Date()), onChange)}
+                >
+                  Alarm Signal Received
+                </button>
+                {waterflowOverdue ? (
+                  <button
+                    type="button"
+                    className="min-h-10 rounded-md border border-red-300 bg-red-50 px-3 text-sm font-semibold text-red-900 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={disabled}
+                    onClick={() => patch(rows, row.id, { timeReceived: "", result: "VAR", notes: "The waterflow switch is not functioning correctly." }, onChange)}
+                  >
+                    Signal Has Not Been Received
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={disabled}
+                  onClick={() => patch(rows, row.id, { tripTime: "", timeReceived: "", result: "", notes: "" }, onChange)}
+                >
+                  Reset Test
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-2 text-sm sm:grid-cols-4">
             {testOptions.map((option) => (
               <button
@@ -91,7 +162,8 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
           </div>
           {disabled ? <textarea className="w-full rounded-md border border-slate-300 bg-slate-100 p-3 text-slate-400" rows={3} disabled /> : <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes }, onChange)} />}
         </div>
-      ))}
+        );
+      })}
       <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
         Add Device Row
       </button>
@@ -101,6 +173,40 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
 
 function patch(rows: DeviceTestRow[], id: string, update: Partial<DeviceTestRow>, onChange: (rows: DeviceTestRow[]) => void) {
   onChange(rows.map((row) => (row.id === id ? { ...row, ...update, updatedAt: nowIso() } : row)));
+}
+
+function secondsBetween(start: string, end: string) {
+  const startSeconds = timeToSeconds(start);
+  const endSeconds = timeToSeconds(end);
+  if (startSeconds === null || endSeconds === null) return null;
+  return endSeconds >= startSeconds ? endSeconds - startSeconds : endSeconds + 24 * 60 * 60 - startSeconds;
+}
+
+function completeWaterflowTest(rows: DeviceTestRow[], id: string, receivedTime: string, onChange: (rows: DeviceTestRow[]) => void) {
+  const row = rows.find((item) => item.id === id);
+  if (!row) return;
+  const duration = secondsBetween(row.tripTime, receivedTime);
+  const passed = duration !== null && duration < 90;
+  patch(rows, id, {
+    timeReceived: receivedTime,
+    result: passed ? "OK" : "VAR",
+    notes: passed ? row.notes : `Waterflow test failed; exceeded 90 seconds${duration === null ? "." : ` (${duration} seconds).`}`,
+  }, onChange);
+}
+
+function timeToSeconds(value: string) {
+  const parts = value.split(":").map(Number);
+  if (parts.length < 2 || parts.some(Number.isNaN)) return null;
+  const [hours, minutes, seconds = 0] = parts;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function timeStamp(value: Date) {
+  return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}:${String(value.getSeconds()).padStart(2, "0")}`;
+}
+
+function formatElapsed(seconds: number) {
+  return `${seconds}s`;
 }
 
 function toggleTestFlag(rows: DeviceTestRow[], id: string, key: DeviceTestFlag, onChange: (rows: DeviceTestRow[]) => void) {
