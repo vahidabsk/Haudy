@@ -267,7 +267,7 @@ function checklistRows(title: string, rows: AuditRow[]) {
 }
 
 function blankChecklistRow(element: string, index = 0): AuditRow {
-  return { id: `blank-checklist-${element || index}`, element, status: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "", updatedBy: "" };
+  return { id: `blank-checklist-${element || index}`, element, status: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "", updatedBy: "" };
 }
 
 function DeviceTable({ rows, localSystem, continued }: { rows: DeviceTestRow[]; localSystem?: boolean; continued?: boolean }) {
@@ -382,11 +382,11 @@ function hasDeviceContent(row: DeviceTestRow) {
 }
 
 function padSignalRows(rows: SignalLogRow[], size: number) {
-  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-signal-${index}`, signalType: "" as const, handlingStatus: "" as const, date: "", time: "", description: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", updatedAt: "" }))].slice(0, size);
+  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-signal-${index}`, signalType: "" as const, handlingStatus: "" as const, date: "", time: "", description: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", updatedAt: "" }))].slice(0, size);
 }
 
 function padDeviceRows(rows: DeviceTestRow[], size: number) {
-  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-device-${index}`, deviceType: "", location: "", deviceId: "", signalType: "" as const, functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "" as const, notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "" }))].slice(0, size);
+  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-device-${index}`, deviceType: "", location: "", deviceId: "", signalType: "" as const, functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "" as const, notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "" }))].slice(0, size);
 }
 
 interface PhotoAttachment {

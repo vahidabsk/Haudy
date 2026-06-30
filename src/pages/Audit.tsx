@@ -131,6 +131,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   value={{
                     reportFinding: audit.certificateMatchReportFinding,
                     reportRequiredAction: audit.certificateMatchReportRequiredAction,
+                    reportCodeStandard: audit.certificateMatchReportCodeStandard,
                     reportCodeEdition: audit.certificateMatchReportCodeEdition,
                     reportCodeSection: audit.certificateMatchReportCodeSection,
                   }}
@@ -138,6 +139,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                     ...audit,
                     certificateMatchReportFinding: fields.reportFinding ?? audit.certificateMatchReportFinding,
                     certificateMatchReportRequiredAction: fields.reportRequiredAction ?? audit.certificateMatchReportRequiredAction,
+                    certificateMatchReportCodeStandard: fields.reportCodeStandard ?? audit.certificateMatchReportCodeStandard,
                     certificateMatchReportCodeEdition: fields.reportCodeEdition ?? audit.certificateMatchReportCodeEdition,
                     certificateMatchReportCodeSection: fields.reportCodeSection ?? audit.certificateMatchReportCodeSection,
                   })}
@@ -148,6 +150,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   value={{
                     reportFinding: audit.certificateDisplayedReportFinding,
                     reportRequiredAction: audit.certificateDisplayedReportRequiredAction,
+                    reportCodeStandard: audit.certificateDisplayedReportCodeStandard,
                     reportCodeEdition: audit.certificateDisplayedReportCodeEdition,
                     reportCodeSection: audit.certificateDisplayedReportCodeSection,
                   }}
@@ -155,6 +158,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                     ...audit,
                     certificateDisplayedReportFinding: fields.reportFinding ?? audit.certificateDisplayedReportFinding,
                     certificateDisplayedReportRequiredAction: fields.reportRequiredAction ?? audit.certificateDisplayedReportRequiredAction,
+                    certificateDisplayedReportCodeStandard: fields.reportCodeStandard ?? audit.certificateDisplayedReportCodeStandard,
                     certificateDisplayedReportCodeEdition: fields.reportCodeEdition ?? audit.certificateDisplayedReportCodeEdition,
                     certificateDisplayedReportCodeSection: fields.reportCodeSection ?? audit.certificateDisplayedReportCodeSection,
                   })}

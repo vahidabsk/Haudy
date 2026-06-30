@@ -33,7 +33,7 @@ export function RowSection({ title, rows, auditorName, onChange, photoRequired }
           <div className="text-xs text-slate-500">Updated by {row.updatedBy || auditorName}</div>
         </div>
       ))}
-      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("row"), element: "", status: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso(), updatedBy: auditorName }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("row"), element: "", status: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso(), updatedBy: auditorName }])}>
         Add Row
       </button>
     </section>

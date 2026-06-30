@@ -20,6 +20,7 @@ interface ReportItem {
   note: string;
   finding: string;
   requiredAction: string;
+  codeStandard: string;
   codeEdition: string;
   codeSection: string;
 }
@@ -49,7 +50,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
-  const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim());
+  const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -103,7 +104,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
         {reportItems.length ? (
           <div className="grid gap-3">
             {reportItems.map(({ audit, item }) => {
-              const missing = !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+              const missing = !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
               return (
                 <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
                   <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
@@ -111,6 +112,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                   <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
                   <ReportFindingFields
                     value={reportValue(item)}
+                    showCsisHelp
+                    helpKeyword={[item.category, item.note].filter(Boolean).join(" ")}
                     onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
                   />
                 </div>
@@ -287,6 +290,7 @@ function signalItem(row: SignalLogRow): ReportItem {
     note: row.notes || row.description,
     finding: row.reportFinding,
     requiredAction: row.reportRequiredAction,
+    codeStandard: row.reportCodeStandard,
     codeEdition: row.reportCodeEdition,
     codeSection: row.reportCodeSection,
   };
@@ -302,6 +306,7 @@ function checklistItem(row: AuditRow, reviewType: ReportReview): ReportItem {
     note: row.notes,
     finding: row.reportFinding,
     requiredAction: row.reportRequiredAction,
+    codeStandard: row.reportCodeStandard,
     codeEdition: row.reportCodeEdition,
     codeSection: row.reportCodeSection,
   };
@@ -317,6 +322,7 @@ function deviceItem(row: DeviceTestRow): ReportItem {
     note: row.notes,
     finding: row.reportFinding,
     requiredAction: row.reportRequiredAction,
+    codeStandard: row.reportCodeStandard,
     codeEdition: row.reportCodeEdition,
     codeSection: row.reportCodeSection,
   };
@@ -334,6 +340,7 @@ function certificateConditionItems(audit: Audit): ReportItem[] {
       note: "",
       finding: audit.certificateMatchReportFinding,
       requiredAction: audit.certificateMatchReportRequiredAction,
+      codeStandard: audit.certificateMatchReportCodeStandard,
       codeEdition: audit.certificateMatchReportCodeEdition,
       codeSection: audit.certificateMatchReportCodeSection,
     });
@@ -348,6 +355,7 @@ function certificateConditionItems(audit: Audit): ReportItem[] {
       note: "",
       finding: audit.certificateDisplayedReportFinding,
       requiredAction: audit.certificateDisplayedReportRequiredAction,
+      codeStandard: audit.certificateDisplayedReportCodeStandard,
       codeEdition: audit.certificateDisplayedReportCodeEdition,
       codeSection: audit.certificateDisplayedReportCodeSection,
     });
@@ -359,6 +367,7 @@ function reportValue(item: ReportItem): ReportFindingValue {
   return {
     reportFinding: item.finding,
     reportRequiredAction: item.requiredAction,
+    reportCodeStandard: item.codeStandard || "NFPA 72",
     reportCodeEdition: item.codeEdition,
     reportCodeSection: item.codeSection,
   };
@@ -368,6 +377,7 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
   const patch = {
     ...("reportFinding" in reportFields ? { reportFinding: reportFields.reportFinding || "" } : {}),
     ...("reportRequiredAction" in reportFields ? { reportRequiredAction: reportFields.reportRequiredAction || "" } : {}),
+    ...("reportCodeStandard" in reportFields ? { reportCodeStandard: reportFields.reportCodeStandard || "NFPA 72" } : {}),
     ...("reportCodeEdition" in reportFields ? { reportCodeEdition: reportFields.reportCodeEdition || "" } : {}),
     ...("reportCodeSection" in reportFields ? { reportCodeSection: reportFields.reportCodeSection || "" } : {}),
   };
@@ -385,6 +395,7 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
         updatedAt,
         certificateMatchReportFinding: patch.reportFinding ?? audit.certificateMatchReportFinding,
         certificateMatchReportRequiredAction: patch.reportRequiredAction ?? audit.certificateMatchReportRequiredAction,
+        certificateMatchReportCodeStandard: patch.reportCodeStandard ?? audit.certificateMatchReportCodeStandard,
         certificateMatchReportCodeEdition: patch.reportCodeEdition ?? audit.certificateMatchReportCodeEdition,
         certificateMatchReportCodeSection: patch.reportCodeSection ?? audit.certificateMatchReportCodeSection,
       };
@@ -395,6 +406,7 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
         updatedAt,
         certificateDisplayedReportFinding: patch.reportFinding ?? audit.certificateDisplayedReportFinding,
         certificateDisplayedReportRequiredAction: patch.reportRequiredAction ?? audit.certificateDisplayedReportRequiredAction,
+        certificateDisplayedReportCodeStandard: patch.reportCodeStandard ?? audit.certificateDisplayedReportCodeStandard,
         certificateDisplayedReportCodeEdition: patch.reportCodeEdition ?? audit.certificateDisplayedReportCodeEdition,
         certificateDisplayedReportCodeSection: patch.reportCodeSection ?? audit.certificateDisplayedReportCodeSection,
       };
@@ -431,7 +443,8 @@ function propertyAddressLines(address: string) {
 function formatCodeReference(item: ReportItem) {
   const edition = item.codeEdition ? `${item.codeEdition.replace(/\D/g, "") || item.codeEdition} Edition` : "";
   const section = item.codeSection ? `Section ${item.codeSection}` : "";
-  return ["NFPA 72", edition, section].filter(Boolean).join(", ").replace("NFPA 72,", "NFPA 72");
+  const standard = item.codeStandard || "NFPA 72";
+  return [standard, edition, section].filter(Boolean).join(", ");
 }
 
 function ReportHeader() {

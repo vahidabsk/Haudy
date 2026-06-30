@@ -56,6 +56,7 @@ export interface AuditRow {
   notes: string;
   reportFinding: string;
   reportRequiredAction: string;
+  reportCodeStandard: string;
   reportCodeEdition: string;
   reportCodeSection: string;
   photos: string[];
@@ -73,6 +74,7 @@ export interface SignalLogRow {
   notes: string;
   reportFinding: string;
   reportRequiredAction: string;
+  reportCodeStandard: string;
   reportCodeEdition: string;
   reportCodeSection: string;
   updatedAt: string;
@@ -98,6 +100,7 @@ export interface DeviceTestRow {
   notes: string;
   reportFinding: string;
   reportRequiredAction: string;
+  reportCodeStandard: string;
   reportCodeEdition: string;
   reportCodeSection: string;
   photos: string[];
@@ -127,10 +130,12 @@ export interface Audit {
   certificateDisplayedStatus: DisplayStatus | "";
   certificateMatchReportFinding: string;
   certificateMatchReportRequiredAction: string;
+  certificateMatchReportCodeStandard: string;
   certificateMatchReportCodeEdition: string;
   certificateMatchReportCodeSection: string;
   certificateDisplayedReportFinding: string;
   certificateDisplayedReportRequiredAction: string;
+  certificateDisplayedReportCodeStandard: string;
   certificateDisplayedReportCodeEdition: string;
   certificateDisplayedReportCodeSection: string;
   deviceSystemLocal: boolean;

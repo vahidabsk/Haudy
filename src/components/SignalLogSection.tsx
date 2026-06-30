@@ -57,7 +57,7 @@ export function SignalLogSection({ rows, disabled, onChange }: { rows: SignalLog
           ) : null}
         </div>
       ))}
-      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", updatedAt: nowIso() }])}>
         Add Signal Row
       </button>
     </section>
