@@ -136,7 +136,7 @@ function LateResponsePage({ auditorName }: { auditorName: string }) {
         </ol>
         <p>If your reply has still not been received within the established timeline, the following actions will occur:</p>
         <ol className="report-late-list">
-          <li>A mandatory billable project in the amount of $1368 will be opened to help defray the additional administrative expense associated with handling late responses.</li>
+          <li>A mandatory billable project in the amount of $1436 will be opened to help defray the additional administrative expense associated with handling late responses.</li>
         </ol>
         <p>If your reply has still not been received within the established timeline, the following actions will occur:</p>
         <ol className="report-late-list" start={2}>
