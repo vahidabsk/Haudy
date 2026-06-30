@@ -1612,19 +1612,6 @@
     "examples": "Finding: The location of the corresponding breaker was not identified on the FACU. | Required Action: Clearly label the FACU with the location of the corresponding breaker in accordance with code requirements. || Finding: The location of the circuit disconnecting means was not specified at the FACU. | Required Action: Permanently identify the location of the circuit breaker at the fire alarm control unit."
   },
   {
-    "id": "F-0125",
-    "standard": "NFPA 72",
-    "year": "2013",
-    "reviewType": "Installation Review",
-    "category": "Table 14.3.1 Visual Inspection, Section 1, All equipment - ensure there are no changes that affect equipment performance. Inspect for building modifications, occupancy changes, changes in environmental conditions, device location, physical obstructions, device orientation, physical damage, and degree of cleanliness.",
-    "findingType": "Breaker Lock / Primary Power Deficiency",
-    "section": "10.6.5.4",
-    "finding": "The fire alarm branch circuit disconnecting means was not provided with all required identification, marking, location information, or listed locking protection.",
-    "requiredAction": "Correct the primary power circuit condition and provide required identification, marking, location information, or listed locking protection as applicable.",
-    "keywords": "table; visual; inspection; section; all; equipment; there; changes; affect; performance; inspect; building; modifications; occupancy; environmental; conditions; device; location; physical; obstructions; orientation; damage; degree; cleanliness; breaker; lock; primary; power; deficiency; fire; branch; circuit; disconnecting; means; provided",
-    "examples": "Finding: The main power branch circuit breaker was found to be broken. | Required Action: Install a new circuit breaker and secure the circuit breaker with a listed locking device. || Finding: The dedicated circuit breaker for the Fire Alarm control unit did not have a listed locking device. | Required Action: Install a listed circuit breaker lock in compliance with code requirements. || Finding: The circuit breaker for the FACU does not have a circuit breaker lock. | Required Action: Install a listed circuit breaker lock for the fire alarm designated circuit breaker. || Finding: The circuit breaker for the FACU lacks a circuit breaker lock. | Required Action: Install a listed circuit breaker lock for the fire alarm designated circuit breaker."
-  },
-  {
     "id": "F-0126",
     "standard": "NFPA 72",
     "year": "2013",
@@ -5239,45 +5226,6 @@
     "examples": "Finding: The junction box for PIV was found to be broken. | Required Action: Install a new junction box for the outside PIV switch to ensure compliance with the required codes. || Finding: It was determined that the external flex tube connecting the waterflow switch to the wall junction box was damaged and the wires were exposed. | Required Action: Repair or replace the flex tube and ensure compliance with the NFPA 70 guidelines in accordance with the requirements of the code."
   },
   {
-    "id": "F-0405",
-    "standard": "NFPA 72",
-    "year": "22",
-    "reviewType": "Installation Review",
-    "category": "Certification",
-    "findingType": "Initial Acceptance Test Missing",
-    "section": "26.3.4.3",
-    "finding": "The required Initial Acceptance Test documentation was not provided for the installed system.",
-    "requiredAction": "Submit the Initial Acceptance Test documentation for the installed system.",
-    "keywords": "certification; initial; acceptance; test; missing; documentation; provided; nfpa",
-    "examples": "Finding: The required UL certification for the equipment was not displayed at the designated location in proximity to the control unit. | Required Action: Post the applicable UL certificate within 3 feet of the associated control unit"
-  },
-  {
-    "id": "F-0406",
-    "standard": "NFPA 72",
-    "year": "2205",
-    "reviewType": "Documentation Review",
-    "category": "Record Drawings (As Builts)",
-    "findingType": "Record of Completion Missing",
-    "section": "14.4.3.2; Table 14.4.3.2",
-    "finding": "The required Record of Completion was not provided for the installed system.",
-    "requiredAction": "Submit a complete Record of Completion in accordance with the applicable code requirements.",
-    "keywords": "record; drawings; builts; completion; missing; provided; complete; nfpa; table; sensitivity; testing",
-    "examples": "Finding: The alarm service company did not conduct the required smoke detector sensitivity test, as mandated by the applicable standards. | Required Action: Perform the smoke detector sensitivity test in accordance with the procedures outlined in the relevant standard to ensure compliance."
-  },
-  {
-    "id": "F-0407",
-    "standard": "NFPA 72 and UL follow-up program",
-    "year": "",
-    "reviewType": "Installation Review",
-    "category": "Statement",
-    "findingType": "Battery Calculations Missing",
-    "section": "",
-    "finding": "The required battery calculation documentation was not provided for the installed system.",
-    "requiredAction": "Submit accurate battery calculations demonstrating compliance with the applicable standby and alarm power requirements, including all connected components.",
-    "keywords": "statement; battery; calculations; missing; calculation; documentation; provided; accurate; demonstrating; compliance; standby; power; including; all; connected; components; nfpa; follow-up; program",
-    "examples": "Finding: The audit of the protected property was not completed as access to the premises was not granted. Furthermore, the alarm service company did not provide the required documentation, with the exception of the battery calculation and system drawing. As a result, compliance with the applicable standards could not be verified. property. | Required Action: It is therefore required that the alarm service company cancel the certification for this property."
-  },
-  {
     "id": "F-0408",
     "standard": "NFPA 72A",
     "year": "1987",
@@ -5289,71 +5237,6 @@
     "requiredAction": "Correct the notification appliance installation or operation and verify compliance with applicable notification appliance requirements.",
     "keywords": "smoke; detectors; notification; appliance; deficiency; operation; installation; comply; correct; verify; compliance; nfpa; 72a; 2-16",
     "examples": "Finding: The alarm service company failed to install a smoke detector at the panel location. | Required Action: Install a smoke detector at the panel location in accordance with the requirements of the standard."
-  },
-  {
-    "id": "F-0409",
-    "standard": "Redwood City Fire Prevention Code",
-    "year": "",
-    "reviewType": "Documentation Review",
-    "category": "Certificate Category",
-    "findingType": "Certificate Accuracy / Posting Deficiency",
-    "section": "1.10",
-    "finding": "The certificate did not accurately reflect the current installed system configuration or required certificate information.",
-    "requiredAction": "Revise and submit the certificate so it accurately reflects the current installed system configuration and required certificate information.",
-    "keywords": "certificate; category; accuracy; posting; deficiency; accurately; reflect; configuration; information; revise; reflects; redwood; city; fire; prevention",
-    "examples": "Finding: It has been observed that the certificate was issued in an incorrect category. (UUJS) | Required Action: Reissue the certificate with the UUFX category and ensure compliance with Chapter 26.3 of NFPA 72, in accordance with the Central Station type service. *END*"
-  },
-  {
-    "id": "F-0410",
-    "standard": "Required 90-day signal history",
-    "year": "",
-    "reviewType": "Signal Processing Review",
-    "category": "Signal History",
-    "findingType": "Periodic Testing / Signal Records Missing",
-    "section": "",
-    "finding": "The required 90-day signal processing history was not provided for review.",
-    "requiredAction": "Submit the complete 90-day signal processing history for review.",
-    "keywords": "signal; history; periodic; testing; records; missing; 90-day; processing; provided; complete",
-    "examples": "Finding: The alarm service company did not deliver the necessary 90-day signal history. | Required Action: Please provide a 90-day period signal history for review in accordance with the requirements of UL-annual audit documentation preparation."
-  },
-  {
-    "id": "F-0411",
-    "standard": "San José Fire Department Fire Alarm Systems Requirements",
-    "year": "January 1, 2023",
-    "reviewType": "Installation Review",
-    "category": "Certificate",
-    "findingType": "Initial Acceptance Test Missing",
-    "section": "",
-    "finding": "The required Initial Acceptance Test documentation was not provided for the installed system.",
-    "requiredAction": "Submit the Initial Acceptance Test documentation for the installed system.",
-    "keywords": "certificate; initial; acceptance; test; missing; documentation; provided; san; jos; fire; department; systems",
-    "examples": "Finding: It has been observed that the alarm service provider does not possess the appropriate listing category UUFX, as required by the Authority Having Jurisdiction (AHJ). | Required Action: Address the issue either by acquiring the listing for the UUFX category, submitting a deviation letter from the Authority Having Jurisdiction (AHJ), or canceling the certificate."
-  },
-  {
-    "id": "F-0412",
-    "standard": "San Mateo Consolidated Fire Department Fire Code",
-    "year": "ORD-2022-001",
-    "reviewType": "Documentation Review",
-    "category": "Certificate Category",
-    "findingType": "Initial Acceptance Test Missing",
-    "section": "1.6; 1.6.1",
-    "finding": "The required Initial Acceptance Test documentation was not provided for the installed system.",
-    "requiredAction": "Submit the Initial Acceptance Test documentation for the installed system.",
-    "keywords": "certificate; category; initial; acceptance; test; missing; documentation; provided; san; mateo; consolidated; fire; department",
-    "examples": "Finding: It has been observed that the certificate was issued in an incorrect category. (UUJS) | Required Action: Reissue the certificate with the UUFX category and ensure compliance with Chapter 26.3 of NFPA 72, in accordance with the Central Station type service."
-  },
-  {
-    "id": "F-0413",
-    "standard": "UL 2050",
-    "year": "Fifth Edition",
-    "reviewType": "GCMS Comments",
-    "category": "PALO ALTO, California 94303 UNITED STATES",
-    "findingType": "Contract / Runner Service Deficiency",
-    "section": "6.2.3.3",
-    "finding": "The service contract did not include all required inspection, testing, maintenance, or service responsibility provisions.",
-    "requiredAction": "Revise and submit the service contract or written agreement to include all required service elements and responsibility provisions.",
-    "keywords": "palo; alto; california; 94303; united; states; contract; runner; deficiency; include; all; inspection; testing; maintenance; responsibility; provisions; revise; written; agreement; elements; 2050",
-    "examples": "Finding: The audit determined that the government contractor monitoring station was not equipped with the required water sheds, as stipulated by the applicable code. | Required Action: Provide water sheds in all designated areas to ensure full compliance with code requirements."
   },
   {
     "id": "F-0414",
@@ -6316,57 +6199,5 @@
     "requiredAction": "Relocate, reinstall, or replace the device/module as needed in accordance with the applicable standard and manufacturer’s published installation instructions.",
     "keywords": "power; supplies; improper; device; module; installation; enclosure; location; consistent; manufacturer; published; instructions; relocate; reinstall; replace; device/module; needed; 681",
     "examples": "Finding: It was observed that the ASC did not adhere to the manufacturer’s installation instructions when installing the unit transformer. | Required Action: Ensure compliance with the manufacturer’s installation requirements by properly installing the unit transformer within the designated power supply enclosure (ES50), in accordance with applicable code provisions."
-  },
-  {
-    "id": "F-0488",
-    "standard": "UL Certificate / AHJ Requirement",
-    "year": "",
-    "reviewType": "Installation Review",
-    "category": "Certificate",
-    "findingType": "Certificate Accuracy / Posting Deficiency",
-    "section": "7.4; 3.03",
-    "finding": "The certificate did not accurately reflect the current installed system configuration or required certificate information.",
-    "requiredAction": "Revise and submit the certificate so it accurately reflects the current installed system configuration and required certificate information.",
-    "keywords": "certificate; accuracy; posting; deficiency; accurately; reflect; configuration; information; revise; reflects; ahj; requirement",
-    "examples": "Finding: The current certification does not specify the TG7 communicator as the designated communication pathway. | Required Action: Update the certificate to accurately reflect the most current specifications of the installed system."
-  },
-  {
-    "id": "F-0489",
-    "standard": "UL Certificate Requirements",
-    "year": "",
-    "reviewType": "Installation Review",
-    "category": "Certificate",
-    "findingType": "Certificate Accuracy / Posting Deficiency",
-    "section": "",
-    "finding": "The certificate did not accurately reflect the current installed system configuration or required certificate information.",
-    "requiredAction": "Revise and submit the certificate so it accurately reflects the current installed system configuration and required certificate information.",
-    "keywords": "certificate; accuracy; posting; deficiency; accurately; reflect; configuration; information; revise; reflects",
-    "examples": "Finding: During the audit, it was observed that the Monitoring Station is SABAH International, and the installed communicator is Honeywell HW-AV-LTE-M; however, the certificate indicates Bay Alarm as the Monitoring Station and the MS-5024 as the communicator. | Required Action: Update the certificate to accurately reflect the current specifications of the installed system."
-  },
-  {
-    "id": "F-0490",
-    "standard": "UL Guide Info - Protective Signaling Services",
-    "year": "",
-    "reviewType": "Documentation Review",
-    "category": "Contracts",
-    "findingType": "Initial Acceptance Test Missing",
-    "section": "",
-    "finding": "The required Initial Acceptance Test documentation was not provided for the installed system.",
-    "requiredAction": "Submit the Initial Acceptance Test documentation for the installed system.",
-    "keywords": "contracts; initial; acceptance; test; missing; documentation; provided; guide; info; protective; signaling; services",
-    "examples": "Finding: The alarm service provider failed to provide the required contract documentation for the installed system. | Required Action: Submit the contract for review in accordance with the relevant code requirements to demonstrate compliance."
-  },
-  {
-    "id": "F-0491",
-    "standard": "UL UUFX Guide info",
-    "year": "",
-    "reviewType": "Service Center Comment",
-    "category": "",
-    "findingType": "Certificate Accuracy / Posting Deficiency",
-    "section": "",
-    "finding": "The certificate did not accurately reflect the current installed system configuration or required certificate information.",
-    "requiredAction": "Revise and submit the certificate so it accurately reflects the current installed system configuration and required certificate information.",
-    "keywords": "certificate; accuracy; posting; deficiency; accurately; reflect; configuration; information; revise; reflects; uufx; guide; info",
-    "examples": "Finding: The Alarm service company was unable to provide access to two of the selected properties for the field audit. | Required Action: Ensure coordination with the selected property owners prior to the audit dates and grant access for the field audit. Provide acceptable reasons for not being able to grant access to 640 Forbes St and 275 Battery St."
   }
 ]
