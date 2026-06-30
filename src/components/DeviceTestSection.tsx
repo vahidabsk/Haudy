@@ -2,7 +2,24 @@ import { DeviceTestRow } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
 
-const deviceTypes = ["Smoke Detector (SD)", "Heat Detector (HD)", "Duct Detector (DD)", "Manual Pull Station (MP)", "Waterflow Device (WF)", "Sprinkler Supervisory (SS)", "Notification Appliance (NAC)", "Other"];
+const deviceTypes = [
+  "Backup battery",
+  "Communication fail",
+  "Ground fault",
+  "AC fail",
+  "NAC disable",
+  "NAC trouble",
+  "Smoke detector",
+  "Heat detector",
+  "Carbon monoxide detector",
+  "Duct-type smoke detector",
+  "Tamper switch",
+  "Control valve",
+  "Waterflow switch",
+  "PIV",
+  "OS & Y",
+  "Manual pull station",
+];
 type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
 const testOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
   { key: "functional", label: "Functional", active: "border-sky-700 bg-sky-700 text-white", idle: "border-sky-200 bg-sky-50 text-sky-800" },
