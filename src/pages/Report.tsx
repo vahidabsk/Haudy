@@ -209,10 +209,10 @@ function ReportSection({ title, items, emptyText, numbers, auditId }: { title: R
 function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
   return (
     <div className="report-finding">
-      <h4>{number ? `${number}. ` : ""}{item.category}</h4>
-      <p><span className="report-finding-label">Finding:</span> {item.finding}</p>
+      <h4>{item.category}</h4>
+      <p><span className="report-finding-label">{number ? `${number}. ` : ""}Finding:</span> {item.finding}</p>
       <p><span className="report-finding-label">Required Action:</span> {item.requiredAction}</p>
-      <p><span className="report-finding-label">Code Reference:</span> {formatCodeReference(item)}</p>
+      <p><span className="report-code-reference-label">Code Reference:</span> {formatCodeReference(item)}</p>
     </div>
   );
 }

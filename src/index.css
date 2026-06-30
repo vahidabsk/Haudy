@@ -536,6 +536,10 @@ textarea {
   text-decoration: underline;
 }
 
+.report-code-reference-label {
+  font-style: italic;
+}
+
 .report-unmatched {
   margin: 0.08in 0 0.12in;
   font-style: italic;
