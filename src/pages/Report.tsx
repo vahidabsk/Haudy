@@ -630,7 +630,7 @@ function deficiencyKey(auditId: string, itemId: string) {
 }
 
 function propertyAddressLines(address: string) {
-  const cleanAddress = address.replace(/\s+/g, " ").trim();
+  const cleanAddress = cleanReportAddress(address);
   if (!cleanAddress) return [];
   const parts = cleanAddress.split(",").map((part) => part.trim()).filter(Boolean);
   if (parts.length <= 1) return [cleanAddress];
@@ -638,7 +638,7 @@ function propertyAddressLines(address: string) {
 }
 
 function ascReportAddressLines(certificate: ParsedCertificate | undefined, fallback: string) {
-  const cleanAddress = (certificate?.ascAddress || fallback).replace(/\s+/g, " ").trim();
+  const cleanAddress = cleanReportAddress(certificate?.ascAddress || fallback);
   if (!cleanAddress) return [];
 
   const city = (certificate?.ascCity || "").replace(/\s+/g, " ").trim();
@@ -653,6 +653,13 @@ function ascReportAddressLines(certificate: ParsedCertificate | undefined, fallb
   }
 
   return propertyAddressLines(cleanAddress);
+}
+
+function cleanReportAddress(address: string) {
+  return address
+    .replace(/\s+/g, " ")
+    .replace(/\s+UNITED STATES(?:\s+[A-Z]{1,4}\d{1,8}[A-Z0-9.-]*)+$/i, " UNITED STATES")
+    .trim();
 }
 
 function escapeRegExp(value: string) {
