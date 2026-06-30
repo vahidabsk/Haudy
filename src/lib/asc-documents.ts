@@ -30,6 +30,11 @@ export function saveAscDocuments(documents: AscDocuments) {
   localStorage.setItem(ASC_DOCUMENT_KEY, JSON.stringify(documents));
 }
 
+export function clearAscDocuments() {
+  saveAscDocuments({});
+  return {};
+}
+
 export function deleteAscDocuments(ascKey: string) {
   const documents = loadAscDocuments();
   if (!(ascKey in documents)) return documents;

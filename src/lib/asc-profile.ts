@@ -22,6 +22,11 @@ export function saveAscProfiles(profiles: AscProfiles) {
   localStorage.setItem(ASC_PROFILE_KEY, JSON.stringify(profiles));
 }
 
+export function clearAscProfiles() {
+  saveAscProfiles({});
+  return {};
+}
+
 export function deleteAscProfile(ascKey: string) {
   const profiles = loadAscProfiles();
   if (!(ascKey in profiles)) return profiles;

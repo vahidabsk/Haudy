@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
-import { deleteAscDocuments, loadAscDocuments } from "../lib/asc-documents";
-import { AscProfile, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
+import { clearAscDocuments, deleteAscDocuments, loadAscDocuments } from "../lib/asc-documents";
+import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { prepareStorageFolders } from "../lib/local-document-storage";
 import { relativeTime } from "../lib/utils";
@@ -42,6 +42,12 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (audits.audits.length > 0) return;
+    setAscProfiles(clearAscProfiles());
+    setAscDocuments(clearAscDocuments());
+  }, [audits.audits.length]);
+
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -58,6 +64,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               {offlineReady ? "Offline ready on this device" : online ? "Preparing offline access. Keep this screen open online until ready." : "Offline access is not ready on this device yet."}
             </div>
             <UploadDialog onParsed={(certificate) => {
+              if (audits.audits.length === 0) {
+                setAscProfiles(clearAscProfiles());
+                setAscDocuments(clearAscDocuments());
+              }
               audits.createManyFromCertificates(certificate);
             }} />
             <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -345,8 +355,8 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
               <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => {
                 const deletingLastPropertyForAsc = group.audits.length === 1;
                 audits.deleteAudit(audit.id);
+                deleteAscDocuments(group.key);
                 if (deletingLastPropertyForAsc) {
-                  deleteAscDocuments(group.key);
                   deleteAscProfile(group.key);
                 }
               }}><Trash2 size={16} /> Delete Field Note</button>
