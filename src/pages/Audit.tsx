@@ -9,6 +9,7 @@ import { SignalLogSection } from "../components/SignalLogSection";
 import { DictationNotes } from "../components/DictationNotes";
 import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments } from "../lib/asc-documents";
+import { loadAscProfiles } from "../lib/asc-profile";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
@@ -28,6 +29,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const [activeTab, setActiveTab] = useState<AuditTab>("signal");
   const ascKey = audit ? [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|") : "";
   const confirmation = ascKey ? loadAscDocuments()[ascKey]?.confirmation : undefined;
+  const ascProfile = ascKey ? loadAscProfiles()[ascKey] : undefined;
   const auditDateOptions = auditDateChoices(confirmation?.startDate, confirmation?.endDate);
   const auditDateOptionKey = auditDateOptions.map((option) => option.value).join("|");
 
@@ -75,7 +77,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
         </div>
         <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-5">
           <ReadonlyAuditInfo label="ASC" value={[audit.ascName, audit.ascCity, audit.ascState].filter(Boolean).join(" - ")} />
-          <ReadonlyAuditInfo label="File / SCN" value={audit.fileScn} />
+          <ReadonlyAuditInfo label="File / SCN" value={formatFileScn(audit, ascProfile?.scn)} />
           <ReadonlyAuditInfo label="NFPA edition" value={audit.codeEdition} />
           <ReadonlyAuditInfo label="Auditor" value={audit.auditorName} />
           <ReadonlyAuditInfo label="Certificate" value={audit.certificateNumber} />
@@ -224,6 +226,14 @@ function auditDateChoices(startDate?: string, endDate?: string) {
     days.push({ value, label: date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) });
   }
   return days;
+}
+
+function formatFileScn(audit: Audit, profileScn?: string) {
+  const certificate = audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
+  const file = certificate?.fileNo || audit.fileScn.split("/")[0]?.trim() || "";
+  const fallbackScn = audit.fileScn.split("/")[1]?.trim() || "";
+  const scn = profileScn?.trim() || fallbackScn;
+  return [file, scn ? `SCN ${scn.replace(/^SCN\s*/i, "")}` : ""].filter(Boolean).join(" / ");
 }
 
 function dateFromInput(value?: string) {

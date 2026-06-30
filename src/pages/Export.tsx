@@ -4,6 +4,7 @@ import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { loadPhoto } from "../lib/photo-store";
+import { loadAscProfiles } from "../lib/asc-profile";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow, StatusCode } from "../lib/types";
 
 const deviceRowsPage2 = 20;
@@ -108,12 +109,13 @@ function FieldNotesPage({ audit, children, pageNumber, totalPages, showTitle }: 
 }
 
 function Header({ audit }: { audit: Audit }) {
+  const ascProfile = loadAscProfiles()[ascKey(audit)];
   return (
     <div className="field-header">
       <div className="field-header-row field-header-row-top">
         <span className="field-header-item">Date:<Line value={audit.auditDate} width="auto" /></span>
         <span className="field-header-item">ASC:<Line value={audit.ascName} width="auto" /></span>
-        <span className="field-header-item">File/SCN:<Line value={audit.fileScn} width="auto" /></span>
+        <span className="field-header-item">File/SCN:<Line value={formatFileScn(audit, ascProfile?.scn)} width="auto" /></span>
         <span className="field-header-item">Auditor:<Line value={audit.auditorName} width="auto" /></span>
       </div>
       <div className="field-header-row field-header-row-bottom">
@@ -139,6 +141,17 @@ function fieldNotesName(audit: Audit) {
 
 function primaryCertificate(audit: Audit) {
   return audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
+}
+
+function ascKey(audit: Audit) {
+  return [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
+}
+
+function formatFileScn(audit: Audit, profileScn?: string) {
+  const certificate = primaryCertificate(audit);
+  const file = certificate?.fileNo || fileScnParts(audit.fileScn).file;
+  const scn = profileScn?.trim() || fileScnParts(audit.fileScn).scn;
+  return [file, scn ? `SCN ${scn.replace(/^SCN\s*/i, "")}` : ""].filter(Boolean).join(" / ");
 }
 
 function propertyAddressForName(address: string) {
