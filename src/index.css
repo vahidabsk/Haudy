@@ -531,7 +531,7 @@ textarea {
 
 .report-finding h4 {
   margin: 0 0 0.08in -0.5in;
-  font-size: 13px;
+  font-size: inherit;
   font-weight: 400;
   text-decoration: underline;
 }
