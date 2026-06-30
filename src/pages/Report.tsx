@@ -69,6 +69,13 @@ function ReportDocument({ group, auditorName, pocName, scn, psn, onUpdateAudit }
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
           <p className="mt-1 text-sm text-slate-600">{reportItems.length} variation{reportItems.length === 1 ? "" : "s"} found from completed field notes. Enter the report wording in the field note variation rows before printing.</p>
         </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <span className="font-semibold text-navy">POC:</span> {pocName || ""}
+          <span className="mx-2 text-slate-300">|</span>
+          <span className="font-semibold text-navy">SCN:</span> {scn || ""}
+          <span className="mx-2 text-slate-300">|</span>
+          <span className="font-semibold text-navy">PSN:</span> {psn || ""}
+        </div>
         {reportItems.length ? (
           <div className="grid gap-3">
             {reportItems.map(({ audit, item }) => {

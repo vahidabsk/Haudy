@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
+import { AscProfile, completeAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
@@ -14,7 +15,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
   const [confirmationGroup, setConfirmationGroup] = useState<AscGroup | null>(null);
-  const [reportGroup, setReportGroup] = useState<AscGroup | null>(null);
+  const [profileGroup, setProfileGroup] = useState<AscGroup | null>(null);
+  const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
 
   useEffect(() => {
     function refresh() {
@@ -60,7 +62,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       </section>
       <section className="grid gap-4">
         {audits.audits.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No certificates yet.</div> : null}
-        {groups.map((group) => (
+        {groups.map((group) => {
+          const profile = ascProfiles[group.key];
+          const readyForDocuments = completeAscProfile(profile);
+          return (
           <section key={group.key} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -68,12 +73,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link className="text-xl font-bold text-navy hover:text-sky-700" to={`/asc/${encodeURIComponent(group.key)}`}>{group.ascName}</Link>
-                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setConfirmationGroup(group)}>
-                      <CalendarCheck size={16} /> Confirmation
-                    </button>
-                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setReportGroup(group)}>
-                      <FileText size={16} /> Report
-                    </button>
                   </div>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
                     <MapPin size={14} />
@@ -88,26 +87,65 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <ShieldCheck className="hidden text-emerald-600 sm:block" size={24} />
               </div>
             </div>
+            {readyForDocuments ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="text-sm text-slate-700">
+                  <span className="font-semibold text-navy">POC:</span> {profile.pocName}
+                  <span className="mx-2 text-slate-300">|</span>
+                  <span className="font-semibold text-navy">SCN:</span> {profile.scn}
+                  <span className="mx-2 text-slate-300">|</span>
+                  <span className="font-semibold text-navy">PSN:</span> {profile.psn}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setProfileGroup(group)}>
+                    <FilePenLine size={16} /> Edit Info
+                  </button>
+                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setConfirmationGroup(group)}>
+                    <CalendarCheck size={16} /> Confirmation
+                  </button>
+                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
+                    const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
+                    navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
+                  }}>
+                    <FileText size={16} /> Report
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                <span>To create confirmation letter and report, add POC, SCN, and PSN.</span>
+                <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100" onClick={() => setProfileGroup(group)}>
+                  <FilePenLine size={16} /> Add Info
+                </button>
+              </div>
+            )}
           </section>
-        ))}
+        );
+        })}
       </section>
-      {confirmationGroup ? (
-        <ConfirmationDialog
-          group={confirmationGroup}
-          onClose={() => setConfirmationGroup(null)}
-          onCreate={(details) => {
-            const params = new URLSearchParams(details);
-            navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
+      {profileGroup ? (
+        <AscProfileDialog
+          group={profileGroup}
+          profile={ascProfiles[profileGroup.key]}
+          onClose={() => setProfileGroup(null)}
+          onSave={(profile) => {
+            const next = { ...ascProfiles, [profileGroup.key]: profile };
+            setAscProfiles(next);
+            saveAscProfiles(next);
+            setProfileGroup(null);
           }}
         />
       ) : null}
-      {reportGroup ? (
-        <ReportDialog
-          group={reportGroup}
-          onClose={() => setReportGroup(null)}
+      {confirmationGroup ? (
+        <ConfirmationDialog
+          group={confirmationGroup}
+          profile={ascProfiles[confirmationGroup.key]}
+          onClose={() => setConfirmationGroup(null)}
           onCreate={(details) => {
-            const params = new URLSearchParams(details);
-            navigate(`/asc/${encodeURIComponent(reportGroup.key)}/report?${params.toString()}`);
+            const profile = ascProfiles[confirmationGroup.key];
+            if (!profile) return;
+            const params = new URLSearchParams({ ...details, poc: profile.pocName, scn: profile.scn, psn: profile.psn });
+            navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
           }}
         />
       ) : null}
@@ -115,10 +153,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   );
 }
 
-function ReportDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
-  const [pocName, setPocName] = useState("");
-  const [scn, setScn] = useState("");
-  const [psn, setPsn] = useState("");
+function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup; profile?: AscProfile; onClose: () => void; onSave: (profile: AscProfile) => void }) {
+  const [pocName, setPocName] = useState(profile?.pocName || "");
+  const [scn, setScn] = useState(profile?.scn || "");
+  const [psn, setPsn] = useState(profile?.psn || "");
   const ready = pocName.trim() && scn.trim() && psn.trim();
 
   return (
@@ -127,16 +165,16 @@ function ReportDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: 
         className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onCreate({ poc: pocName.trim(), scn: scn.trim(), psn: psn.trim() });
+          if (ready) onSave({ pocName: pocName.trim(), scn: scn.trim(), psn: psn.trim(), updatedAt: new Date().toISOString() });
         }}
       >
         <div>
-          <h2 className="text-xl font-bold text-navy">Annual Audit Report</h2>
-          <p className="mt-1 text-sm text-slate-600">{group.ascName} - {group.audits.length} selected site{group.audits.length === 1 ? "" : "s"}</p>
+          <h2 className="text-xl font-bold text-navy">ASC Document Information</h2>
+          <p className="mt-1 text-sm text-slate-600">{group.ascName} - saved for confirmation letters and reports</p>
         </div>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           POC name
-          <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name for the report" autoFocus />
+          <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name" autoFocus />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -151,7 +189,7 @@ function ReportDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: 
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancel</button>
           <button type="submit" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={!ready}>
-            <FileText size={16} /> Create Report
+            <FilePenLine size={16} /> Save Info
           </button>
         </div>
       </form>
@@ -159,13 +197,10 @@ function ReportDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: 
   );
 }
 
-function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
-  const [pocName, setPocName] = useState("");
+function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscGroup; profile?: AscProfile; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [scn, setScn] = useState("");
-  const [psn, setPsn] = useState("");
-  const ready = pocName.trim() && startDate && endDate && scn.trim() && psn.trim();
+  const ready = startDate && endDate && completeAscProfile(profile);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
@@ -173,17 +208,18 @@ function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onC
         className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onCreate({ poc: pocName.trim(), start: startDate, end: endDate, scn: scn.trim(), psn: psn.trim() });
+          if (ready) onCreate({ start: startDate, end: endDate });
         }}
       >
         <div>
           <h2 className="text-xl font-bold text-navy">Audit Confirmation</h2>
           <p className="mt-1 text-sm text-slate-600">{group.ascName} - {group.audits.length} selected site{group.audits.length === 1 ? "" : "s"}</p>
         </div>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
-          POC name
-          <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name for the letter" autoFocus />
-        </label>
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <span className="font-semibold text-navy">POC:</span> {profile?.pocName || ""}<span className="mx-2 text-slate-300">|</span>
+          <span className="font-semibold text-navy">SCN:</span> {profile?.scn || ""}<span className="mx-2 text-slate-300">|</span>
+          <span className="font-semibold text-navy">PSN:</span> {profile?.psn || ""}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit start date
@@ -195,16 +231,6 @@ function ConfirmationDialog({ group, onClose, onCreate }: { group: AscGroup; onC
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit end date
             <input className="min-h-11 rounded-md border px-3" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} />
-          </label>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm font-medium text-slate-700">
-            SCN number
-            <input className="min-h-11 rounded-md border px-3" value={scn} onChange={(event) => setScn(event.target.value)} placeholder="Example: 1" />
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-slate-700">
-            PSN number
-            <input className="min-h-11 rounded-md border px-3" value={psn} onChange={(event) => setPsn(event.target.value)} placeholder="Example: 634867" />
           </label>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
