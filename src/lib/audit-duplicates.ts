@@ -22,9 +22,7 @@ export function auditIdentity(audit: Audit) {
 
 export function auditHasProgress(audit: Audit) {
   return Boolean(
-    audit.signalProcessingReviewed ||
-    audit.documentationReviewed ||
-    audit.installationReviewed ||
+    Object.values(audit.editedFields || {}).some(Boolean) ||
     audit.signalReviewStart ||
     audit.signalReviewEnd ||
     audit.signalReviewNotes ||

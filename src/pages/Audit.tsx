@@ -5,7 +5,6 @@ import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
 import { DocumentationSection } from "../components/DocumentationSection";
 import { InstallationSection } from "../components/InstallationSection";
-import { ReportFindingFields } from "../components/ReportFindingFields";
 import { SignalLogSection } from "../components/SignalLogSection";
 import { DictationNotes } from "../components/DictationNotes";
 import { useAudits } from "../hooks/use-audits";
@@ -152,44 +151,6 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   title="Installation review variation"
                   value={audit.installationReviewNotes}
                   onChange={(installationReviewNotes) => update({ ...audit, installationReviewNotes, editedFields: { ...audit.editedFields, installationReviewed: true } })}
-                />
-              ) : null}
-              {audit.installationReviewed && audit.matchesCertificateStatus === "VAR" ? (
-                <ReportFindingFields
-                  value={{
-                    reportFinding: audit.certificateMatchReportFinding,
-                    reportRequiredAction: audit.certificateMatchReportRequiredAction,
-                    reportCodeStandard: audit.certificateMatchReportCodeStandard,
-                    reportCodeEdition: audit.certificateMatchReportCodeEdition,
-                    reportCodeSection: audit.certificateMatchReportCodeSection,
-                  }}
-                  onChange={(fields) => update({
-                    ...audit,
-                    certificateMatchReportFinding: fields.reportFinding ?? audit.certificateMatchReportFinding,
-                    certificateMatchReportRequiredAction: fields.reportRequiredAction ?? audit.certificateMatchReportRequiredAction,
-                    certificateMatchReportCodeStandard: fields.reportCodeStandard ?? audit.certificateMatchReportCodeStandard,
-                    certificateMatchReportCodeEdition: fields.reportCodeEdition ?? audit.certificateMatchReportCodeEdition,
-                    certificateMatchReportCodeSection: fields.reportCodeSection ?? audit.certificateMatchReportCodeSection,
-                  })}
-                />
-              ) : null}
-              {audit.installationReviewed && audit.certificateDisplayedStatus === "VAR" ? (
-                <ReportFindingFields
-                  value={{
-                    reportFinding: audit.certificateDisplayedReportFinding,
-                    reportRequiredAction: audit.certificateDisplayedReportRequiredAction,
-                    reportCodeStandard: audit.certificateDisplayedReportCodeStandard,
-                    reportCodeEdition: audit.certificateDisplayedReportCodeEdition,
-                    reportCodeSection: audit.certificateDisplayedReportCodeSection,
-                  }}
-                  onChange={(fields) => update({
-                    ...audit,
-                    certificateDisplayedReportFinding: fields.reportFinding ?? audit.certificateDisplayedReportFinding,
-                    certificateDisplayedReportRequiredAction: fields.reportRequiredAction ?? audit.certificateDisplayedReportRequiredAction,
-                    certificateDisplayedReportCodeStandard: fields.reportCodeStandard ?? audit.certificateDisplayedReportCodeStandard,
-                    certificateDisplayedReportCodeEdition: fields.reportCodeEdition ?? audit.certificateDisplayedReportCodeEdition,
-                    certificateDisplayedReportCodeSection: fields.reportCodeSection ?? audit.certificateDisplayedReportCodeSection,
-                  })}
                 />
               ) : null}
             </section>

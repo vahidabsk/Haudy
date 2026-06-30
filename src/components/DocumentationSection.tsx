@@ -1,7 +1,6 @@
 import { AuditRow } from "../lib/types";
 import { DictationNotes } from "./DictationNotes";
 import { PhotoCapture } from "./PhotoCapture";
-import { ReportFindingFields } from "./ReportFindingFields";
 import { StatusButtons } from "./StatusButtons";
 import { nowIso, uid } from "../lib/utils";
 
@@ -25,12 +24,6 @@ export function RowSection({ title, rows, auditorName, disabled, onChange, photo
           />
           {disabled ? null : <StatusButtons value={row.status} onChange={(status) => patch(rows, row.id, { status, updatedBy: auditorName }, onChange)} />}
           {disabled ? <textarea className="w-full rounded-md border border-slate-300 bg-slate-100 p-3 text-slate-400" rows={3} disabled /> : <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes, updatedBy: auditorName }, onChange)} />}
-          {!disabled && row.status === "VAR" ? (
-            <ReportFindingFields
-              value={row}
-              onChange={(reportFields) => patch(rows, row.id, { ...reportFields, updatedBy: auditorName }, onChange)}
-            />
-          ) : null}
           {photoRequired && !disabled ? <PhotoCapture photos={row.photos} onChange={(photos) => patch(rows, row.id, { photos, updatedBy: auditorName }, onChange)} required /> : null}
           <div className="text-xs text-slate-500">Updated by {row.updatedBy || auditorName}</div>
         </div>

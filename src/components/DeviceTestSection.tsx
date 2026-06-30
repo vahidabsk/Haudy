@@ -1,7 +1,6 @@
 import { DeviceTestRow } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
-import { ReportFindingFields } from "./ReportFindingFields";
 
 const deviceTypes = ["Smoke Detector (SD)", "Heat Detector (HD)", "Duct Detector (DD)", "Manual Pull Station (MP)", "Waterflow Device (WF)", "Sprinkler Supervisory (SS)", "Notification Appliance (NAC)", "Other"];
 type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
@@ -74,12 +73,6 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
             ))}
           </div>
           {disabled ? <textarea className="w-full rounded-md border border-slate-300 bg-slate-100 p-3 text-slate-400" rows={3} disabled /> : <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes }, onChange)} />}
-          {!disabled && row.result === "VAR" ? (
-            <ReportFindingFields
-              value={row}
-              onChange={(reportFields) => patch(rows, row.id, reportFields, onChange)}
-            />
-          ) : null}
         </div>
       ))}
       <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
