@@ -110,7 +110,9 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                 <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
                   <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
                   {certificateEdition ? <div className="text-xs font-medium text-slate-500">Certificate declared: NFPA 72, {certificateEdition} Edition</div> : null}
-                  <div className="text-sm text-slate-600">{item.note || "No field note entered."}</div>
+                  <div className="text-sm font-medium text-red-700">
+                    <span className="font-bold">Field Note:</span> {item.note || "No field note entered."}
+                  </div>
                   <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
                   <ReportFindingFields
                     value={reportValue(item)}
