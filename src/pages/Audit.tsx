@@ -12,7 +12,6 @@ import { loadAscDocuments } from "../lib/asc-documents";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
-const codeEditionOptions = ["NFPA 72-2002", "NFPA 72-2007", "NFPA 72 2010 Edition", "NFPA 72-2013", "NFPA 72-2016", "NFPA 72-2019", "NFPA 72-2022"];
 type AuditTab = "signal" | "documentation" | "installation" | "device";
 const auditTabs: Array<{ id: AuditTab; label: string; Icon: typeof RadioTower }> = [
   { id: "signal", label: "Signal Processing", Icon: RadioTower },
@@ -55,26 +54,31 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
 
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
-      <section className="sticky top-0 z-20 grid gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-lg shadow-slate-200/70 backdrop-blur">
-        <Link className="inline-flex w-fit min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(ascKey)}`}>
-          <ArrowLeft size={16} /> Back to Properties
-        </Link>
-        <div className="grid gap-3 md:grid-cols-8">
-          {auditDateOptions.length ? (
-            <select className="min-h-11 rounded-md border px-3" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })}>
-              {auditDateOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          ) : (
-            <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
-          )}
-          <input className="min-h-11 rounded-md border px-3" value={audit.ascName} onChange={(e) => update({ ...audit, ascName: e.target.value })} placeholder="ASC" />
-          <input className="min-h-11 rounded-md border px-3" value={audit.ascCity} onChange={(e) => update({ ...audit, ascCity: e.target.value })} placeholder="ASC city" />
-          <input className="min-h-11 rounded-md border px-3" value={audit.ascState} onChange={(e) => update({ ...audit, ascState: e.target.value.toUpperCase().slice(0, 2) })} placeholder="State" />
-          <input className="min-h-11 rounded-md border px-3" value={audit.fileScn} onChange={(e) => update({ ...audit, fileScn: e.target.value })} placeholder="File / SCN" />
-          <input className="min-h-11 rounded-md border px-3" list="code-edition-options" value={audit.codeEdition} onChange={(e) => update({ ...audit, codeEdition: e.target.value })} placeholder="NFPA edition" />
-          <datalist id="code-edition-options">{codeEditionOptions.map((option) => <option key={option} value={option} />)}</datalist>
-          <input className="min-h-11 rounded-md border bg-slate-100 px-3" value={audit.auditorName} readOnly />
-          <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
+      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(ascKey)}`}>
+              <ArrowLeft size={16} /> Back to Properties
+            </Link>
+            <label className="grid gap-1 text-sm font-semibold text-navy">
+              Field audit date
+              {auditDateOptions.length ? (
+                <select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })}>
+                  {auditDateOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              ) : (
+                <input className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
+              )}
+            </label>
+          </div>
+          <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
+        </div>
+        <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-5">
+          <ReadonlyAuditInfo label="ASC" value={[audit.ascName, audit.ascCity, audit.ascState].filter(Boolean).join(" - ")} />
+          <ReadonlyAuditInfo label="File / SCN" value={audit.fileScn} />
+          <ReadonlyAuditInfo label="NFPA edition" value={audit.codeEdition} />
+          <ReadonlyAuditInfo label="Auditor" value={audit.auditorName} />
+          <ReadonlyAuditInfo label="Certificate" value={audit.certificateNumber} />
         </div>
         <div className="flex flex-wrap gap-2 rounded-md border bg-white p-2">
           {auditTabs.map(({ Icon, ...tab }) => (
@@ -240,6 +244,15 @@ function dateToInput(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function ReadonlyAuditInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="truncate font-medium text-slate-800">{value || "Not detected"}</div>
+    </div>
+  );
 }
 
 function YesNoControl({ label, value, defaultToYes, disabled, onChange }: { label: string; value?: boolean; defaultToYes?: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
