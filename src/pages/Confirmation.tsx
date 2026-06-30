@@ -54,25 +54,32 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
       <div className="no-print mb-4 grid gap-3 rounded-lg border bg-white p-4 shadow-sm">
         <div className="flex flex-wrap justify-between gap-2">
-          <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(group.key)}`}>
-            <ArrowLeft size={16} /> Back to Properties
-          </Link>
-          <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
-          <button
-            className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-            onClick={async () => {
-              const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate, endDate });
-              setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
-              try {
-                await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
-                setFolderMessage("Saved to Haudy Storage.");
-              } catch (error) {
-                setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
-              }
-            }}
-          >
-            Save Confirmation
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to="/">
+              <ArrowLeft size={16} /> Back to ASCs
+            </Link>
+            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(group.key)}`}>
+              Back to Properties
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+            <button
+              className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+              onClick={async () => {
+                const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate, endDate });
+                setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
+                try {
+                  await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
+                  setFolderMessage("Saved to Haudy Storage.");
+                } catch (error) {
+                  setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+                }
+              }}
+            >
+              Save Confirmation
+            </button>
+          </div>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <span className="font-semibold text-navy">POC:</span> {pocName || ""}

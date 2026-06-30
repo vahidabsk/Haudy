@@ -67,26 +67,33 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
       <div className="no-print mb-4 grid gap-3 rounded-lg border bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(group.key)}`}>
-            <ArrowLeft size={16} /> Back to Properties
-          </Link>
-          <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
-          <button
-            className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-            onClick={async () => {
-              const next = saveAscDocument(ascKey, "report", { pocName, scn, psn });
-              setSavedAt(next[ascKey]?.report?.updatedAt || "");
-              try {
-                const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
-                await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: today.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
-                setFolderMessage("Saved to Haudy Storage.");
-              } catch (error) {
-                setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
-              }
-            }}
-          >
-            Save Report
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to="/">
+              <ArrowLeft size={16} /> Back to ASCs
+            </Link>
+            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(group.key)}`}>
+              Back to Properties
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+            <button
+              className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+              onClick={async () => {
+                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn });
+                setSavedAt(next[ascKey]?.report?.updatedAt || "");
+                try {
+                  const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+                  await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: today.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
+                  setFolderMessage("Saved to Haudy Storage.");
+                } catch (error) {
+                  setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+                }
+              }}
+            >
+              Save Report
+            </button>
+          </div>
         </div>
         <div>
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>

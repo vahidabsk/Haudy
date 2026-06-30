@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ClipboardCheck, FileText, RadioTower, Save, Wrench, Zap } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, ClipboardCheck, FileText, RadioTower, Save, Wrench, Zap } from "lucide-react";
 import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
 import { DocumentationSection } from "../components/DocumentationSection";
@@ -37,6 +37,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
+  const ascKey = [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
   function saveAndReturn() {
     update(currentAudit);
     navigate("/");
@@ -45,6 +46,9 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   return (
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6">
       <section className="sticky top-0 z-20 grid gap-3 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-lg shadow-slate-200/70 backdrop-blur">
+        <Link className="inline-flex w-fit min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(ascKey)}`}>
+          <ArrowLeft size={16} /> Back to Properties
+        </Link>
         <div className="grid gap-3 md:grid-cols-8">
           <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
           <input className="min-h-11 rounded-md border px-3" value={audit.ascName} onChange={(e) => update({ ...audit, ascName: e.target.value })} placeholder="ASC" />
