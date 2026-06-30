@@ -266,7 +266,7 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterFindin
         {serviceCenterHasComment ? (
           <ServiceCenterFinding number={serviceCenterNumber} finding={serviceCenterFinding} requiredAction={serviceCenterRequiredAction} />
         ) : (
-          <p>** No non-compliance issues were identified during the audit.</p>
+          <p className="report-aligned-note">** No non-compliance issues were identified during the audit.</p>
         )}
       </div>
       <div className="report-major-section">
