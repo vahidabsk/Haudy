@@ -48,7 +48,7 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
       </button>
       {open ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-slate-950/45 p-3">
-          <div className="grid max-h-[92vh] w-[min(100%,72rem)] max-w-[calc(100vw-1.5rem)] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-white shadow-2xl">
+          <div className="grid max-h-[92vh] w-full max-w-[calc(100vw-2rem)] grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden rounded-lg bg-white shadow-2xl xl:max-w-5xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-navy">Auditor Report Database</h3>
@@ -58,35 +58,35 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
                 <X size={20} />
               </button>
             </div>
-            <div className="grid gap-3 border-b bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_0.8fr_1fr_1fr]">
+            <div className="grid gap-3 border-b bg-slate-50 p-4 sm:grid-cols-2 xl:grid-cols-[1.25fr_1fr_0.75fr]">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Keyword
-                <input className="min-h-11 rounded-md border bg-white px-3" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="signal history, as-built, battery..." autoFocus />
+                <input className="min-h-11 w-full rounded-md border bg-white px-3" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Search finding text..." autoFocus />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Standard
-                <select className="min-h-11 rounded-md border bg-white px-3" value={standard} onChange={(event) => setStandard(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={standard} onChange={(event) => setStandard(event.target.value)}>
                   <option value="">All standards</option>
                   {auditorReportStandards.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Edition
-                <select className="min-h-11 rounded-md border bg-white px-3" value={year} onChange={(event) => setYear(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={year} onChange={(event) => setYear(event.target.value)}>
                   <option value="">All editions</option>
                   {auditorReportYears.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Review
-                <select className="min-h-11 rounded-md border bg-white px-3" value={reviewType} onChange={(event) => setReviewType(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={reviewType} onChange={(event) => setReviewType(event.target.value)}>
                   <option value="">All reviews</option>
                   {auditorReportReviewTypes.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Category
-                <select className="min-h-11 rounded-md border bg-white px-3" value={category} onChange={(event) => setCategory(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={category} onChange={(event) => setCategory(event.target.value)}>
                   <option value="">All categories</option>
                   {auditorReportCategories.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
@@ -96,7 +96,7 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
               <div className="mb-3 text-sm font-medium text-slate-600">{results.length} result{results.length === 1 ? "" : "s"} shown</div>
               <div className="grid gap-3">
                 {results.map((result) => (
-                  <div key={result.id} className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-3">
+                  <div key={result.id} className="grid min-w-0 max-w-full gap-3 overflow-hidden rounded-md border border-slate-200 bg-white p-3">
                     <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       <span>{result.standard || "Standard not listed"}</span>
                       <span className="text-slate-300">|</span>
@@ -108,9 +108,9 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
                       <span className="text-slate-300">|</span>
                       <span className="break-words">{result.category || "No category"}</span>
                     </div>
-                    <div className="grid min-w-0 gap-2 rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                      <p className="max-w-full break-words"><span className="font-semibold text-navy">Finding:</span> {result.finding}</p>
-                      <p className="max-w-full break-words"><span className="font-semibold text-navy">Required Action:</span> {result.requiredAction}</p>
+                    <div className="grid min-w-0 max-w-full gap-2 overflow-hidden rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                      <p className="max-w-full whitespace-normal [overflow-wrap:anywhere]"><span className="font-semibold text-navy">Finding:</span> {result.finding}</p>
+                      <p className="max-w-full whitespace-normal [overflow-wrap:anywhere]"><span className="font-semibold text-navy">Required Action:</span> {result.requiredAction}</p>
                     </div>
                     <div>
                       <button
