@@ -161,7 +161,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Device Testing Review</h2>
-              <YesNoControl label="Device testing reviewed?" value={audit.deviceTestingReviewed} defaultToYes onChange={(deviceTestingReviewed) => update({ ...audit, deviceTestingReviewed, editedFields: { ...audit.editedFields, deviceTestingReviewed: true } })} />
+              <YesNoControl label="Were devices tested in the field?" value={audit.deviceTestingReviewed} defaultToYes onChange={(deviceTestingReviewed) => update({ ...audit, deviceTestingReviewed, editedFields: { ...audit.editedFields, deviceTestingReviewed: true } })} />
               {!audit.deviceTestingReviewed ? (
                 <SectionReviewNote
                   title="Device testing review variation"
