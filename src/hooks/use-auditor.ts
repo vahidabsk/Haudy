@@ -11,8 +11,11 @@ export function useAuditor() {
 
   return {
     auditor,
-    setAuditorName(name: string) {
-      setAuditor(saveAuditor(name));
+    saveAuditor(profile: Omit<Auditor, "since" | "updatedAt">) {
+      setAuditor(saveAuditor({ ...profile, since: auditor?.since }));
+    },
+    clearAuditor() {
+      setAuditor(null);
     },
   };
 }

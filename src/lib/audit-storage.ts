@@ -38,13 +38,27 @@ export const installationElements = [
 ];
 
 export function loadAuditor(): Auditor | null {
-  return readJson<Auditor | null>(AUDITOR_KEY, null);
+  const auditor = readJson<Auditor | null>(AUDITOR_KEY, null);
+  return auditor ? normalizeAuditor(auditor) : null;
 }
 
-export function saveAuditor(name: string): Auditor {
-  const auditor = { name, since: nowIso() };
+export function saveAuditor(profile: Omit<Auditor, "since" | "updatedAt"> & { since?: string }): Auditor {
+  const now = nowIso();
+  const auditor = normalizeAuditor({ ...profile, since: profile.since || now, updatedAt: now });
   localStorage.setItem(AUDITOR_KEY, JSON.stringify(auditor));
   return auditor;
+}
+
+function normalizeAuditor(auditor: Partial<Auditor> & { name: string }): Auditor {
+  return {
+    name: auditor.name || "",
+    title: auditor.title || "Alarm System Auditor",
+    department: auditor.department || "Fire and Security Service Solutions",
+    phone: auditor.phone || "+1.510.358.6443",
+    email: auditor.email || "Vahid.Abbasikoohenjani@ul.com",
+    since: auditor.since || nowIso(),
+    updatedAt: auditor.updatedAt || auditor.since || nowIso(),
+  };
 }
 
 export function loadAudits(): Audit[] {

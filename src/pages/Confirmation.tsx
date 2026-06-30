@@ -3,11 +3,12 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
-import { Audit, ParsedCertificate } from "../lib/types";
+import { Audit, Auditor, ParsedCertificate } from "../lib/types";
 
-export function ConfirmationPage({ auditorName }: { auditorName: string }) {
+export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
   const { ascKey = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const auditorName = auditor?.name || "";
   const store = useAudits(auditorName);
   const group = groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
   const pocName = searchParams.get("poc") || "";
@@ -18,10 +19,10 @@ export function ConfirmationPage({ auditorName }: { auditorName: string }) {
 
   if (!group) return <main className="p-6">ASC not found.</main>;
 
-  return <ConfirmationDocument group={group} auditorName={auditorName} pocName={pocName} startDate={startDate} endDate={endDate} scn={scn} psn={psn} />;
+  return <ConfirmationDocument group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} scn={scn} psn={psn} />;
 }
 
-function ConfirmationDocument({ group, auditorName, pocName, startDate, endDate, scn, psn }: { group: AscGroup; auditorName: string; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
+function ConfirmationDocument({ group, auditor, pocName, startDate, endDate, scn, psn }: { group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
@@ -81,11 +82,11 @@ function ConfirmationDocument({ group, auditorName, pocName, startDate, endDate,
           <p>Our objective is to verify that your organization is still capable of delivering Code/Standard compliant service. Our desire is to make the process as smooth as possible. Our experience is that preparation is key to success on both counts.</p>
           <p className="confirmation-sincerely">Sincerely,</p>
           <p>
-            <b>{auditorName || "Vahid Abbasi"}</b><br />
-            Alarm System Auditor<br />
-            Fire and Security Service Solutions<br />
-            (510) 358-6443<br />
-            vahid.abbasikoohenjani@ul.com
+            <b>{auditor?.name || ""}</b><br />
+            {auditor?.title || ""}<br />
+            {auditor?.department || ""}<br />
+            {auditor?.phone || ""}<br />
+            {auditor?.email || ""}
           </p>
         </div>
         <ConfirmationFooter />

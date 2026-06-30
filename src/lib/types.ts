@@ -140,5 +140,10 @@ export interface Audit {
 
 export interface Auditor {
   name: string;
+  title: string;
+  department: string;
+  phone: string;
+  email: string;
   since: string;
+  updatedAt?: string;
 }

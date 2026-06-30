@@ -20,7 +20,7 @@ export function UlHeader({ auditor, onChange }: { auditor: Auditor | null; onCha
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 sm:flex"><UserRound size={16} />{auditor?.name || "No auditor"}</span>
             <button className="min-h-11 rounded-md border border-white/30 px-3 font-medium hover:bg-white/10" onClick={onChange}>
-              Change
+              Edit Profile
             </button>
           </div>
         </div>

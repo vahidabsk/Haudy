@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AuditorGate } from "./components/AuditorGate";
 import { UlHeader } from "./components/UlHeader";
@@ -11,6 +11,7 @@ import { ReportPage } from "./pages/Report";
 
 export default function App() {
   const auditor = useAuditor();
+  const [editingAuditor, setEditingAuditor] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenAt = useRef<number | null>(null);
@@ -50,12 +51,20 @@ export default function App() {
   }, [navigate]);
 
   return (
-    <AuditorGate auditor={auditor.auditor} onSave={auditor.setAuditorName}>
-      <UlHeader auditor={auditor.auditor} onChange={() => auditor.setAuditorName("")} />
+    <AuditorGate
+      auditor={auditor.auditor}
+      editing={editingAuditor}
+      onSave={(profile) => {
+        auditor.saveAuditor(profile);
+        setEditingAuditor(false);
+      }}
+      onCancel={() => setEditingAuditor(false)}
+    >
+      <UlHeader auditor={auditor.auditor} onChange={() => setEditingAuditor(true)} />
       <Routes>
         <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
-        <Route path="/asc/:ascKey/report" element={<ReportPage auditorName={auditor.auditor?.name || ""} />} />
-        <Route path="/asc/:ascKey/confirmation" element={<ConfirmationPage auditorName={auditor.auditor?.name || ""} />} />
+        <Route path="/asc/:ascKey/report" element={<ReportPage auditor={auditor.auditor} />} />
+        <Route path="/asc/:ascKey/confirmation" element={<ConfirmationPage auditor={auditor.auditor} />} />
         <Route path="/asc/:ascKey" element={<AscPropertiesPage auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/audit/:auditId" element={<AuditPage auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/audit/:auditId/export" element={<ExportPage auditorName={auditor.auditor?.name || ""} />} />

@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
-import { Audit, AuditRow, DeviceTestRow, SignalLogRow } from "../lib/types";
+import { Audit, AuditRow, Auditor, DeviceTestRow, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
@@ -22,9 +22,10 @@ interface ReportItem {
   codeSection: string;
 }
 
-export function ReportPage({ auditorName }: { auditorName: string }) {
+export function ReportPage({ auditor }: { auditor: Auditor | null }) {
   const { ascKey = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const auditorName = auditor?.name || "";
   const store = useAudits(auditorName);
   const group = groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
   if (!group) return <main className="p-6">ASC not found.</main>;
@@ -32,7 +33,7 @@ export function ReportPage({ auditorName }: { auditorName: string }) {
   return (
     <ReportDocument
       group={group}
-      auditorName={auditorName}
+      auditor={auditor}
       pocName={searchParams.get("poc") || ""}
       scn={searchParams.get("scn") || ""}
       psn={searchParams.get("psn") || ""}
@@ -41,7 +42,7 @@ export function ReportPage({ auditorName }: { auditorName: string }) {
   );
 }
 
-function ReportDocument({ group, auditorName, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; auditorName: string; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
+function ReportDocument({ group, auditor, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; auditor: Auditor | null; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const today = new Date();
@@ -100,7 +101,7 @@ function ReportDocument({ group, auditorName, pocName, scn, psn, onUpdateAudit }
       </div>
 
       <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
-      <LateResponsePage auditorName={auditorName} />
+      <LateResponsePage auditor={auditor} />
       <AuditCommentsPage group={group} />
     </main>
   );
@@ -131,7 +132,7 @@ function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: As
   );
 }
 
-function LateResponsePage({ auditorName }: { auditorName: string }) {
+function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
   return (
     <section className="report-page print-page bg-white text-black shadow-sm print:shadow-none">
       <div className="report-letter report-late">
@@ -153,7 +154,7 @@ function LateResponsePage({ auditorName }: { auditorName: string }) {
         <p>The procedure that we will follow for Late Response actions has been outlined in detail at this time so that there will be no misunderstanding of the procedure that will be followed.</p>
         <p>Please do not hesitate to contact this office if you have any questions.</p>
         <p className="report-signature">Sincerely,</p>
-        <p><b>{auditorName || "Vahid Abbasi"}</b><br />Alarm System Auditor<br />Fire and Security Service Solutions<br />+1.510.358.6443<br />Vahid.Abbasikoohenjani@ul.com</p>
+        <p><b>{auditor?.name || ""}</b><br />{auditor?.title || ""}<br />{auditor?.department || ""}<br />{auditor?.phone || ""}<br />{auditor?.email || ""}</p>
       </div>
     </section>
   );
