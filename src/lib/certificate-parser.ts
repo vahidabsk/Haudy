@@ -96,15 +96,35 @@ function standaloneBlock(lines: string[], label: string) {
 }
 
 function splitPropertyBlock(block: string[]) {
-  const first = block[0] || "";
-  const match = first.match(/^(.*?)(\d.*)$/);
-  const name = match ? clean(match[1]) : first;
-  const addressLines = match ? [match[2], ...block.slice(1)] : block.slice(1);
-  return { name, address: addressLines.map(clean).filter(Boolean).join(", ") };
+  return splitNameAddressBlock(block);
 }
 
 function splitAscBlock(block: string[]) {
-  return { name: clean(block[0] || ""), address: block.slice(1).map(clean).filter(Boolean).join(", ") };
+  return splitNameAddressBlock(block);
+}
+
+function splitNameAddressBlock(block: string[]) {
+  const first = block[0] || "";
+  const streetStart = streetAddressStart(first);
+  const name = streetStart > 0 ? first.slice(0, streetStart) : first;
+  const addressLines = streetStart > 0 ? [first.slice(streetStart), ...block.slice(1)] : block.slice(1);
+  return { name: clean(name), address: addressLines.map(clean).filter(Boolean).join(", ") };
+}
+
+function streetAddressStart(line: string) {
+  const candidates = Array.from(line.matchAll(/\b\d{1,6}[A-Z]?\b/gi));
+  let best = { index: -1, score: Number.POSITIVE_INFINITY };
+  for (const candidate of candidates) {
+    if (candidate.index === undefined) continue;
+    const before = line.slice(0, candidate.index).trim();
+    if (/\b(BLDG|BUILDING|STE|SUITE|UNIT|APT|ROOM|FL|FLOOR)\s*$/i.test(before)) continue;
+    const rest = line.slice(candidate.index);
+    const suffix = rest.search(streetSuffixRegex());
+    const stateZip = rest.search(/\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/i);
+    const score = suffix >= 0 ? suffix : stateZip >= 0 ? stateZip + 100 : Number.POSITIVE_INFINITY;
+    if (score < best.score) best = { index: candidate.index, score };
+  }
+  return best.index;
 }
 
 export function cityStateFromAddress(address?: string) {
@@ -117,7 +137,20 @@ export function cityStateFromAddress(address?: string) {
   const stateMatch = last.match(/\b([A-Z]{2})\b/);
   if (parts.length >= 2 && stateMatch) return { city: parts[parts.length - 2], state: stateMatch[1] };
 
+  const stateZipMatch = value.match(/\b([A-Z]{2})\s+\d{5}(?:-\d{4})?\b/i);
+  if (stateZipMatch?.index !== undefined) {
+    const beforeState = clean(value.slice(0, stateZipMatch.index).replace(/,/g, " "));
+    const suffixMatches = Array.from(beforeState.matchAll(streetSuffixRegex()));
+    const lastSuffix = suffixMatches[suffixMatches.length - 1];
+    const city = lastSuffix?.index === undefined ? "" : clean(beforeState.slice(lastSuffix.index + lastSuffix[0].length));
+    if (city) return { city, state: stateZipMatch[1].toUpperCase() };
+  }
+
   return { city: "", state: "" };
+}
+
+function streetSuffixRegex() {
+  return /\b(ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|CIR|CIRCLE|WAY|PKWY|PARKWAY|PL|PLACE|HWY|HIGHWAY|TER|TERRACE|LOOP)\.?\b/gi;
 }
 
 function monitoringLocationBlock(lines: string[]) {
