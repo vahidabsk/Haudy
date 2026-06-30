@@ -10,14 +10,12 @@ import {
 } from "../lib/auditor-report-findings";
 
 interface AuditorReportDatabaseProps {
-  initialKeyword?: string;
   initialStandard?: string;
   initialYear?: string;
-  initialReviewType?: string;
   onSelect: (finding: AuditorReportFinding) => void;
 }
 
-export function AuditorReportDatabase({ initialKeyword = "", initialStandard = "", initialYear = "", initialReviewType = "", onSelect }: AuditorReportDatabaseProps) {
+export function AuditorReportDatabase({ initialStandard = "", initialYear = "", onSelect }: AuditorReportDatabaseProps) {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [standard, setStandard] = useState("");
@@ -27,10 +25,10 @@ export function AuditorReportDatabase({ initialKeyword = "", initialStandard = "
   const results = useMemo(() => searchAuditorReportFindings({ keyword, standard, year, reviewType, category }), [keyword, standard, year, reviewType, category]);
 
   function openSearch() {
-    setKeyword((current) => current || initialKeyword);
+    setKeyword("");
     setStandard(initialStandard);
     setYear(initialYear);
-    setReviewType(initialReviewType);
+    setReviewType("");
     setOpen(true);
   }
 

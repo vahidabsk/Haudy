@@ -179,10 +179,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                   <ReportFindingFields
                     value={reportValue(item)}
                     showCsisHelp
-                    helpKeyword={[item.category, item.note].filter(Boolean).join(" ")}
                     helpStandard={certificateCode.standard}
                     helpYear={certificateCode.year}
-                    helpReviewType={item.reviewType}
                     onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
                   />
                 </div>

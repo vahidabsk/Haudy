@@ -3,13 +3,12 @@ import { CheckCircle2, Search, X } from "lucide-react";
 import { CsisDefect, csisCategories, csisStandards, csisYears, searchCsisDefects } from "../lib/csis-defects";
 
 interface CsisDefectListProps {
-  initialKeyword?: string;
   initialStandard?: string;
   initialYear?: string;
   onSelect: (defect: CsisDefect) => void;
 }
 
-export function CsisDefectList({ initialKeyword = "", initialStandard = "", initialYear = "", onSelect }: CsisDefectListProps) {
+export function CsisDefectList({ initialStandard = "", initialYear = "", onSelect }: CsisDefectListProps) {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [standard, setStandard] = useState("");
@@ -18,7 +17,7 @@ export function CsisDefectList({ initialKeyword = "", initialStandard = "", init
   const results = useMemo(() => searchCsisDefects({ keyword, standard, year, category }), [keyword, standard, year, category]);
 
   function openSearch() {
-    setKeyword((current) => current || initialKeyword);
+    setKeyword("");
     setStandard(initialStandard);
     setYear(initialYear);
     setOpen(true);
