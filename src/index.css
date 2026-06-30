@@ -494,6 +494,11 @@ textarea {
   page-break-inside: avoid;
 }
 
+.report-audit-block + .report-audit-block {
+  border-top: 1px solid #000;
+  padding-top: 0.14in;
+}
+
 .report-property {
   margin: 0 0 0.16in;
   line-height: 1.35;
