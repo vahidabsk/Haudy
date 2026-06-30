@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
+import { saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
 
@@ -19,10 +20,11 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
 
   if (!group) return <main className="p-6">ASC not found.</main>;
 
-  return <ConfirmationDocument group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} scn={scn} psn={psn} />;
+  return <ConfirmationDocument ascKey={decodeURIComponent(ascKey)} group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} scn={scn} psn={psn} />;
 }
 
-function ConfirmationDocument({ group, auditor, pocName, startDate, endDate, scn, psn }: { group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
+function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
+  const [savedAt, setSavedAt] = useState("");
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
@@ -54,6 +56,15 @@ function ConfirmationDocument({ group, auditor, pocName, startDate, endDate, scn
             <ArrowLeft size={16} /> Back to Properties
           </Link>
           <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+          <button
+            className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+            onClick={() => {
+              const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate, endDate });
+              setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
+            }}
+          >
+            Save Confirmation
+          </button>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <span className="font-semibold text-navy">POC:</span> {pocName || ""}
@@ -61,6 +72,7 @@ function ConfirmationDocument({ group, auditor, pocName, startDate, endDate, scn
           <span className="font-semibold text-navy">SCN:</span> {scn || ""}
           <span className="mx-2 text-slate-300">|</span>
           <span className="font-semibold text-navy">PSN:</span> {psn || ""}
+          {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
         </div>
       </div>
 

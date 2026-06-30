@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
+import { saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { Audit, AuditRow, Auditor, DeviceTestRow, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
@@ -33,6 +34,7 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
   return (
     <ReportDocument
       group={group}
+      ascKey={decodeURIComponent(ascKey)}
       auditor={auditor}
       pocName={searchParams.get("poc") || ""}
       scn={searchParams.get("scn") || ""}
@@ -42,7 +44,8 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
   );
 }
 
-function ReportDocument({ group, auditor, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; auditor: Auditor | null; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
+function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
+  const [savedAt, setSavedAt] = useState("");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const today = new Date();
@@ -65,6 +68,15 @@ function ReportDocument({ group, auditor, pocName, scn, psn, onUpdateAudit }: { 
             <ArrowLeft size={16} /> Back to Properties
           </Link>
           <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+          <button
+            className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+            onClick={() => {
+              const next = saveAscDocument(ascKey, "report", { pocName, scn, psn });
+              setSavedAt(next[ascKey]?.report?.updatedAt || "");
+            }}
+          >
+            Save Report
+          </button>
         </div>
         <div>
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
@@ -76,6 +88,7 @@ function ReportDocument({ group, auditor, pocName, scn, psn, onUpdateAudit }: { 
           <span className="font-semibold text-navy">SCN:</span> {scn || ""}
           <span className="mx-2 text-slate-300">|</span>
           <span className="font-semibold text-navy">PSN:</span> {psn || ""}
+          {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
         </div>
         {reportItems.length ? (
           <div className="grid gap-3">

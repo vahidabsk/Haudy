@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
+import { loadAscDocuments } from "../lib/asc-documents";
 import { AscProfile, completeAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { relativeTime } from "../lib/utils";
@@ -17,19 +18,25 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [confirmationGroup, setConfirmationGroup] = useState<AscGroup | null>(null);
   const [profileGroup, setProfileGroup] = useState<AscGroup | null>(null);
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
+  const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
 
   useEffect(() => {
     function refresh() {
       setOfflineReady(localStorage.getItem(OFFLINE_READY_KEY) === "true");
       setOnline(navigator.onLine);
     }
+    function refreshDocuments() {
+      setAscDocuments(loadAscDocuments());
+    }
     window.addEventListener("online", refresh);
     window.addEventListener("offline", refresh);
     window.addEventListener("haudy:offline-ready", refresh);
+    window.addEventListener("focus", refreshDocuments);
     return () => {
       window.removeEventListener("online", refresh);
       window.removeEventListener("offline", refresh);
       window.removeEventListener("haudy:offline-ready", refresh);
+      window.removeEventListener("focus", refreshDocuments);
     };
   }, []);
 
@@ -65,6 +72,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         {groups.map((group) => {
           const profile = ascProfiles[group.key];
           const readyForDocuments = completeAscProfile(profile);
+          const documents = ascDocuments[group.key];
+          const confirmationSaved = documents?.confirmation?.saved;
+          const reportSaved = documents?.report?.saved;
           return (
           <section key={group.key} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
             <div className="flex items-center justify-between gap-3">
@@ -95,19 +105,37 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   <span className="font-semibold text-navy">SCN:</span> {profile.scn}
                   <span className="mx-2 text-slate-300">|</span>
                   <span className="font-semibold text-navy">PSN:</span> {profile.psn}
+                  <div className="mt-1 text-xs text-slate-500">
+                    Confirmation: {confirmationSaved ? `saved ${relativeTime(documents.confirmation?.updatedAt || "")}` : "not saved yet"}
+                    <span className="mx-2 text-slate-300">|</span>
+                    Report: {reportSaved ? `saved ${relativeTime(documents.report?.updatedAt || "")}` : "not saved yet"}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setProfileGroup(group)}>
                     <FilePenLine size={16} /> Edit Info
                   </button>
-                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setConfirmationGroup(group)}>
-                    <CalendarCheck size={16} /> Confirmation
+                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
+                    if (confirmationSaved && documents?.confirmation) {
+                      const params = new URLSearchParams({
+                        poc: profile.pocName,
+                        scn: profile.scn,
+                        psn: profile.psn,
+                        start: documents.confirmation.startDate || "",
+                        end: documents.confirmation.endDate || documents.confirmation.startDate || "",
+                      });
+                      navigate(`/asc/${encodeURIComponent(group.key)}/confirmation?${params.toString()}`);
+                      return;
+                    }
+                    setConfirmationGroup(group);
+                  }}>
+                    <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : "Create Confirmation"}
                   </button>
                   <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
                     const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
                     navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
                   }}>
-                    <FileText size={16} /> Report
+                    <FileText size={16} /> {reportSaved ? "View / Edit Report" : "Create Report"}
                   </button>
                 </div>
               </div>
