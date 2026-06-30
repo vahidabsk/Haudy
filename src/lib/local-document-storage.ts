@@ -89,7 +89,9 @@ async function printableHtmlSnapshot(title: string) {
       return "";
     }
   }).join("\n");
-  const pages = Array.from(document.querySelectorAll(".print-page")).map((page) => page.outerHTML).join("\n");
+  const pageClones = Array.from(document.querySelectorAll<HTMLElement>(".print-page")).map((page) => page.cloneNode(true) as HTMLElement);
+  await Promise.all(pageClones.map(inlineImages));
+  const pages = pageClones.map((page) => page.outerHTML).join("\n");
   return `<!doctype html>
 <html>
 <head>
@@ -101,6 +103,31 @@ async function printableHtmlSnapshot(title: string) {
 ${pages}
 </body>
 </html>`;
+}
+
+async function inlineImages(root: HTMLElement) {
+  const images = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
+  await Promise.all(images.map(async (image) => {
+    const src = image.getAttribute("src");
+    if (!src || src.startsWith("data:")) return;
+    try {
+      const absoluteUrl = new URL(src, window.location.href).href;
+      const response = await fetch(absoluteUrl);
+      const blob = await response.blob();
+      image.setAttribute("src", await blobToDataUrl(blob));
+    } catch {
+      image.setAttribute("data-haudy-image-warning", "Could not embed image before saving.");
+    }
+  }));
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function verifyPermission(handle: DirectoryHandle) {
