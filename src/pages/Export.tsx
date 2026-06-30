@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
+import { saveCurrentDocumentSnapshot, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { loadPhoto } from "../lib/photo-store";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow, StatusCode } from "../lib/types";
 
@@ -19,6 +20,7 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
 
 function ExportDocument({ audit }: { audit: Audit }) {
   const currentAudit = audit;
+  const [folderMessage, setFolderMessage] = useState("");
 
   function csv() {
     const blob = new Blob([auditToCsv(currentAudit)], { type: "text/csv" });
@@ -47,7 +49,21 @@ function ExportDocument({ audit }: { audit: Audit }) {
       <div className="no-print mb-4 flex justify-end gap-2">
         <button className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={csv}>Download CSV</button>
         <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+        <button
+          className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          onClick={async () => {
+            try {
+              await saveCurrentDocumentSnapshot(storageDetailsFromAudit(audit, "Field Notes", exportFileName));
+              setFolderMessage("Saved to Haudy Storage.");
+            } catch (error) {
+              setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+            }
+          }}
+        >
+          Save to Folder
+        </button>
       </div>
+      {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}
       <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>
         <SignalReview audit={audit} />
         <Checklist title="Documentation Reviewed:" rows={audit.documentation} codeEdition={audit.codeEdition} reviewed={audit.documentationReviewed} />

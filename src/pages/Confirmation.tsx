@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
+import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
 
 export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
@@ -25,6 +26,7 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
 
 function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
   const [savedAt, setSavedAt] = useState("");
+  const [folderMessage, setFolderMessage] = useState("");
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
@@ -65,6 +67,19 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           >
             Save Confirmation
           </button>
+          <button
+            className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={async () => {
+              try {
+                await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
+                setFolderMessage("Saved to Haudy Storage.");
+              } catch (error) {
+                setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+              }
+            }}
+          >
+            Save to Folder
+          </button>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <span className="font-semibold text-navy">POC:</span> {pocName || ""}
@@ -73,6 +88,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           <span className="mx-2 text-slate-300">|</span>
           <span className="font-semibold text-navy">PSN:</span> {psn || ""}
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
+          {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
       </div>
 

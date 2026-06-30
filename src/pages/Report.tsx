@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
+import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, AuditRow, Auditor, DeviceTestRow, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
@@ -46,6 +47,7 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
 
 function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
   const [savedAt, setSavedAt] = useState("");
+  const [folderMessage, setFolderMessage] = useState("");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const today = new Date();
@@ -77,6 +79,20 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           >
             Save Report
           </button>
+          <button
+            className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={async () => {
+              try {
+                const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+                await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: today.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
+                setFolderMessage("Saved to Haudy Storage.");
+              } catch (error) {
+                setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+              }
+            }}
+          >
+            Save to Folder
+          </button>
         </div>
         <div>
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
@@ -89,6 +105,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           <span className="mx-2 text-slate-300">|</span>
           <span className="font-semibold text-navy">PSN:</span> {psn || ""}
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
+          {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
         {reportItems.length ? (
           <div className="grid gap-3">
