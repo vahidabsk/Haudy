@@ -8,8 +8,15 @@ import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loa
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { prepareStorageFolders } from "../lib/local-document-storage";
+import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
+
+interface DuplicateUploadReview {
+  certificates: ParsedCertificate[];
+  duplicates: Array<{ certificate: ParsedCertificate; audit: Audit }>;
+  hasProgress: boolean;
+}
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
@@ -22,6 +29,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
   const [storageMessage, setStorageMessage] = useState("");
+  const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
 
   useEffect(() => {
     function refresh() {
@@ -70,24 +78,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 setAscDocuments(clearAscDocuments());
               }
               const existingByKey = new Map(audits.audits.map((audit) => [auditIdentity(audit), audit]));
-              const duplicates = certificate.map((item) => ({ certificate: item, audit: existingByKey.get(certificateIdentity(item)) })).filter((item) => item.audit);
+              const duplicates = certificate
+                .map((item) => ({ certificate: item, audit: existingByKey.get(certificateIdentity(item)) }))
+                .filter((item): item is { certificate: ParsedCertificate; audit: Audit } => Boolean(item.audit));
               if (duplicates.length) {
                 const hasProgress = duplicates.some(({ audit }) => audit && auditHasProgress(audit));
-                const names = duplicates.map(({ certificate }) => certificate.propertyName || certificate.certificateNumber || certificate.fileName).join("\n");
-                const warning = [
-                  `${duplicates.length} uploaded certificate${duplicates.length === 1 ? "" : "s"} already exist${duplicates.length === 1 ? "s" : ""}:`,
-                  names,
-                  "",
-                  hasProgress ? "Replacing will delete the existing field note and all audit notes for those properties." : "Replacing will reset the existing field note for those properties.",
-                  "Do you want to replace the existing certificate data?",
-                ].join("\n");
-                if (!window.confirm(warning)) return "Upload canceled. Existing certificate data was kept.";
-                audits.replaceManyFromCertificates(certificate);
-                duplicates.forEach(({ audit }) => {
-                  if (audit) deleteAscDocuments(auditIdentityAscKey(audit));
-                });
-                setAscDocuments(loadAscDocuments());
-                return `${certificate.length} certificate${certificate.length === 1 ? "" : "s"} uploaded and duplicate ${duplicates.length === 1 ? "property was" : "properties were"} replaced.`;
+                setDuplicateUpload({ certificates: certificate, duplicates, hasProgress });
+                return `${duplicates.length} duplicate certificate${duplicates.length === 1 ? "" : "s"} found. Review the Haudy warning before replacing.`;
               }
               audits.createManyFromCertificates(certificate);
               return undefined;
@@ -240,7 +237,50 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
+      {duplicateUpload ? (
+        <DuplicateUploadDialog
+          review={duplicateUpload}
+          onCancel={() => setDuplicateUpload(null)}
+          onReplace={() => {
+            audits.replaceManyFromCertificates(duplicateUpload.certificates);
+            duplicateUpload.duplicates.forEach(({ audit }) => deleteAscDocuments(auditIdentityAscKey(audit)));
+            setAscDocuments(loadAscDocuments());
+            setDuplicateUpload(null);
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function DuplicateUploadDialog({ review, onCancel, onReplace }: { review: DuplicateUploadReview; onCancel: () => void; onReplace: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-xl gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-navy">Certificate Already Exists</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Haudy found {review.duplicates.length} uploaded certificate{review.duplicates.length === 1 ? "" : "s"} for propert{review.duplicates.length === 1 ? "y" : "ies"} already in this workspace.
+          </p>
+        </div>
+        <div className={`rounded-md border p-3 text-sm font-medium ${review.hasProgress ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          {review.hasProgress ? "Replacing will delete the existing field note and all audit notes for the listed properties." : "Replacing will reset the existing field note for the listed properties."}
+        </div>
+        <div className="grid max-h-56 gap-2 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-3">
+          {review.duplicates.map(({ certificate, audit }) => (
+            <div key={audit.id} className="rounded-md bg-white p-3 text-sm shadow-sm">
+              <div className="font-semibold text-navy">{certificate.propertyName || audit.protectedProperty || "Property name not set"}</div>
+              <div className="mt-1 text-slate-600">Certificate: {certificate.certificateNumber || audit.certificateNumber || "not set"}</div>
+              {auditHasProgress(audit) ? <div className="mt-1 text-xs font-semibold text-red-700">Existing audit notes will be lost.</div> : null}
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Keep Existing</button>
+          <button type="button" className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800 hover:bg-red-100" onClick={onReplace}>Replace Certificate</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
