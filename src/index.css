@@ -518,8 +518,8 @@ textarea {
 .report-major-section h2 {
   margin: 0.18in 0 0.12in;
   text-align: center;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: inherit;
+  font-weight: 400;
   text-decoration: underline;
 }
 

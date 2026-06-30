@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
-import { saveAscDocument } from "../lib/asc-documents";
+import { loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, AuditRow, Auditor, DeviceTestRow, SignalLogRow } from "../lib/types";
+import { DictationNotes } from "../components/DictationNotes";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
@@ -49,8 +50,13 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
 function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
+  const savedReportDraft = loadAscDocuments()[ascKey]?.report;
+  const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
+  const [serviceCenterReportFinding, setServiceCenterReportFinding] = useState(savedReportDraft?.serviceCenterReportFinding ?? "");
+  const [serviceCenterReportRequiredAction, setServiceCenterReportRequiredAction] = useState(savedReportDraft?.serviceCenterReportRequiredAction ?? "");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
+  const serviceCenterIncomplete = serviceCenterHasComment && (!serviceCenterReportFinding.trim() || !serviceCenterReportRequiredAction.trim());
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -80,7 +86,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             <button
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
-                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn });
+                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterReportFinding, serviceCenterReportRequiredAction });
                 setSavedAt(next[ascKey]?.report?.updatedAt || "");
                 try {
                   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
@@ -107,6 +113,51 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           <span className="font-semibold text-navy">PSN:</span> {psn || ""}
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
           {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
+        </div>
+        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Does the service center have any comments?
+            <select
+              className="min-h-11 rounded-md border bg-white px-3"
+              value={serviceCenterHasComment ? "YES" : "NO"}
+              onChange={(event) => {
+                const nextHasComment = event.target.value === "YES";
+                setServiceCenterHasComment(nextHasComment);
+                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterReportFinding, serviceCenterReportRequiredAction });
+              }}
+            >
+              <option value="NO">No</option>
+              <option value="YES">Yes</option>
+            </select>
+          </label>
+          {serviceCenterHasComment ? (
+            <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <div className="text-sm font-semibold text-amber-950">Service Center Comment</div>
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Finding
+                <DictationNotes
+                  rows={2}
+                  value={serviceCenterReportFinding}
+                  onChange={(nextFinding) => {
+                    setServiceCenterReportFinding(nextFinding);
+                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterReportFinding: nextFinding, serviceCenterReportRequiredAction });
+                  }}
+                />
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-slate-700">
+                Required Action
+                <DictationNotes
+                  rows={2}
+                  value={serviceCenterReportRequiredAction}
+                  onChange={(nextRequiredAction) => {
+                    setServiceCenterReportRequiredAction(nextRequiredAction);
+                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterReportFinding, serviceCenterReportRequiredAction: nextRequiredAction });
+                  }}
+                />
+              </label>
+              {serviceCenterIncomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention.</div> : <div className="text-sm font-medium text-emerald-700">Service center comment ready for report.</div>}
+            </div>
+          ) : null}
         </div>
         {reportItems.length ? (
           <div className="grid gap-3">
@@ -145,7 +196,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
 
       <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditor={auditor} />
-      <AuditCommentsPage group={group} />
+      <AuditCommentsPage group={group} serviceCenterHasComment={serviceCenterHasComment} serviceCenterFinding={serviceCenterReportFinding} serviceCenterRequiredAction={serviceCenterReportRequiredAction} />
     </main>
   );
 }
@@ -203,15 +254,20 @@ function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
   );
 }
 
-function AuditCommentsPage({ group }: { group: AscGroup }) {
-  const deficiencyNumbers = numberedDeficiencies(group);
+function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterFinding, serviceCenterRequiredAction }: { group: AscGroup; serviceCenterHasComment: boolean; serviceCenterFinding: string; serviceCenterRequiredAction: string }) {
+  const serviceCenterNumber = serviceCenterHasComment ? 1 : 0;
+  const deficiencyNumbers = numberedDeficiencies(group, serviceCenterHasComment ? 2 : 1);
   return (
     <section className="report-page report-comments-page print-page bg-white text-black shadow-sm print:shadow-none">
       <h1>Audit Comments</h1>
       <p className="report-comments-intro">Provide in your response to this report a brief description of the action taken to correct any issues noted below.</p>
       <div className="report-major-section">
         <h2>Service Center Comments</h2>
-        <p>** No non-compliance issues were identified during the audit.</p>
+        {serviceCenterHasComment ? (
+          <ServiceCenterFinding number={serviceCenterNumber} finding={serviceCenterFinding} requiredAction={serviceCenterRequiredAction} />
+        ) : (
+          <p>** No non-compliance issues were identified during the audit.</p>
+        )}
       </div>
       <div className="report-major-section">
         <h2>Protected Property Comments</h2>
@@ -238,6 +294,21 @@ function AuditCommentsPage({ group }: { group: AscGroup }) {
       </div>
       <p>END</p>
     </section>
+  );
+}
+
+function ServiceCenterFinding({ number, finding, requiredAction }: { number: number; finding: string; requiredAction: string }) {
+  return (
+    <div className="report-finding">
+      <div className="report-finding-row">
+        <span className="report-finding-number">{number ? `${number}.` : ""}</span>
+        <p><span className="report-finding-label">Finding:</span> {finding}</p>
+      </div>
+      <div className="report-finding-row">
+        <span className="report-finding-number" />
+        <p><span className="report-finding-label">Required Action:</span> {requiredAction}</p>
+      </div>
+    </div>
   );
 }
 
@@ -543,9 +614,9 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
   return { ...audit, updatedAt, deviceTests: audit.deviceTests.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
 }
 
-function numberedDeficiencies(group: AscGroup) {
+function numberedDeficiencies(group: AscGroup, startNumber = 1) {
   const numbers = new Map<string, number>();
-  let nextNumber = 1;
+  let nextNumber = startNumber;
   group.audits.forEach((audit) => {
     collectReportItems(audit).forEach((item) => {
       numbers.set(deficiencyKey(audit.id, item.id), nextNumber);

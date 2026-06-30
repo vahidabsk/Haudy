@@ -7,6 +7,9 @@ export interface SavedDocumentStatus {
   psn: string;
   startDate?: string;
   endDate?: string;
+  serviceCenterHasComment?: boolean;
+  serviceCenterReportFinding?: string;
+  serviceCenterReportRequiredAction?: string;
   updatedAt: string;
 }
 
@@ -46,11 +49,34 @@ export function deleteAscDocuments(ascKey: string) {
 
 export function saveAscDocument(ascKey: string, type: keyof AscDocumentState, status: Omit<SavedDocumentStatus, "saved" | "updatedAt">) {
   const documents = loadAscDocuments();
+  const existing = documents[ascKey]?.[type];
   const next: AscDocuments = {
     ...documents,
     [ascKey]: {
       ...documents[ascKey],
-      [type]: { ...status, saved: true, updatedAt: new Date().toISOString() },
+      [type]: { ...existing, ...status, saved: true, updatedAt: new Date().toISOString() },
+    },
+  };
+  saveAscDocuments(next);
+  return next;
+}
+
+export function updateAscDocumentDraft(ascKey: string, type: keyof AscDocumentState, draft: Partial<Omit<SavedDocumentStatus, "updatedAt">>) {
+  const documents = loadAscDocuments();
+  const existing = documents[ascKey]?.[type];
+  const next: AscDocuments = {
+    ...documents,
+    [ascKey]: {
+      ...documents[ascKey],
+      [type]: {
+        saved: existing?.saved ?? false,
+        pocName: existing?.pocName ?? "",
+        scn: existing?.scn ?? "",
+        psn: existing?.psn ?? "",
+        ...existing,
+        ...draft,
+        updatedAt: new Date().toISOString(),
+      },
     },
   };
   saveAscDocuments(next);
