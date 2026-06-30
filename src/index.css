@@ -501,6 +501,7 @@ textarea {
 
 .report-major-section h2 {
   margin: 0.18in 0 0.12in;
+  text-align: center;
   font-size: 15px;
   font-weight: 700;
   text-decoration: underline;
@@ -528,6 +529,11 @@ textarea {
 
 .report-finding p {
   margin: 0 0 0.08in;
+}
+
+.report-finding-label {
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .report-unmatched {

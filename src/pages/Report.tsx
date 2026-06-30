@@ -143,6 +143,7 @@ function LateResponsePage({ auditorName }: { auditorName: string }) {
 }
 
 function AuditCommentsPage({ group }: { group: AscGroup }) {
+  const deficiencyNumbers = numberedDeficiencies(group);
   return (
     <section className="report-page report-comments-page print-page bg-white text-black shadow-sm print:shadow-none">
       <h1>Audit Comments</h1>
@@ -158,12 +159,18 @@ function AuditCommentsPage({ group }: { group: AscGroup }) {
           const signalItems = collectReportItems(audit).filter((item) => item.reviewType === "Signal Processing Review");
           const documentationItems = collectReportItems(audit).filter((item) => item.reviewType === "Documentation Review");
           const installationItems = collectReportItems(audit).filter((item) => item.reviewType === "Installation Review");
+          const addressLines = propertyAddressLines(certificate?.propertyAddress || "");
           return (
             <div key={audit.id} className="report-audit-block">
-              <p className="report-property"><b>SN: {audit.certificateNumber}</b><br /><b>CCN: {certificate?.categoryCode || ""}</b><br /><b>{audit.protectedProperty}</b><br /><b>{certificate?.propertyAddress || ""}</b></p>
-              <SignalReportSection audit={audit} items={signalItems} />
-              <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." />
-              <ReportSection title="Installation Review" items={installationItems} emptyText="** No non-compliance issues were identified during the installation review." />
+              <p className="report-property">
+                <b>SN: {audit.certificateNumber}</b><br />
+                <b>CCN: {certificate?.categoryCode || ""}</b><br />
+                <b>{audit.protectedProperty}</b><br />
+                {addressLines.map((line) => <b key={line}>{line}<br /></b>)}
+              </p>
+              <SignalReportSection audit={audit} items={signalItems} numbers={deficiencyNumbers} />
+              <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." numbers={deficiencyNumbers} auditId={audit.id} />
+              <ReportSection title="Installation Review" items={installationItems} emptyText="** No non-compliance issues were identified during the installation review." numbers={deficiencyNumbers} auditId={audit.id} />
             </div>
           );
         })}
@@ -173,7 +180,7 @@ function AuditCommentsPage({ group }: { group: AscGroup }) {
   );
 }
 
-function SignalReportSection({ audit, items }: { audit: Audit; items: ReportItem[] }) {
+function SignalReportSection({ audit, items, numbers }: { audit: Audit; items: ReportItem[]; numbers: Map<string, number> }) {
   const counts = {
     alarm: audit.signalLog.filter((row) => row.signalType === "Alarm").length,
     supervisory: audit.signalLog.filter((row) => row.signalType === "Supervisory").length,
@@ -184,28 +191,28 @@ function SignalReportSection({ audit, items }: { audit: Audit; items: ReportItem
       <h3>----Signal Processing Review----</h3>
       <p>A total of {counts.alarm} alarm, {counts.supervisory} supervisory, and {counts.trouble} trouble signal event(s) has been reviewed.</p>
       {!items.length ? <p>** No non-compliance issues were identified during the signal review.</p> : null}
-      {items.map((item) => <ReportFinding key={item.id} item={item} />)}
+      {items.map((item) => <ReportFinding key={item.id} item={item} number={numbers.get(deficiencyKey(audit.id, item.id)) || 0} />)}
     </div>
   );
 }
 
-function ReportSection({ title, items, emptyText }: { title: ReportReview; items: ReportItem[]; emptyText: string }) {
+function ReportSection({ title, items, emptyText, numbers, auditId }: { title: ReportReview; items: ReportItem[]; emptyText: string; numbers: Map<string, number>; auditId: string }) {
   return (
     <div className="report-review-section">
       <h3>----{title}----</h3>
       {!items.length ? <p>{emptyText}</p> : null}
-      {items.map((item) => <ReportFinding key={item.id} item={item} />)}
+      {items.map((item) => <ReportFinding key={item.id} item={item} number={numbers.get(deficiencyKey(auditId, item.id)) || 0} />)}
     </div>
   );
 }
 
-function ReportFinding({ item }: { item: ReportItem }) {
+function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
   return (
     <div className="report-finding">
-      <h4>{item.category}</h4>
-      <p><b>Finding:</b> {item.finding}</p>
-      <p><b>Required Action:</b> {item.requiredAction}</p>
-      <p><b>Code Reference:</b> {formatCodeReference(item)}</p>
+      <h4>{number ? `${number}. ` : ""}{item.category}</h4>
+      <p><span className="report-finding-label">Finding:</span> {item.finding}</p>
+      <p><span className="report-finding-label">Required Action:</span> {item.requiredAction}</p>
+      <p><span className="report-finding-label">Code Reference:</span> {formatCodeReference(item)}</p>
     </div>
   );
 }
@@ -291,6 +298,30 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
     return { ...audit, updatedAt, installation: audit.installation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
   }
   return { ...audit, updatedAt, deviceTests: audit.deviceTests.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
+}
+
+function numberedDeficiencies(group: AscGroup) {
+  const numbers = new Map<string, number>();
+  let nextNumber = 1;
+  group.audits.forEach((audit) => {
+    collectReportItems(audit).forEach((item) => {
+      numbers.set(deficiencyKey(audit.id, item.id), nextNumber);
+      nextNumber += 1;
+    });
+  });
+  return numbers;
+}
+
+function deficiencyKey(auditId: string, itemId: string) {
+  return `${auditId}:${itemId}`;
+}
+
+function propertyAddressLines(address: string) {
+  const cleanAddress = address.replace(/\s+/g, " ").trim();
+  if (!cleanAddress) return [];
+  const parts = cleanAddress.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length <= 1) return [cleanAddress];
+  return [parts[0], parts.slice(1).join(", ")];
 }
 
 function formatCodeReference(item: ReportItem) {
