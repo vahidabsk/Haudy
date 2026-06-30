@@ -60,16 +60,9 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
           <button
             className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-            onClick={() => {
+            onClick={async () => {
               const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate, endDate });
               setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
-            }}
-          >
-            Save Confirmation
-          </button>
-          <button
-            className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={async () => {
               try {
                 await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
                 setFolderMessage("Saved to Haudy Storage.");
@@ -78,7 +71,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
               }
             }}
           >
-            Save to Folder
+            Save Confirmation
           </button>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">

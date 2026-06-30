@@ -60,7 +60,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
             }
           }}
         >
-          Save to Folder
+          Save Field Note
         </button>
       </div>
       {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}

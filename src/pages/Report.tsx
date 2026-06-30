@@ -72,16 +72,9 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
           <button
             className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-            onClick={() => {
+            onClick={async () => {
               const next = saveAscDocument(ascKey, "report", { pocName, scn, psn });
               setSavedAt(next[ascKey]?.report?.updatedAt || "");
-            }}
-          >
-            Save Report
-          </button>
-          <button
-            className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={async () => {
               try {
                 const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
                 await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: today.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
@@ -91,7 +84,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
               }
             }}
           >
-            Save to Folder
+            Save Report
           </button>
         </div>
         <div>

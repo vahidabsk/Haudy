@@ -43,8 +43,16 @@ export async function chooseStorageRoot() {
   return root;
 }
 
+export async function prepareStorageFolders(details: Array<Omit<StorageDocumentDetails, "folder" | "fileName">>) {
+  const root = await chooseStorageRoot();
+  for (const detail of details) {
+    for (const folder of ["Confirmation", "Report", "Field Notes"] as DocumentFolder[]) {
+      await documentFolder(root, { ...detail, folder, fileName: folder });
+    }
+  }
+}
+
 export function storageDetailsFromAudit(audit: Audit, folder: DocumentFolder, fileName: string): StorageDocumentDetails {
-  const certificate = audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
   return {
     year: (audit.auditDate || audit.createdAt || new Date().toISOString()).slice(0, 4),
     ascName: audit.ascName || "ASC",

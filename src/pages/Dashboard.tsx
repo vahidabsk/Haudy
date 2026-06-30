@@ -6,6 +6,7 @@ import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments } from "../lib/asc-documents";
 import { AscProfile, completeAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
+import { prepareStorageFolders } from "../lib/local-document-storage";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
 
@@ -19,6 +20,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [profileGroup, setProfileGroup] = useState<AscGroup | null>(null);
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
+  const [storageMessage, setStorageMessage] = useState("");
 
   useEffect(() => {
     function refresh() {
@@ -58,6 +60,35 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             <UploadDialog onParsed={(certificate) => {
               audits.createManyFromCertificates(certificate);
             }} />
+            <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div>
+                <h3 className="font-semibold text-navy">Where do you want Haudy to store the files?</h3>
+                <p className="mt-1 text-sm text-slate-600">Haudy will create Haudy Storage, year, ASC, Confirmation, Report, and Field Notes folders.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={async () => {
+                    try {
+                      const year = new Date().getFullYear().toString();
+                      await prepareStorageFolders(groups.map((group) => ({
+                        year,
+                        ascName: group.ascName,
+                        cityState: group.location,
+                        psn: ascProfiles[group.key]?.psn || "not-set",
+                      })));
+                      setStorageMessage("Storage location saved and folders created.");
+                    } catch (error) {
+                      setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
+                    }
+                  }}
+                >
+                  Choose Storage Location
+                </button>
+                {storageMessage ? <span className="text-sm text-slate-600">{storageMessage}</span> : null}
+              </div>
+            </div>
           </div>
           <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <Metric label="ASCs" value={groups.length} />
