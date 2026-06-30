@@ -4,11 +4,15 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow } from "../lib/types";
+import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
+type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests";
 
 interface ReportItem {
   id: string;
+  source: ReportSource;
+  rowId: string;
   reviewType: ReportReview;
   category: string;
   note: string;
@@ -32,11 +36,12 @@ export function ReportPage({ auditorName }: { auditorName: string }) {
       pocName={searchParams.get("poc") || ""}
       scn={searchParams.get("scn") || ""}
       psn={searchParams.get("psn") || ""}
+      onUpdateAudit={store.updateAudit}
     />
   );
 }
 
-function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscGroup; auditorName: string; pocName: string; scn: string; psn: string }) {
+function ReportDocument({ group, auditorName, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; auditorName: string; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const today = new Date();
@@ -73,6 +78,10 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
                   <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
                   <div className="text-sm text-slate-600">{item.note || "No field note entered."}</div>
                   <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
+                  <ReportFindingFields
+                    value={reportValue(item)}
+                    onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
+                  />
                 </div>
               );
             })}
@@ -213,6 +222,8 @@ function collectReportItems(audit: Audit): ReportItem[] {
 function signalItem(row: SignalLogRow): ReportItem {
   return {
     id: `signal-${row.id}`,
+    source: "signalLog",
+    rowId: row.id,
     reviewType: "Signal Processing Review",
     category: [row.signalType, row.date, row.time].filter(Boolean).join(" - ") || "Signal event",
     note: row.notes || row.description,
@@ -226,6 +237,8 @@ function signalItem(row: SignalLogRow): ReportItem {
 function checklistItem(row: AuditRow, reviewType: ReportReview): ReportItem {
   return {
     id: `${reviewType}-${row.id}`,
+    source: reviewType === "Documentation Review" ? "documentation" : "installation",
+    rowId: row.id,
     reviewType,
     category: row.element || reviewType,
     note: row.notes,
@@ -239,6 +252,8 @@ function checklistItem(row: AuditRow, reviewType: ReportReview): ReportItem {
 function deviceItem(row: DeviceTestRow): ReportItem {
   return {
     id: `device-${row.id}`,
+    source: "deviceTests",
+    rowId: row.id,
     reviewType: "Installation Review",
     category: ["Device Test", row.deviceType, row.location || row.deviceId].filter(Boolean).join(" - "),
     note: row.notes,
@@ -247,6 +262,35 @@ function deviceItem(row: DeviceTestRow): ReportItem {
     codeEdition: row.reportCodeEdition,
     codeSection: row.reportCodeSection,
   };
+}
+
+function reportValue(item: ReportItem): ReportFindingValue {
+  return {
+    reportFinding: item.finding,
+    reportRequiredAction: item.requiredAction,
+    reportCodeEdition: item.codeEdition,
+    reportCodeSection: item.codeSection,
+  };
+}
+
+function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<ReportFindingValue>): Audit {
+  const patch = {
+    ...("reportFinding" in reportFields ? { reportFinding: reportFields.reportFinding || "" } : {}),
+    ...("reportRequiredAction" in reportFields ? { reportRequiredAction: reportFields.reportRequiredAction || "" } : {}),
+    ...("reportCodeEdition" in reportFields ? { reportCodeEdition: reportFields.reportCodeEdition || "" } : {}),
+    ...("reportCodeSection" in reportFields ? { reportCodeSection: reportFields.reportCodeSection || "" } : {}),
+  };
+  const updatedAt = new Date().toISOString();
+  if (item.source === "signalLog") {
+    return { ...audit, updatedAt, signalLog: audit.signalLog.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
+  }
+  if (item.source === "documentation") {
+    return { ...audit, updatedAt, documentation: audit.documentation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
+  }
+  if (item.source === "installation") {
+    return { ...audit, updatedAt, installation: audit.installation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
+  }
+  return { ...audit, updatedAt, deviceTests: audit.deviceTests.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
 }
 
 function formatCodeReference(item: ReportItem) {
