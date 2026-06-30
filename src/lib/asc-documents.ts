@@ -8,9 +8,16 @@ export interface SavedDocumentStatus {
   startDate?: string;
   endDate?: string;
   serviceCenterHasComment?: boolean;
+  serviceCenterComments?: ServiceCenterComment[];
   serviceCenterReportFinding?: string;
   serviceCenterReportRequiredAction?: string;
   updatedAt: string;
+}
+
+export interface ServiceCenterComment {
+  id: string;
+  finding: string;
+  requiredAction: string;
 }
 
 export interface AscDocumentState {

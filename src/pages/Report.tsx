@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
-import { loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
+import { loadAscDocuments, saveAscDocument, ServiceCenterComment, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, SignalLogRow } from "../lib/types";
@@ -52,11 +52,10 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [folderMessage, setFolderMessage] = useState("");
   const savedReportDraft = loadAscDocuments()[ascKey]?.report;
   const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
-  const [serviceCenterReportFinding, setServiceCenterReportFinding] = useState(savedReportDraft?.serviceCenterReportFinding ?? "");
-  const [serviceCenterReportRequiredAction, setServiceCenterReportRequiredAction] = useState(savedReportDraft?.serviceCenterReportRequiredAction ?? "");
+  const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
-  const serviceCenterIncomplete = serviceCenterHasComment && (!serviceCenterReportFinding.trim() || !serviceCenterReportRequiredAction.trim());
+  const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some((comment) => !comment.finding.trim() || !comment.requiredAction.trim());
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -86,7 +85,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             <button
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
-                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterReportFinding, serviceCenterReportRequiredAction });
+                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterComments });
                 setSavedAt(next[ascKey]?.report?.updatedAt || "");
                 try {
                   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
@@ -123,7 +122,9 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
               onChange={(event) => {
                 const nextHasComment = event.target.value === "YES";
                 setServiceCenterHasComment(nextHasComment);
-                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterReportFinding, serviceCenterReportRequiredAction });
+                const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
+                if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
+                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterComments: nextComments });
               }}
             >
               <option value="NO">No</option>
@@ -131,30 +132,49 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             </select>
           </label>
           {serviceCenterHasComment ? (
-            <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-              <div className="text-sm font-semibold text-amber-950">Service Center Comment</div>
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Finding
-                <DictationNotes
-                  rows={2}
-                  value={serviceCenterReportFinding}
-                  onChange={(nextFinding) => {
-                    setServiceCenterReportFinding(nextFinding);
-                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterReportFinding: nextFinding, serviceCenterReportRequiredAction });
-                  }}
-                />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Required Action
-                <DictationNotes
-                  rows={2}
-                  value={serviceCenterReportRequiredAction}
-                  onChange={(nextRequiredAction) => {
-                    setServiceCenterReportRequiredAction(nextRequiredAction);
-                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterReportFinding, serviceCenterReportRequiredAction: nextRequiredAction });
-                  }}
-                />
-              </label>
+            <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-amber-950">Service Center Comments</div>
+                <button
+                  type="button"
+                  className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                  onClick={() => updateServiceCenterComments([...serviceCenterComments, blankServiceCenterComment()])}
+                >
+                  Add Finding
+                </button>
+              </div>
+              {serviceCenterComments.map((comment, index) => (
+                <div key={comment.id} className="grid gap-2 rounded-md border border-amber-200 bg-white/70 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-amber-950">
+                    <span>Service Center Comment {index + 1}</span>
+                    {serviceCenterComments.length > 1 ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        onClick={() => updateServiceCenterComments(serviceCenterComments.filter((item) => item.id !== comment.id))}
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    Finding
+                    <DictationNotes
+                      rows={2}
+                      value={comment.finding}
+                      onChange={(finding) => updateServiceCenterComment(comment.id, { finding })}
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm font-medium text-slate-700">
+                    Required Action
+                    <DictationNotes
+                      rows={2}
+                      value={comment.requiredAction}
+                      onChange={(requiredAction) => updateServiceCenterComment(comment.id, { requiredAction })}
+                    />
+                  </label>
+                </div>
+              ))}
               {serviceCenterIncomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention.</div> : <div className="text-sm font-medium text-emerald-700">Service center comment ready for report.</div>}
             </div>
           ) : null}
@@ -195,9 +215,18 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
 
       <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditor={auditor} />
-      <AuditCommentsPage group={group} serviceCenterHasComment={serviceCenterHasComment} serviceCenterFinding={serviceCenterReportFinding} serviceCenterRequiredAction={serviceCenterReportRequiredAction} />
+      <AuditCommentsPage group={group} serviceCenterHasComment={serviceCenterHasComment} serviceCenterComments={serviceCenterComments} />
     </main>
   );
+
+  function updateServiceCenterComments(nextComments: ServiceCenterComment[]) {
+    setServiceCenterComments(nextComments);
+    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterComments: nextComments });
+  }
+
+  function updateServiceCenterComment(id: string, patch: Partial<ServiceCenterComment>) {
+    updateServiceCenterComments(serviceCenterComments.map((comment) => (comment.id === id ? { ...comment, ...patch } : comment)));
+  }
 }
 
 function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: AscGroup; pocName: string; date: Date; files: string; scn: string; psn: string }) {
@@ -223,6 +252,19 @@ function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: As
       <ReportFooter />
     </section>
   );
+}
+
+function serviceCenterCommentsFromDraft(draft?: { serviceCenterComments?: ServiceCenterComment[]; serviceCenterReportFinding?: string; serviceCenterReportRequiredAction?: string }) {
+  if (draft?.serviceCenterComments?.length) return draft.serviceCenterComments;
+  return [{
+    id: "service-center-1",
+    finding: draft?.serviceCenterReportFinding || "",
+    requiredAction: draft?.serviceCenterReportRequiredAction || "",
+  }];
+}
+
+function blankServiceCenterComment(): ServiceCenterComment {
+  return { id: `service-center-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, finding: "", requiredAction: "" };
 }
 
 function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
@@ -253,17 +295,17 @@ function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
   );
 }
 
-function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterFinding, serviceCenterRequiredAction }: { group: AscGroup; serviceCenterHasComment: boolean; serviceCenterFinding: string; serviceCenterRequiredAction: string }) {
-  const serviceCenterNumber = serviceCenterHasComment ? 1 : 0;
-  const deficiencyNumbers = numberedDeficiencies(group, serviceCenterHasComment ? 2 : 1);
+function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterComments }: { group: AscGroup; serviceCenterHasComment: boolean; serviceCenterComments: ServiceCenterComment[] }) {
+  const printableServiceComments = serviceCenterHasComment ? serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()) : [];
+  const deficiencyNumbers = numberedDeficiencies(group, printableServiceComments.length + 1);
   return (
     <section className="report-page report-comments-page print-page bg-white text-black shadow-sm print:shadow-none">
       <h1>Audit Comments</h1>
       <p className="report-comments-intro">Provide in your response to this report a brief description of the action taken to correct any issues noted below.</p>
       <div className="report-major-section">
         <h2>Service Center Comments</h2>
-        {serviceCenterHasComment ? (
-          <ServiceCenterFinding number={serviceCenterNumber} finding={serviceCenterFinding} requiredAction={serviceCenterRequiredAction} />
+        {printableServiceComments.length ? (
+          printableServiceComments.map((comment, index) => <ServiceCenterFinding key={comment.id} number={index + 1} finding={comment.finding} requiredAction={comment.requiredAction} />)
         ) : (
           <p className="report-aligned-note">** No non-compliance issues were identified during the audit.</p>
         )}
