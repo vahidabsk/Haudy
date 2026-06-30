@@ -1,4 +1,5 @@
 import { DictationNotes } from "./DictationNotes";
+import { AuditorReportDatabase } from "./AuditorReportDatabase";
 import { CsisDefectList } from "./CsisDefectList";
 
 export interface ReportFindingValue {
@@ -12,7 +13,7 @@ export interface ReportFindingValue {
 const editionOptions = ["2022", "2019", "2016", "2013", "2010", "2007", "2002"];
 const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70"];
 
-export function ReportFindingFields({ value, onChange, showCsisHelp, helpKeyword, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpKeyword?: string; helpStandard?: string; helpYear?: string }) {
+export function ReportFindingFields({ value, onChange, showCsisHelp, helpKeyword, helpStandard, helpYear, helpReviewType }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpKeyword?: string; helpStandard?: string; helpYear?: string; helpReviewType?: string }) {
   const selectedStandard = value.reportCodeStandard || "NFPA 72";
   const selectedEdition = value.reportCodeEdition;
   return (
@@ -20,16 +21,31 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpKeyword
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm font-semibold text-amber-950">Report language for this variation</div>
         {showCsisHelp ? (
-          <CsisDefectList
-            initialKeyword={helpKeyword}
-            initialStandard={helpStandard}
-            initialYear={helpYear}
-            onSelect={(defect) => onChange({
-              reportCodeStandard: defect.standard || "NFPA 72",
-              reportCodeEdition: defect.year || "",
-              reportCodeSection: defect.section || "",
-            })}
-          />
+          <div className="flex flex-wrap gap-2">
+            <CsisDefectList
+              initialKeyword={helpKeyword}
+              initialStandard={helpStandard}
+              initialYear={helpYear}
+              onSelect={(defect) => onChange({
+                reportCodeStandard: defect.standard || "NFPA 72",
+                reportCodeEdition: defect.year || "",
+                reportCodeSection: defect.section || "",
+              })}
+            />
+            <AuditorReportDatabase
+              initialKeyword={helpKeyword}
+              initialStandard={helpStandard}
+              initialYear={helpYear}
+              initialReviewType={helpReviewType}
+              onSelect={(finding) => onChange({
+                reportFinding: finding.finding,
+                reportRequiredAction: finding.requiredAction,
+                reportCodeStandard: finding.standard || "NFPA 72",
+                reportCodeEdition: finding.year || "",
+                reportCodeSection: finding.section || "",
+              })}
+            />
+          </div>
         ) : null}
       </div>
       <label className="grid gap-1 text-sm font-medium text-slate-700">
