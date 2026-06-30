@@ -341,31 +341,56 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
           </span>
         </div>
       </section>
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3">
         {group.audits.map((audit) => (
-          <article key={audit.id} className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-signal">{audit.certificateNumber || "Certificate not set"}</p>
-              <h3 className="mt-1 text-lg font-bold text-navy">{audit.protectedProperty || "Property name not set"}</h3>
+          <article key={audit.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-xl font-bold text-navy">{audit.protectedProperty || "Property name not set"}</h3>
+                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
+                    <MapPin size={14} />
+                    {primaryCertificateAddress(audit) || "Property address not detected"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Updated {relativeTime(audit.updatedAt)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
+                  {audit.certificateNumber || "Certificate not set"}
+                </span>
+                <ShieldCheck className="hidden text-emerald-600 sm:block" size={24} />
+              </div>
             </div>
-            <p className="text-xs text-slate-500">Updated {relativeTime(audit.updatedAt)}</p>
-            <div className="flex flex-wrap gap-2">
-              <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit Field Note</Link>
-              <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" to={`/audit/${audit.id}/export`}><Download size={16} /> Export Field Note</Link>
-              <button className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={() => {
-                const deletingLastPropertyForAsc = group.audits.length === 1;
-                audits.deleteAudit(audit.id);
-                deleteAscDocuments(group.key);
-                if (deletingLastPropertyForAsc) {
-                  deleteAscProfile(group.key);
-                }
-              }}><Trash2 size={16} /> Delete Field Note</button>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-sm text-slate-700">
+                <span className="font-semibold text-navy">File:</span> {audit.fileScn || "not detected"}
+                <span className="mx-2 text-slate-300">|</span>
+                <span className="font-semibold text-navy">Standard:</span> {audit.codeEdition || "not detected"}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit Field Note</Link>
+                <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}/export`}><Download size={16} /> Export Field Note</Link>
+                <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => {
+                  const deletingLastPropertyForAsc = group.audits.length === 1;
+                  audits.deleteAudit(audit.id);
+                  deleteAscDocuments(group.key);
+                  if (deletingLastPropertyForAsc) {
+                    deleteAscProfile(group.key);
+                  }
+                }}><Trash2 size={16} /> Delete Field Note</button>
+              </div>
             </div>
           </article>
         ))}
       </section>
     </main>
   );
+}
+
+function primaryCertificateAddress(audit: { primaryCertificateIndex: number; certificates: Array<{ propertyAddress?: string }> }) {
+  return audit.certificates[audit.primaryCertificateIndex]?.propertyAddress || audit.certificates[0]?.propertyAddress || "";
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) {
