@@ -4,7 +4,7 @@ import { parseCertificateText } from "../lib/certificate-parser";
 import { extractDocxText } from "../lib/docx-extract";
 import { ParsedCertificate } from "../lib/types";
 
-export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCertificate[]) => string | void }) {
+export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCertificate[]) => string | null | void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -20,7 +20,8 @@ export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCert
         const text = await extractDocxText(file);
         return parseCertificateText(text, file.name);
       }));
-      setMessage(onParsed(certificates) || `${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
+      const nextMessage = onParsed(certificates);
+      setMessage(nextMessage === null ? "" : nextMessage || `${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
     } catch {
       setMessage("One of the files could not be read. Please upload DOCX certificate files only.");
     } finally {

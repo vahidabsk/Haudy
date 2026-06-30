@@ -84,7 +84,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               if (duplicates.length) {
                 const hasProgress = duplicates.some(({ audit }) => audit && auditHasProgress(audit));
                 setDuplicateUpload({ certificates: certificate, duplicates, hasProgress });
-                return `${duplicates.length} duplicate certificate${duplicates.length === 1 ? "" : "s"} found. Review the Haudy warning before replacing.`;
+                return null;
               }
               audits.createManyFromCertificates(certificate);
               return undefined;
