@@ -82,14 +82,30 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Signal Processing Review</h2>
-              <div className="grid gap-3 md:grid-cols-4">
-                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed })} />
-                <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewStart} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
-                <input className="min-h-11 rounded-md border px-3" type="date" value={audit.signalReviewEnd} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
-                <ReviewStatusControl label="Auto tests" value={audit.autoTestsStatus} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
+              <div className="grid gap-3 md:grid-cols-5">
+                <YesNoControl
+                  label="Is this system local?"
+                  value={audit.deviceSystemLocal}
+                  onChange={(deviceSystemLocal) =>
+                    update({
+                      ...audit,
+                      deviceSystemLocal,
+                      signalProcessingReviewed: deviceSystemLocal ? false : audit.signalProcessingReviewed,
+                      signalReviewStart: deviceSystemLocal ? "" : audit.signalReviewStart,
+                      signalReviewEnd: deviceSystemLocal ? "" : audit.signalReviewEnd,
+                      autoTestsStatus: deviceSystemLocal ? "" : audit.autoTestsStatus,
+                      signalLog: deviceSystemLocal ? audit.signalLog.map((row) => ({ ...row, signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", updatedAt: nowIso() })) : audit.signalLog,
+                      deviceTests: deviceSystemLocal ? audit.deviceTests.map((row) => ({ ...row, timeReceived: "", updatedAt: nowIso() })) : audit.deviceTests,
+                    })
+                  }
+                />
+                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} disabled={audit.deviceSystemLocal} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed })} />
+                <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={audit.deviceSystemLocal ? "" : audit.signalReviewStart} disabled={audit.deviceSystemLocal} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
+                <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={audit.deviceSystemLocal ? "" : audit.signalReviewEnd} disabled={audit.deviceSystemLocal} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
+                <ReviewStatusControl label="Auto tests" value={audit.deviceSystemLocal ? "" : audit.autoTestsStatus} disabled={audit.deviceSystemLocal} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
               </div>
             </section>
-            <SignalLogSection rows={audit.signalLog} onChange={(signalLog) => update({ ...audit, signalLog })} />
+            <SignalLogSection rows={audit.signalLog} disabled={audit.deviceSystemLocal} onChange={(signalLog) => update({ ...audit, signalLog })} />
           </div>
         ) : null}
         {activeTab === "documentation" ? (
@@ -167,11 +183,11 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   );
 }
 
-function YesNoControl({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
+function YesNoControl({ label, value, disabled, onChange }: { label: string; value: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
       {label}
-      <select className="min-h-11 rounded-md border px-3" value={value ? "YES" : "NO"} onChange={(event) => onChange(event.target.value === "YES")}>
+      <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={value ? "YES" : "NO"} disabled={disabled} onChange={(event) => onChange(event.target.value === "YES")}>
         <option value="NO">No</option>
         <option value="YES">Yes</option>
       </select>
@@ -179,11 +195,11 @@ function YesNoControl({ label, value, onChange }: { label: string; value: boolea
   );
 }
 
-function ReviewStatusControl({ label, value, onChange }: { label: string; value: ReviewStatus | ""; onChange: (value: ReviewStatus | "") => void }) {
+function ReviewStatusControl({ label, value, disabled, onChange }: { label: string; value: ReviewStatus | ""; disabled?: boolean; onChange: (value: ReviewStatus | "") => void }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
       {label}
-      <select className="min-h-11 rounded-md border px-3" value={value} onChange={(event) => onChange(event.target.value as ReviewStatus | "")}>
+      <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as ReviewStatus | "")}>
         <option value="">Not selected</option>
         <option value="OK">OK</option>
         <option value="VAR">VAR</option>

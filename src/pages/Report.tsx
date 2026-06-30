@@ -199,7 +199,7 @@ function AuditCommentsPage({ group }: { group: AscGroup }) {
                 <b>{audit.protectedProperty}</b><br />
                 {addressLines.map((line) => <b key={line}>{line}<br /></b>)}
               </p>
-              <SignalReportSection audit={audit} items={signalItems} numbers={deficiencyNumbers} />
+              {!audit.deviceSystemLocal ? <SignalReportSection audit={audit} items={signalItems} numbers={deficiencyNumbers} /> : null}
               <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." numbers={deficiencyNumbers} auditId={audit.id} />
               <ReportSection title="Installation Review" items={installationItems} emptyText="** No non-compliance issues were identified during the installation review." numbers={deficiencyNumbers} auditId={audit.id} />
             </div>
@@ -259,7 +259,7 @@ function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
 
 function collectReportItems(audit: Audit): ReportItem[] {
   return [
-    ...audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalItem(row)),
+    ...(audit.deviceSystemLocal ? [] : audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalItem(row))),
     ...audit.documentation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Documentation Review")),
     ...certificateConditionItems(audit),
     ...audit.installation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Installation Review")),
