@@ -21,6 +21,7 @@ export function ExportPage({ auditorName }: { auditorName: string }) {
 function ExportDocument({ audit }: { audit: Audit }) {
   const currentAudit = audit;
   const [folderMessage, setFolderMessage] = useState("");
+  const deviceComments = deviceTestComments(audit.deviceTests);
 
   function csv() {
     const blob = new Blob([auditToCsv(currentAudit)], { type: "text/csv" });
@@ -83,7 +84,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
           }
         />
         <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(0, deviceRowsPage2), deviceRowsPage2)} localSystem={audit.deviceSystemLocal} />
-        <CommentsBox comments="" compact />
+        <CommentsBox comments={deviceComments} compact />
       </FieldNotesPage>
       <FieldNotesPage pageNumber={3} totalPages={totalPages} audit={audit}>
         <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} localSystem={audit.deviceSystemLocal} continued />
@@ -326,9 +327,19 @@ function CommentsBox({ comments, compact }: { comments: string; compact?: boolea
   return (
     <div className={`comments-box ${compact ? "comments-box-compact" : ""}`}>
       <b>Additional Comments</b>
-      <div>{comments}</div>
+      <div className="comments-box-content">{comments}</div>
     </div>
   );
+}
+
+function deviceTestComments(rows: DeviceTestRow[]) {
+  return rows
+    .filter((row) => row.notes.trim())
+    .map((row) => {
+      const label = [row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ") || "Device test";
+      return `${label}: ${row.notes.trim()}`;
+    })
+    .join("\n");
 }
 
 function Footer({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) {
