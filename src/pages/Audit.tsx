@@ -106,7 +106,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                     })
                   }
                 />
-                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} disabled={audit.deviceSystemLocal} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed, editedFields: { ...audit.editedFields, signalProcessingReviewed: true } })} />
+                <YesNoControl label="Signal processing reviewed?" value={audit.signalProcessingReviewed} defaultToYes disabled={audit.deviceSystemLocal} onChange={(signalProcessingReviewed) => update({ ...audit, signalProcessingReviewed, editedFields: { ...audit.editedFields, signalProcessingReviewed: true } })} />
                 <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={signalControlsDisabled ? "" : audit.signalReviewStart} disabled={signalControlsDisabled} onChange={(e) => update({ ...audit, signalReviewStart: e.target.value })} />
                 <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={signalControlsDisabled ? "" : audit.signalReviewEnd} disabled={signalControlsDisabled} onChange={(e) => update({ ...audit, signalReviewEnd: e.target.value })} />
                 <ReviewStatusControl label="Auto tests" value={signalControlsDisabled ? "" : audit.autoTestsStatus} disabled={signalControlsDisabled} onChange={(autoTestsStatus) => update({ ...audit, autoTestsStatus })} />
@@ -126,7 +126,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Documentation Reviewed</h2>
-              <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} onChange={(documentationReviewed) => update({ ...audit, documentationReviewed, editedFields: { ...audit.editedFields, documentationReviewed: true } })} />
+              <YesNoControl label="Documentation reviewed?" value={audit.documentationReviewed} defaultToYes onChange={(documentationReviewed) => update({ ...audit, documentationReviewed, editedFields: { ...audit.editedFields, documentationReviewed: true } })} />
               {!audit.documentationReviewed ? (
                 <SectionReviewNote
                   title="Documentation review variation"
@@ -143,7 +143,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Installation Review Conditions</h2>
               <div className="grid gap-3 md:grid-cols-3">
-                <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} onChange={(installationReviewed) => update({ ...audit, installationReviewed, editedFields: { ...audit.editedFields, installationReviewed: true } })} />
+                <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} defaultToYes onChange={(installationReviewed) => update({ ...audit, installationReviewed, editedFields: { ...audit.editedFields, installationReviewed: true } })} />
                 <ReviewStatusControl label="Matches certificate declarations?" value={audit.installationReviewed ? audit.matchesCertificateStatus : ""} disabled={!audit.installationReviewed} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
                 <DisplayStatusControl label="Certificate displayed?" value={audit.installationReviewed ? audit.certificateDisplayedStatus : ""} disabled={!audit.installationReviewed} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
               </div>
@@ -200,7 +200,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Device Testing Review</h2>
-              <YesNoControl label="Device testing reviewed?" value={audit.deviceTestingReviewed} onChange={(deviceTestingReviewed) => update({ ...audit, deviceTestingReviewed, editedFields: { ...audit.editedFields, deviceTestingReviewed: true } })} />
+              <YesNoControl label="Device testing reviewed?" value={audit.deviceTestingReviewed} defaultToYes onChange={(deviceTestingReviewed) => update({ ...audit, deviceTestingReviewed, editedFields: { ...audit.editedFields, deviceTestingReviewed: true } })} />
               {!audit.deviceTestingReviewed ? (
                 <SectionReviewNote
                   title="Device testing review variation"
@@ -230,13 +230,14 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   );
 }
 
-function YesNoControl({ label, value, disabled, onChange }: { label: string; value: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
+function YesNoControl({ label, value, defaultToYes, disabled, onChange }: { label: string; value?: boolean; defaultToYes?: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
+  const selectedValue = value === undefined ? Boolean(defaultToYes) : value;
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
       {label}
-      <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={value ? "YES" : "NO"} disabled={disabled} onChange={(event) => onChange(event.target.value === "YES")}>
-        <option value="NO">No</option>
+      <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={selectedValue ? "YES" : "NO"} disabled={disabled} onChange={(event) => onChange(event.target.value === "YES")}>
         <option value="YES">Yes</option>
+        <option value="NO">No</option>
       </select>
     </label>
   );
