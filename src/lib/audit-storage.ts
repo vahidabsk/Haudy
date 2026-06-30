@@ -83,7 +83,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     primaryCertificateIndex: 0,
     matchesCertificate: false,
     certificateDisplayed: false,
-    signalLog: [{ id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", updatedAt: now }],
+    signalLog: [signalRow(now)],
     documentation: documentationElements.map((element) => row(element, auditorName, now)),
     installation: installationElements.map((element) => row(element, auditorName, now)),
     deviceTests: [deviceRow(now)],
@@ -93,7 +93,36 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
 }
 
 function row(element: string, auditorName: string, updatedAt: string) {
-  return { id: uid("row"), element, status: "" as const, notes: "", photos: [], updatedAt, updatedBy: auditorName };
+  return {
+    id: uid("row"),
+    element,
+    status: "" as const,
+    notes: "",
+    reportFinding: "",
+    reportRequiredAction: "",
+    reportCodeEdition: "",
+    reportCodeSection: "",
+    photos: [],
+    updatedAt,
+    updatedBy: auditorName,
+  };
+}
+
+function signalRow(updatedAt: string) {
+  return {
+    id: uid("signal"),
+    signalType: "" as const,
+    handlingStatus: "" as const,
+    date: "",
+    time: "",
+    description: "",
+    notes: "",
+    reportFinding: "",
+    reportRequiredAction: "",
+    reportCodeEdition: "",
+    reportCodeSection: "",
+    updatedAt,
+  };
 }
 
 function deviceRow(updatedAt: string) {
@@ -115,6 +144,10 @@ function deviceRow(updatedAt: string) {
     localIndication: false,
     result: "" as const,
     notes: "",
+    reportFinding: "",
+    reportRequiredAction: "",
+    reportCodeEdition: "",
+    reportCodeSection: "",
     photos: [],
     updatedAt,
   };
@@ -153,15 +186,32 @@ function normalizeSignalRows(rows: Audit["signalLog"], updatedAt: string): Audit
     time: item.time || "",
     description: item.description || "",
     notes: item.notes || "",
+    reportFinding: item.reportFinding || "",
+    reportRequiredAction: item.reportRequiredAction || "",
+    reportCodeEdition: item.reportCodeEdition || "",
+    reportCodeSection: item.reportCodeSection || "",
     updatedAt: item.updatedAt || updatedAt,
   }));
-  return normalized.length ? normalized : [{ id: uid("signal"), signalType: "" as const, handlingStatus: "" as const, date: "", time: "", description: "", notes: "", updatedAt }];
+  return normalized.length ? normalized : [signalRow(updatedAt)];
 }
 
 function normalizeRows(rows: AuditRow[], elements: string[], auditorName: string, updatedAt: string) {
-  const fixedRows = elements.map((element) => rows.find((item) => item.element === element) || row(element, auditorName, updatedAt));
-  const customRows = rows.filter((item) => item.element && !elements.includes(item.element) && !item.element.startsWith("NFPA"));
+  const fixedRows = elements.map((element) => normalizeAuditRow(rows.find((item) => item.element === element) || row(element, auditorName, updatedAt), auditorName, updatedAt));
+  const customRows = rows
+    .filter((item) => item.element && !elements.includes(item.element) && !item.element.startsWith("NFPA"))
+    .map((item) => normalizeAuditRow(item, auditorName, updatedAt));
   return [...fixedRows, ...customRows];
+}
+
+function normalizeAuditRow(item: AuditRow, auditorName: string, updatedAt: string): AuditRow {
+  return {
+    ...row(item.element, auditorName, updatedAt),
+    ...item,
+    reportFinding: item.reportFinding || "",
+    reportRequiredAction: item.reportRequiredAction || "",
+    reportCodeEdition: item.reportCodeEdition || "",
+    reportCodeSection: item.reportCodeSection || "",
+  };
 }
 
 function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {

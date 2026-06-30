@@ -1,10 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
-import { Audit } from "../lib/types";
-import { bestFinding, collectVariationCandidates, noFindingSelectedId, VariationCandidate } from "../lib/report-findings";
+import { Audit, AuditRow, DeviceTestRow, SignalLogRow } from "../lib/types";
+
+type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
+
+interface ReportItem {
+  id: string;
+  reviewType: ReportReview;
+  category: string;
+  note: string;
+  finding: string;
+  requiredAction: string;
+  codeEdition: string;
+  codeSection: string;
+}
 
 export function ReportPage({ auditorName }: { auditorName: string }) {
   const { ascKey = "" } = useParams();
@@ -25,8 +37,8 @@ export function ReportPage({ auditorName }: { auditorName: string }) {
 }
 
 function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscGroup; auditorName: string; pocName: string; scn: string; psn: string }) {
-  const candidates = useMemo(() => collectVariationCandidates(group.audits), [group.audits]);
-  const [selected, setSelected] = useState<Record<string, string>>(() => Object.fromEntries(candidates.map((candidate) => [candidate.id, candidate.matches[0]?.finding.Finding_ID || noFindingSelectedId])));
+  const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
+  const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -39,14 +51,6 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
     };
   }, [reportName]);
 
-  const candidateResults = candidates.map((candidate, index) => ({
-    candidate,
-    finding: bestFinding(candidate, selected[candidate.id]),
-    number: index + 1,
-  }));
-  const numbered = candidateResults.filter((item): item is { candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number } => Boolean(item.finding));
-  const unmatched = candidateResults.filter((item) => !item.finding).map((item) => item.candidate);
-
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
       <div className="no-print mb-4 grid gap-3 rounded-lg border bg-white p-4 shadow-sm">
@@ -57,28 +61,22 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
           <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-navy">Report Findings Review</h2>
-          <p className="mt-1 text-sm text-slate-600">{candidates.length} variation{candidates.length === 1 ? "" : "s"} found. Haudy matches only findings with the same NFPA edition when available.</p>
+          <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
+          <p className="mt-1 text-sm text-slate-600">{reportItems.length} variation{reportItems.length === 1 ? "" : "s"} found from completed field notes. Enter the report wording in the field note variation rows before printing.</p>
         </div>
-        {candidates.length ? (
+        {reportItems.length ? (
           <div className="grid gap-3">
-            {candidates.map((candidate) => (
-              <div key={candidate.id} className="grid gap-2 rounded-md border bg-slate-50 p-3">
-                <div className="text-sm font-semibold text-navy">{candidate.audit.protectedProperty} - {candidate.reviewType} - {candidate.category}</div>
-                <div className="text-sm text-slate-600">{candidate.notes || "No note entered."}</div>
-                {!candidate.matches.length ? (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">Haudy was not able to find a good finding match. This review item will stay blank in the report until a match is available.</div>
-                ) : null}
-                <select className="min-h-11 rounded-md border bg-white px-3 text-sm" value={selected[candidate.id] || noFindingSelectedId} onChange={(event) => setSelected((current) => ({ ...current, [candidate.id]: event.target.value }))}>
-                  <option value={noFindingSelectedId}>No good match found - leave blank</option>
-                  {candidate.matches.map((match) => (
-                    <option key={match.finding.Finding_ID} value={match.finding.Finding_ID}>
-                      {match.finding.Finding_ID} - NFPA {match.finding.Edition} - {match.finding.Category || match.finding.Review_Type} - {match.finding.Finding_Type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            {reportItems.map(({ audit, item }) => {
+              const missing = !item.finding.trim() || !item.requiredAction.trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+              return (
+                <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
+                  <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
+                  <div className="text-sm text-slate-600">{item.note || "No field note entered."}</div>
+                  <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
+                </div>
+              );
+            })}
+            {incomplete.length ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{incomplete.length} variation{incomplete.length === 1 ? "" : "s"} will print with blank report fields until completed.</div> : null}
           </div>
         ) : (
           <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No variations found for this ASC.</div>
@@ -87,7 +85,7 @@ function ReportDocument({ group, auditorName, pocName, scn, psn }: { group: AscG
 
       <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditorName={auditorName} />
-      <AuditCommentsPage group={group} numbered={numbered} unmatched={unmatched} />
+      <AuditCommentsPage group={group} />
     </main>
   );
 }
@@ -135,48 +133,126 @@ function LateResponsePage({ auditorName }: { auditorName: string }) {
   );
 }
 
-function AuditCommentsPage({ group, numbered, unmatched }: { group: AscGroup; numbered: Array<{ candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number }>; unmatched: VariationCandidate[] }) {
+function AuditCommentsPage({ group }: { group: AscGroup }) {
   return (
     <section className="report-page report-comments-page print-page bg-white text-black shadow-sm print:shadow-none">
       <h1>Audit Comments</h1>
       <p className="report-comments-intro">Provide in your response to this report a brief description of the action taken to correct any issues noted below.</p>
-      {group.audits.map((audit) => {
-        const auditFindings = numbered.filter((item) => item.candidate.audit.id === audit.id);
-        const auditCandidatesWithoutMatch = unmatched.filter((candidate) => candidate.audit.id === audit.id);
-        const certificate = primaryCertificate(audit);
-        return (
-          <div key={audit.id} className="report-audit-block">
-            <p className="report-property"><b>SN: {audit.certificateNumber}</b><br /><b>CCN: {certificate?.categoryCode || ""}</b><br /><b>{audit.protectedProperty}</b><br /><b>{certificate?.propertyAddress || ""}</b></p>
-            {["Documentation Review", "Installation Review", "Signal Processing Review", "Device Test"].map((section) => (
-              <ReportSection key={section} title={section} items={auditFindings.filter((item) => item.candidate.reviewType === section)} unmatched={auditCandidatesWithoutMatch.filter((candidate) => candidate.reviewType === section)} />
-            ))}
-          </div>
-        );
-      })}
+      <div className="report-major-section">
+        <h2>Service Center Comments</h2>
+        <p>** No non-compliance issues were identified during the audit.</p>
+      </div>
+      <div className="report-major-section">
+        <h2>Protected Property Comments</h2>
+        {group.audits.map((audit) => {
+          const certificate = primaryCertificate(audit);
+          const signalItems = collectReportItems(audit).filter((item) => item.reviewType === "Signal Processing Review");
+          const documentationItems = collectReportItems(audit).filter((item) => item.reviewType === "Documentation Review");
+          const installationItems = collectReportItems(audit).filter((item) => item.reviewType === "Installation Review");
+          return (
+            <div key={audit.id} className="report-audit-block">
+              <p className="report-property"><b>SN: {audit.certificateNumber}</b><br /><b>CCN: {certificate?.categoryCode || ""}</b><br /><b>{audit.protectedProperty}</b><br /><b>{certificate?.propertyAddress || ""}</b></p>
+              <SignalReportSection audit={audit} items={signalItems} />
+              <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." />
+              <ReportSection title="Installation Review" items={installationItems} emptyText="** No non-compliance issues were identified during the installation review." />
+            </div>
+          );
+        })}
+      </div>
       <p>END</p>
     </section>
   );
 }
 
-function ReportSection({ title, items, unmatched }: { title: string; items: Array<{ candidate: VariationCandidate; finding: NonNullable<ReturnType<typeof bestFinding>>; number: number }>; unmatched: VariationCandidate[] }) {
-  if (!items.length && !unmatched.length && title !== "Documentation Review" && title !== "Installation Review") return null;
+function SignalReportSection({ audit, items }: { audit: Audit; items: ReportItem[] }) {
+  const counts = {
+    alarm: audit.signalLog.filter((row) => row.signalType === "Alarm").length,
+    supervisory: audit.signalLog.filter((row) => row.signalType === "Supervisory").length,
+    trouble: audit.signalLog.filter((row) => row.signalType === "Trouble").length,
+  };
   return (
     <div className="report-review-section">
-      <h2>----{title}----</h2>
-      {!items.length && !unmatched.length ? <p>** No non-compliance issues were identified during the audit.</p> : null}
-      {unmatched.map((candidate) => (
-        <p key={candidate.id} className="report-unmatched">Haudy was not able to find a good finding match for: {candidate.category}{candidate.notes ? ` - ${candidate.notes}` : ""}</p>
-      ))}
-      {items.map((item) => (
-        <div key={item.candidate.id} className="report-finding">
-          <h3>{item.candidate.category}</h3>
-          <p>{item.number}. {item.finding.Standard} {item.finding.Edition} Edition,<br />{item.finding.Code_Section} {item.finding.Code_Text}</p>
-          <p><b><u>Findings:</u></b> {item.finding.Finding}</p>
-          <p><b><u>Required Action:</u></b> {item.finding.Required_Action}</p>
-        </div>
-      ))}
+      <h3>----Signal Processing Review----</h3>
+      <p>A total of {counts.alarm} alarm, {counts.supervisory} supervisory, and {counts.trouble} trouble signal event(s) has been reviewed.</p>
+      {!items.length ? <p>** No non-compliance issues were identified during the signal review.</p> : null}
+      {items.map((item) => <ReportFinding key={item.id} item={item} />)}
     </div>
   );
+}
+
+function ReportSection({ title, items, emptyText }: { title: ReportReview; items: ReportItem[]; emptyText: string }) {
+  return (
+    <div className="report-review-section">
+      <h3>----{title}----</h3>
+      {!items.length ? <p>{emptyText}</p> : null}
+      {items.map((item) => <ReportFinding key={item.id} item={item} />)}
+    </div>
+  );
+}
+
+function ReportFinding({ item }: { item: ReportItem }) {
+  return (
+    <div className="report-finding">
+      <h4>{item.category}</h4>
+      <p><b>Finding:</b> {item.finding}</p>
+      <p><b>Required Action:</b> {item.requiredAction}</p>
+      <p><b>Code Reference:</b> {formatCodeReference(item)}</p>
+    </div>
+  );
+}
+
+function collectReportItems(audit: Audit): ReportItem[] {
+  return [
+    ...audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalItem(row)),
+    ...audit.documentation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Documentation Review")),
+    ...audit.installation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Installation Review")),
+    ...audit.deviceTests.filter((row) => row.result === "VAR").map((row) => deviceItem(row)),
+  ];
+}
+
+function signalItem(row: SignalLogRow): ReportItem {
+  return {
+    id: `signal-${row.id}`,
+    reviewType: "Signal Processing Review",
+    category: [row.signalType, row.date, row.time].filter(Boolean).join(" - ") || "Signal event",
+    note: row.notes || row.description,
+    finding: row.reportFinding,
+    requiredAction: row.reportRequiredAction,
+    codeEdition: row.reportCodeEdition,
+    codeSection: row.reportCodeSection,
+  };
+}
+
+function checklistItem(row: AuditRow, reviewType: ReportReview): ReportItem {
+  return {
+    id: `${reviewType}-${row.id}`,
+    reviewType,
+    category: row.element || reviewType,
+    note: row.notes,
+    finding: row.reportFinding,
+    requiredAction: row.reportRequiredAction,
+    codeEdition: row.reportCodeEdition,
+    codeSection: row.reportCodeSection,
+  };
+}
+
+function deviceItem(row: DeviceTestRow): ReportItem {
+  return {
+    id: `device-${row.id}`,
+    reviewType: "Installation Review",
+    category: ["Device Test", row.deviceType, row.location || row.deviceId].filter(Boolean).join(" - "),
+    note: row.notes,
+    finding: row.reportFinding,
+    requiredAction: row.reportRequiredAction,
+    codeEdition: row.reportCodeEdition,
+    codeSection: row.reportCodeSection,
+  };
+}
+
+function formatCodeReference(item: ReportItem) {
+  const edition = item.codeEdition ? `${item.codeEdition.replace(/\D/g, "") || item.codeEdition} Edition` : "";
+  const section = item.codeSection ? `Section ${item.codeSection}` : "";
+  return ["NFPA 72", edition, section].filter(Boolean).join(", ").replace("NFPA 72,", "NFPA 72");
 }
 
 function ReportHeader() {

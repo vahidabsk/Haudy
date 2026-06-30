@@ -54,6 +54,10 @@ export interface AuditRow {
   element: string;
   status: StatusCode | "";
   notes: string;
+  reportFinding: string;
+  reportRequiredAction: string;
+  reportCodeEdition: string;
+  reportCodeSection: string;
   photos: string[];
   updatedAt: string;
   updatedBy: string;
@@ -67,6 +71,10 @@ export interface SignalLogRow {
   time: string;
   description: string;
   notes: string;
+  reportFinding: string;
+  reportRequiredAction: string;
+  reportCodeEdition: string;
+  reportCodeSection: string;
   updatedAt: string;
 }
 
@@ -88,6 +96,10 @@ export interface DeviceTestRow {
   localIndication: boolean;
   result: StatusCode | "";
   notes: string;
+  reportFinding: string;
+  reportRequiredAction: string;
+  reportCodeEdition: string;
+  reportCodeSection: string;
   photos: string[];
   updatedAt: string;
 }

@@ -1,6 +1,7 @@
 import { AuditRow } from "../lib/types";
 import { DictationNotes } from "./DictationNotes";
 import { PhotoCapture } from "./PhotoCapture";
+import { ReportFindingFields } from "./ReportFindingFields";
 import { StatusButtons } from "./StatusButtons";
 import { nowIso, uid } from "../lib/utils";
 
@@ -22,11 +23,17 @@ export function RowSection({ title, rows, auditorName, onChange, photoRequired }
           />
           <StatusButtons value={row.status} onChange={(status) => patch(rows, row.id, { status, updatedBy: auditorName }, onChange)} />
           <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes, updatedBy: auditorName }, onChange)} />
+          {row.status === "VAR" ? (
+            <ReportFindingFields
+              value={row}
+              onChange={(reportFields) => patch(rows, row.id, { ...reportFields, updatedBy: auditorName }, onChange)}
+            />
+          ) : null}
           {photoRequired ? <PhotoCapture photos={row.photos} onChange={(photos) => patch(rows, row.id, { photos, updatedBy: auditorName }, onChange)} required /> : null}
           <div className="text-xs text-slate-500">Updated by {row.updatedBy || auditorName}</div>
         </div>
       ))}
-      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("row"), element: "", status: "", notes: "", photos: [], updatedAt: nowIso(), updatedBy: auditorName }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("row"), element: "", status: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso(), updatedBy: auditorName }])}>
         Add Row
       </button>
     </section>

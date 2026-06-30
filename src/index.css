@@ -499,7 +499,14 @@ textarea {
   line-height: 1.35;
 }
 
-.report-review-section h2 {
+.report-major-section h2 {
+  margin: 0.18in 0 0.12in;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.report-review-section h3 {
   margin: 0.2in 0 0.16in;
   text-align: center;
   font-size: 15px;
@@ -512,7 +519,7 @@ textarea {
   page-break-inside: avoid;
 }
 
-.report-finding h3 {
+.report-finding h4 {
   margin: 0 0 0.08in -0.5in;
   font-size: 13px;
   font-weight: 400;

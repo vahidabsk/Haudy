@@ -1,6 +1,7 @@
 import { SignalLogRow, SignalType } from "../lib/types";
 import { uid, nowIso } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
+import { ReportFindingFields } from "./ReportFindingFields";
 
 const signalTypes: SignalType[] = ["Alarm", "Supervisory", "Trouble"];
 
@@ -45,9 +46,15 @@ export function SignalLogSection({ rows, onChange }: { rows: SignalLogRow[]; onC
             </button>
           </div>
           <DictationNotes rows={2} value={row.notes || row.description} onChange={(notes) => patch(rows, row.id, { notes, description: "" }, onChange)} />
+          {row.handlingStatus === "VAR" ? (
+            <ReportFindingFields
+              value={row}
+              onChange={(reportFields) => patch(rows, row.id, reportFields, onChange)}
+            />
+          ) : null}
         </div>
       ))}
-      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("signal"), signalType: "", handlingStatus: "", date: "", time: "", description: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", updatedAt: nowIso() }])}>
         Add Signal Row
       </button>
     </section>

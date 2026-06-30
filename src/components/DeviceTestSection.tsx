@@ -1,6 +1,7 @@
 import { DeviceTestRow } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
+import { ReportFindingFields } from "./ReportFindingFields";
 
 const deviceTypes = ["Smoke Detector (SD)", "Heat Detector (HD)", "Duct Detector (DD)", "Manual Pull Station (MP)", "Waterflow Device (WF)", "Sprinkler Supervisory (SS)", "Notification Appliance (NAC)", "Other"];
 type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
@@ -70,9 +71,15 @@ export function DeviceTestSection({ rows, localSystem, onLocalSystemChange, onCh
             ))}
           </div>
           <DictationNotes value={row.notes} onChange={(notes) => patch(rows, row.id, { notes }, onChange)} />
+          {row.result === "VAR" ? (
+            <ReportFindingFields
+              value={row}
+              onChange={(reportFields) => patch(rows, row.id, reportFields, onChange)}
+            />
+          ) : null}
         </div>
       ))}
-      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", photos: [], updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4" onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
         Add Device Row
       </button>
     </section>
