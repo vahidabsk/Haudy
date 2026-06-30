@@ -84,6 +84,7 @@ export interface DeviceTestRow {
   id: string;
   deviceType: string;
   waterflowEntryMode?: "manual" | "automatic" | "";
+  waterflowElapsedSeconds?: number;
   location: string;
   deviceId: string;
   signalType: SignalType | "";
