@@ -210,9 +210,18 @@ function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
   return (
     <div className="report-finding">
       <h4>{item.category}</h4>
-      <p><span className="report-finding-label">{number ? `${number}. ` : ""}Finding:</span> {item.finding}</p>
-      <p><span className="report-finding-label">Required Action:</span> {item.requiredAction}</p>
-      <p><span className="report-code-reference-label">Code Reference:</span> {formatCodeReference(item)}</p>
+      <div className="report-finding-row">
+        <span className="report-finding-number">{number ? `${number}.` : ""}</span>
+        <p><span className="report-finding-label">Finding:</span> {item.finding}</p>
+      </div>
+      <div className="report-finding-row">
+        <span className="report-finding-number" />
+        <p><span className="report-finding-label">Required Action:</span> {item.requiredAction}</p>
+      </div>
+      <div className="report-finding-row">
+        <span className="report-finding-number" />
+        <p><span className="report-code-reference-label">Code Reference:</span> {formatCodeReference(item)}</p>
+      </div>
     </div>
   );
 }

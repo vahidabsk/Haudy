@@ -527,13 +527,26 @@ textarea {
   text-decoration: underline;
 }
 
-.report-finding p {
-  margin: 0 0 0.08in;
-}
-
 .report-finding-label {
   font-weight: 700;
   text-decoration: underline;
+}
+
+.report-finding-row {
+  display: grid;
+  grid-template-columns: 0.32in 1fr;
+  column-gap: 0.03in;
+  align-items: start;
+  margin: 0 0 0.08in;
+}
+
+.report-finding-row p {
+  margin: 0;
+}
+
+.report-finding-number {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .report-code-reference-label {
