@@ -12,6 +12,7 @@ type SpeechRecognitionConstructor = new () => {
 };
 
 interface SpeechRecognitionEvent {
+  resultIndex: number;
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
 }
 
@@ -19,6 +20,7 @@ export function DictationNotes({ value, onChange, rows = 3 }: { value: string; o
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<InstanceType<SpeechRecognitionConstructor> | null>(null);
   const valueRef = useRef(value);
+  const processedResultCountRef = useRef(0);
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const supported = Boolean(SpeechRecognition);
 
@@ -37,13 +39,23 @@ export function DictationNotes({ value, onChange, rows = 3 }: { value: string; o
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = false;
-    recognition.onstart = () => setListening(true);
+    recognition.onstart = () => {
+      processedResultCountRef.current = 0;
+      setListening(true);
+    };
     recognition.onend = () => {
       recognitionRef.current = null;
       setListening(false);
     };
     recognition.onresult = (event) => {
-      const transcript = Array.from(event.results).map((result) => result[0]?.transcript || "").join(" ");
+      const startIndex = Math.max(event.resultIndex ?? 0, processedResultCountRef.current);
+      const transcript = Array.from(event.results)
+        .slice(startIndex)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      processedResultCountRef.current = event.results.length;
+      if (!transcript) return;
       const nextValue = [valueRef.current, transcript].filter(Boolean).join(" ");
       valueRef.current = nextValue;
       onChange(nextValue);
