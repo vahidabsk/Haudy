@@ -658,7 +658,7 @@ function ascReportAddressLines(certificate: ParsedCertificate | undefined, fallb
 function cleanReportAddress(address: string) {
   return address
     .replace(/\s+/g, " ")
-    .replace(/\s+UNITED STATES(?:\s+[A-Z]{1,4}\d{1,8}[A-Z0-9.-]*)+$/i, " UNITED STATES")
+    .replace(/\s+UNITED STATES\b.*$/i, " UNITED STATES")
     .trim();
 }
 
