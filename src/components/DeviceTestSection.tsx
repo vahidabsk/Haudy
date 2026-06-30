@@ -156,7 +156,7 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
                     type="button"
                     className="min-h-10 rounded-md border border-red-300 bg-red-50 px-3 text-sm font-semibold text-red-900 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={disabled}
-                    onClick={() => patch(rows, row.id, { timeReceived: "", result: "VAR", notes: "The waterflow switch is not functioning correctly." }, onChange)}
+                    onClick={() => markWaterflowNotReceived(rows, row.id, timeStamp(new Date()), onChange)}
                   >
                     Signal Has Not Been Received
                   </button>
@@ -229,6 +229,17 @@ function completeWaterflowTest(rows: DeviceTestRow[], id: string, receivedTime: 
     timeReceived: receivedTime,
     result: passed ? "OK" : "VAR",
     notes: passed ? row.notes : `Waterflow test failed; exceeded 90 seconds${duration === null ? "." : ` (${duration} seconds).`}`,
+  }, onChange);
+}
+
+function markWaterflowNotReceived(rows: DeviceTestRow[], id: string, stoppedTime: string, onChange: (rows: DeviceTestRow[]) => void) {
+  const row = rows.find((item) => item.id === id);
+  if (!row) return;
+  const duration = secondsBetween(row.tripTime, stoppedTime);
+  patch(rows, id, {
+    timeReceived: stoppedTime,
+    result: "VAR",
+    notes: `The waterflow is not functioning; after waiting ${duration ?? 0} seconds, no alarm signal was received.`,
   }, onChange);
 }
 
