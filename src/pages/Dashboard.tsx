@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
-import { clearAscDocuments, deleteAscDocuments, loadAscDocuments } from "../lib/asc-documents";
+import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
@@ -232,6 +232,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           onCreate={(details) => {
             const profile = ascProfiles[confirmationGroup.key];
             if (!profile) return;
+            setAscDocuments(updateAscDocumentDraft(confirmationGroup.key, "confirmation", { pocName: profile.pocName, scn: profile.scn, psn: profile.psn, startDate: details.start, endDate: details.end }));
             const params = new URLSearchParams({ ...details, poc: profile.pocName, scn: profile.scn, psn: profile.psn });
             navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
           }}
@@ -331,6 +332,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
 function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscGroup; profile?: AscProfile; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const maxEndDate = maxAuditEndDate(startDate);
   const ready = startDate && endDate && completeAscProfile(profile);
 
   return (
@@ -355,13 +357,15 @@ function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscG
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit start date
             <input className="min-h-11 rounded-md border px-3" type="date" value={startDate} onChange={(event) => {
-              setStartDate(event.target.value);
-              if (!endDate) setEndDate(event.target.value);
+              const nextStartDate = event.target.value;
+              const nextMaxEndDate = maxAuditEndDate(nextStartDate);
+              setStartDate(nextStartDate);
+              if (!endDate || endDate < nextStartDate || (nextMaxEndDate && endDate > nextMaxEndDate)) setEndDate(nextStartDate);
             }} />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit end date
-            <input className="min-h-11 rounded-md border px-3" type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} />
+            <input className="min-h-11 rounded-md border px-3" type="date" value={endDate} min={startDate} max={maxEndDate} onChange={(event) => setEndDate(event.target.value)} />
           </label>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
@@ -373,6 +377,14 @@ function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscG
       </form>
     </div>
   );
+}
+
+function maxAuditEndDate(startDate: string) {
+  const [year, month, day] = startDate.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + 4);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function AscPropertiesPage({ auditorName }: { auditorName: string }) {

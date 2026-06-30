@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardCheck, FileText, RadioTower, Save, Wrench, Zap } from "lucide-react";
 import { CertificateSummary } from "../components/CertificateSummary";
@@ -8,6 +8,7 @@ import { InstallationSection } from "../components/InstallationSection";
 import { SignalLogSection } from "../components/SignalLogSection";
 import { DictationNotes } from "../components/DictationNotes";
 import { useAudits } from "../hooks/use-audits";
+import { loadAscDocuments } from "../lib/asc-documents";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
@@ -26,6 +27,17 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const store = useAudits(auditorName);
   const audit = store.audits.find((item) => item.id === auditId);
   const [activeTab, setActiveTab] = useState<AuditTab>("signal");
+  const ascKey = audit ? [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|") : "";
+  const confirmation = ascKey ? loadAscDocuments()[ascKey]?.confirmation : undefined;
+  const auditDateOptions = auditDateChoices(confirmation?.startDate, confirmation?.endDate);
+  const auditDateOptionKey = auditDateOptions.map((option) => option.value).join("|");
+
+  useEffect(() => {
+    if (!audit || !auditDateOptions.length) return;
+    if (auditDateOptions.some((option) => option.value === audit.auditDate)) return;
+    store.updateAudit({ ...audit, auditDate: auditDateOptions[0].value, updatedAt: nowIso() });
+  }, [audit?.id, audit?.auditDate, auditDateOptionKey]);
+
   if (!audit) return <main className="p-6">Audit not found.</main>;
 
   function update(next: Audit) {
@@ -36,7 +48,6 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
-  const ascKey = [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
   function saveAndReturn() {
     update(currentAudit);
     navigate("/");
@@ -49,7 +60,13 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <ArrowLeft size={16} /> Back to Properties
         </Link>
         <div className="grid gap-3 md:grid-cols-8">
-          <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
+          {auditDateOptions.length ? (
+            <select className="min-h-11 rounded-md border px-3" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })}>
+              {auditDateOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          ) : (
+            <input className="min-h-11 rounded-md border px-3" type="date" value={audit.auditDate} onChange={(e) => update({ ...audit, auditDate: e.target.value })} />
+          )}
           <input className="min-h-11 rounded-md border px-3" value={audit.ascName} onChange={(e) => update({ ...audit, ascName: e.target.value })} placeholder="ASC" />
           <input className="min-h-11 rounded-md border px-3" value={audit.ascCity} onChange={(e) => update({ ...audit, ascCity: e.target.value })} placeholder="ASC city" />
           <input className="min-h-11 rounded-md border px-3" value={audit.ascState} onChange={(e) => update({ ...audit, ascState: e.target.value.toUpperCase().slice(0, 2) })} placeholder="State" />
@@ -189,6 +206,40 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
       </section>
     </main>
   );
+}
+
+function auditDateChoices(startDate?: string, endDate?: string) {
+  const start = dateFromInput(startDate);
+  if (!start) return [];
+  const requestedEnd = dateFromInput(endDate) || start;
+  const maxEnd = addDays(start, 4);
+  const end = requestedEnd > maxEnd ? maxEnd : requestedEnd;
+  const days = [];
+  for (let date = start; date <= end; date = addDays(date, 1)) {
+    const value = dateToInput(date);
+    days.push({ value, label: date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) });
+  }
+  return days;
+}
+
+function dateFromInput(value?: string) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date: Date, count: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + count);
+  return next;
+}
+
+function dateToInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function YesNoControl({ label, value, defaultToYes, disabled, onChange }: { label: string; value?: boolean; defaultToYes?: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
