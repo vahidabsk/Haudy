@@ -15,7 +15,7 @@ export function exportHaudyBackup() {
     exportedAt: new Date().toISOString(),
     entries: readHaudyEntries(),
   };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -27,12 +27,52 @@ export function exportHaudyBackup() {
 }
 
 export async function importHaudyBackupFile(file: File) {
-  const backup = JSON.parse(await file.text()) as Partial<HaudyBackupFile>;
+  const backup = parseHaudyBackup(await file.text());
   if (backup.app !== "Haudy" || !backup.entries || typeof backup.entries !== "object") {
     throw new Error("This does not look like a Haudy data file.");
   }
   replaceHaudyEntries(backup.entries);
   return Object.keys(backup.entries).length;
+}
+
+function parseHaudyBackup(rawText: string): Partial<HaudyBackupFile> {
+  const text = normalizeBackupText(rawText);
+  const candidates = [
+    text,
+    unwrapDataUrl(text),
+    extractJsonObject(text),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as Partial<HaudyBackupFile>;
+    } catch {
+      // Try the next shape. Some mobile file providers wrap or prefix text.
+    }
+  }
+  throw new Error("Haudy could not read this file as JSON. Please export Haudy Data again and import that exact .haudy-data.json file.");
+}
+
+function normalizeBackupText(value: string) {
+  return value.replace(/^\uFEFF/, "").trim();
+}
+
+function unwrapDataUrl(value: string) {
+  const match = value.match(/^data:[^,]*,(.*)$/s);
+  if (!match) return "";
+  const payload = match[1];
+  try {
+    return value.includes(";base64,") ? atob(payload) : decodeURIComponent(payload);
+  } catch {
+    return "";
+  }
+}
+
+function extractJsonObject(value: string) {
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+  if (start < 0 || end <= start) return "";
+  return value.slice(start, end + 1);
 }
 
 function readHaudyEntries() {
