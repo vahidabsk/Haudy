@@ -456,31 +456,40 @@ textarea {
 }
 
 .report-letter {
-  font-size: 12.8px;
-  line-height: 1.28;
+  font-size: 13.28px;
+  line-height: 1.22;
 }
 
 .report-letter p {
-  margin: 0 0 0.18in;
+  margin: 0 0 0.2in;
 }
 
 .report-late-list {
-  margin: -0.04in 0 0.18in 0.44in;
-  padding: 0;
-  line-height: 1.28;
+  margin: -0.04in 0 0.2in 0.46in;
+  padding: 0 0 0 0.25in;
+  line-height: 1.22;
+  list-style-position: outside;
+  list-style-type: decimal;
 }
 
 .report-late-list li {
-  margin: 0 0 0.08in;
+  margin: 0 0 0.04in;
   padding-left: 0.08in;
 }
 
 .report-late {
-  padding-top: 0.08in;
+  padding-top: 0;
 }
 
 .report-signature {
   margin-top: 0.34in !important;
+}
+
+.report-highlight {
+  background: #fff200;
+  color: inherit;
+  font-weight: 700;
+  padding: 0 0.02in;
 }
 
 .report-comments-page {
@@ -614,6 +623,11 @@ textarea {
     margin: 0.62in 0.7in 0.66in;
   }
 
+  @page report-fixed {
+    size: letter;
+    margin: 0;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -650,26 +664,29 @@ textarea {
   }
 
   .report-fixed-page {
-    min-height: calc(11in - 1.28in);
+    page: report-fixed;
+    width: 8.5in;
+    min-height: 11in;
+    padding: 0.74in 1in 0.72in;
     position: relative;
     break-after: page;
     page-break-after: always;
   }
 
   .report-fixed-page .report-letter {
-    font-size: 12px;
-    line-height: 1.18;
+    font-size: 13.28px;
+    line-height: 1.22;
     padding-bottom: 0.96in;
   }
 
   .report-fixed-page .report-letter p {
-    margin-bottom: 0.13in;
+    margin-bottom: 0.2in;
   }
 
   .report-fixed-page .confirmation-footer {
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 1in;
+    right: 1in;
+    bottom: 1.05in;
   }
 
   .report-comments-page {
