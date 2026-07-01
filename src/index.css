@@ -597,6 +597,12 @@ textarea {
   font-style: italic;
 }
 
+.report-end {
+  margin: 0.18in 0 0;
+  text-align: center;
+  font-weight: 700;
+}
+
 @media print {
   @page {
     size: letter;

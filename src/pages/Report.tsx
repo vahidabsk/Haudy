@@ -382,7 +382,7 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
           );
         })}
       </div>
-      <p>END</p>
+      <p className="report-end">***END***</p>
     </section>
   );
 }
