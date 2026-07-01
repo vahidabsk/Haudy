@@ -204,14 +204,14 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                 <button
                   key={audit.id}
                   type="button"
-                  className={`min-h-24 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-navy bg-navy text-white shadow-sm ring-2 ring-navy/20" : stats.needsAttention ? "border-amber-200 bg-amber-50 text-slate-800 hover:bg-amber-100" : "border-emerald-200 bg-emerald-50 text-slate-800 hover:bg-emerald-100"}`}
+                  className={`min-h-24 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${stats.needsAttention ? "border-amber-200 bg-amber-50 text-slate-800 hover:bg-amber-100" : "border-emerald-200 bg-emerald-50 text-slate-800 hover:bg-emerald-100"} ${selected ? "border-l-4 border-navy shadow-sm ring-2 ring-navy/25" : ""}`}
                   onClick={() => setActiveAuditId(audit.id)}
                 >
                   <span className="block max-w-[18rem] truncate">{audit.protectedProperty || "Property"}</span>
-                  <span className={`block text-xs ${selected ? "text-white/75" : "text-slate-500"}`}>{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
+                  <span className="block text-xs text-slate-500">{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
                   <span className="mt-2 grid grid-cols-2 gap-1 text-center text-xs">
-                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : "bg-white text-slate-700"}`}><b>{stats.total}</b><br />deficiencies noted</span>
-                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : stats.missing ? "bg-red-50 text-red-700" : "bg-white text-emerald-700"}`}><b>{stats.missing}</b><br />need attention</span>
+                    <span className="rounded bg-white px-2 py-1 text-slate-700"><b>{stats.total}</b><br />deficiencies noted</span>
+                    <span className={`rounded px-2 py-1 ${stats.missing ? "bg-red-50 text-red-700" : "bg-white text-emerald-700"}`}><b>{stats.missing}</b><br />need attention</span>
                   </span>
                 </button>
               );
@@ -236,11 +236,11 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                 <button
                   key={tab.id}
                   type="button"
-                  className={`min-h-12 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${activeReportSection === tab.id ? "border-sky-800 bg-sky-800 text-white shadow-sm" : reportSectionTabClass(tab.status)}`}
+                  className={`min-h-12 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${reportSectionTabClass(tab.status)} ${activeReportSection === tab.id ? "border-l-4 border-navy shadow-sm ring-2 ring-navy/25" : ""}`}
                   onClick={() => setActiveReportSection(tab.id)}
                 >
                   <span>{tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span></span>
-                  <span className={`block text-xs ${activeReportSection === tab.id ? "text-white/75" : reportSectionTabTextClass(tab.status)}`}>{reportSectionTabLabel(tab.status)}</span>
+                  <span className={`block text-xs ${reportSectionTabTextClass(tab.status)}`}>{reportSectionTabLabel(tab.status)}</span>
                 </button>
             ))}
             </div>
