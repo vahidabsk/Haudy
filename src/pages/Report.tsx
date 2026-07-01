@@ -130,7 +130,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
         </div>
         <div>
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
-          <p className="mt-1 text-sm text-slate-600">{reportItems.length} variation{reportItems.length === 1 ? "" : "s"} found from completed field notes. Enter the report wording in the field note variation rows before printing.</p>
+          <p className="mt-1 text-sm text-slate-600">{reportItems.length} deficienc{reportItems.length === 1 ? "y" : "ies"} noted from completed field notes. Complete the report language before printing.</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <span className="font-semibold text-navy">POC:</span> {pocName || ""}
@@ -191,10 +191,9 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                 >
                   <span className="block max-w-[18rem] truncate">{audit.protectedProperty || "Property"}</span>
                   <span className={`block text-xs ${selected ? "text-white/75" : "text-slate-500"}`}>{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
-                  <span className="mt-2 grid grid-cols-3 gap-1 text-center text-xs">
-                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : "bg-white text-slate-700"}`}><b>{stats.total}</b><br />found</span>
-                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : stats.missing ? "bg-red-50 text-red-700" : "bg-white text-emerald-700"}`}><b>{stats.missing}</b><br />wording</span>
-                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : stats.sectionsDone === stats.sectionsTotal ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}><b>{stats.sectionsDone}/{stats.sectionsTotal}</b><br />done</span>
+                  <span className="mt-2 grid grid-cols-2 gap-1 text-center text-xs">
+                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : "bg-white text-slate-700"}`}><b>{stats.total}</b><br />deficiencies noted</span>
+                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : stats.missing ? "bg-red-50 text-red-700" : "bg-white text-emerald-700"}`}><b>{stats.missing}</b><br />need attention</span>
                   </span>
                 </button>
               );
@@ -409,7 +408,7 @@ function ServiceCenterReportEditor({
               />
             </div>
           ))}
-          {incomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention before it can be marked done.</div> : <div className="text-sm font-medium text-emerald-700">{done ? "Service center comment marked done." : "Service center comment ready for review."}</div>}
+          {incomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention before it can be marked done.</div> : <div className="text-sm font-medium text-emerald-700">{done ? "Service center comment marked done." : "Service center comment ready for final review."}</div>}
         </div>
       ) : (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No service center comments will print.</div>
@@ -426,7 +425,7 @@ function ReportEditorSectionPanel({ audit, section, items, emptyText, onUpdateAu
     return (
       <div className="grid gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
         <div>{emptyText}</div>
-        <SectionDoneToggle done={done} disabled={false} onChange={(nextDone) => onUpdateAudit(updateReportSectionStatus(audit, section, nextDone))} />
+        <div className="text-sm font-semibold text-emerald-700">Section complete by default.</div>
       </div>
     );
   }
@@ -435,7 +434,7 @@ function ReportEditorSectionPanel({ audit, section, items, emptyText, onUpdateAu
       <div className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 ${missing ? "border-amber-200 bg-amber-50" : done ? "border-emerald-200 bg-emerald-50" : "border-sky-200 bg-sky-50"}`}>
         <div className="text-sm font-semibold text-navy">
           {items.length} deficienc{items.length === 1 ? "y" : "ies"} in this section
-          <span className={`ml-2 text-xs ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? `${missing} need report wording` : "wording complete"}</span>
+          <span className={`ml-2 text-xs ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? `${missing} need attention` : "ready for final review"}</span>
         </div>
         <SectionDoneToggle done={done} disabled={missing > 0} onChange={(nextDone) => onUpdateAudit(updateReportSectionStatus(audit, section, nextDone))} />
       </div>
@@ -451,7 +450,7 @@ function SectionDoneToggle({ done, disabled, onChange }: { done: boolean; disabl
       disabled={disabled}
       className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-semibold transition ${done ? "border-emerald-300 bg-emerald-600 text-white" : disabled ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
       onClick={() => onChange(!done)}
-      title={disabled ? "Complete report wording before marking this section done." : "Mark this section done or not done."}
+      title={disabled ? "Complete the report language before marking this section done." : "Mark this section done or not done."}
     >
       <span className={`h-4 w-8 rounded-full p-0.5 ${done ? "bg-white/30" : "bg-slate-200"}`}>
         <span className={`block h-3 w-3 rounded-full bg-white transition ${done ? "translate-x-4" : "translate-x-0"}`} />
@@ -494,7 +493,7 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
       ) : (
         <div className="text-sm italic text-slate-500">Field note left empty.</div>
       )}
-      <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
+      <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report language needs attention." : "Ready for final review."}</div>
       <ReportFindingFields
         value={reportValue(item)}
         showCsisHelp
@@ -742,15 +741,12 @@ function reportPropertyStats(audit: Audit) {
   const items = printableReportItems(audit);
   const sections: ReportPropertySection[] = ["signal", "documentation", "installation"];
   const sectionsWithWork = sections.filter((section) => sectionItemsForAudit(audit, section).length > 0);
-  const sectionsTotal = sectionsWithWork.length;
-  const sectionsDone = sectionsWithWork.filter((section) => audit.reportSectionStatus?.[section]).length;
   const missing = items.filter(reportItemNeedsAttention).length;
+  const incompleteSections = sectionsWithWork.filter((section) => !audit.reportSectionStatus?.[section]).length;
   return {
     total: items.length,
     missing,
-    sectionsDone,
-    sectionsTotal,
-    needsAttention: missing > 0 || sectionsDone < sectionsTotal,
+    needsAttention: missing > 0 || incompleteSections > 0,
   };
 }
 
@@ -771,7 +767,7 @@ function serviceCenterTabStatus(hasComment: boolean, done: boolean, incomplete: 
 }
 
 function sectionTabStatus(audit: Audit | undefined, section: ReportPropertySection, items: ReportItem[]): ReportSectionUiStatus {
-  if (!items.length) return audit?.reportSectionStatus?.[section] ? "done" : "none";
+  if (!items.length) return "done";
   if (items.some(reportItemNeedsAttention)) return "needs";
   return audit?.reportSectionStatus?.[section] ? "done" : "ready";
 }
@@ -791,8 +787,8 @@ function reportSectionTabTextClass(status: ReportSectionUiStatus) {
 }
 
 function reportSectionTabLabel(status: ReportSectionUiStatus) {
-  if (status === "needs") return "Needs wording";
-  if (status === "ready") return "Ready to mark done";
+  if (status === "needs") return "Needs attention";
+  if (status === "ready") return "Ready for final review";
   if (status === "done") return "Done";
   return "No deficiencies";
 }
