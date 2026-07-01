@@ -12,6 +12,7 @@ import { ReportFindingFields, ReportFindingValue } from "../components/ReportFin
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
 type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests" | "sectionReview";
 type ReportEditorSection = "service" | "signal" | "documentation" | "installation";
+type ReportPropertySection = Exclude<ReportEditorSection, "service">;
 
 interface ReportItem {
   id: string;
@@ -65,6 +66,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [folderMessage, setFolderMessage] = useState("");
   const savedReportDraft = loadAscDocuments()[ascKey]?.report;
   const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
+  const [serviceCenterDone, setServiceCenterDone] = useState(savedReportDraft?.serviceCenterDone ?? false);
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const reportAudits = useMemo(() => reportAuditsByCategory(group.audits), [group.audits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
@@ -110,7 +112,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             <button
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
-                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterComments });
+                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
                 setSavedAt(next[ascKey]?.report?.updatedAt || "");
                 try {
                   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
@@ -148,17 +150,26 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
               <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500">{reportAudits.length} propert{reportAudits.length === 1 ? "y" : "ies"}</div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-            {reportAudits.map((audit) => (
-              <button
-                key={audit.id}
-                type="button"
-                className={`min-h-16 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${activeAudit?.id === audit.id ? "border-navy bg-navy text-white shadow-sm ring-2 ring-navy/20" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"}`}
-                onClick={() => setActiveAuditId(audit.id)}
-              >
-                <span className="block max-w-[18rem] truncate">{audit.protectedProperty || "Property"}</span>
-                <span className={`block text-xs ${activeAudit?.id === audit.id ? "text-white/75" : "text-slate-500"}`}>{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
-              </button>
-            ))}
+            {reportAudits.map((audit) => {
+              const stats = reportPropertyStats(audit);
+              const selected = activeAudit?.id === audit.id;
+              return (
+                <button
+                  key={audit.id}
+                  type="button"
+                  className={`min-h-24 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${selected ? "border-navy bg-navy text-white shadow-sm ring-2 ring-navy/20" : stats.needsAttention ? "border-amber-200 bg-amber-50 text-slate-800 hover:bg-amber-100" : "border-emerald-200 bg-emerald-50 text-slate-800 hover:bg-emerald-100"}`}
+                  onClick={() => setActiveAuditId(audit.id)}
+                >
+                  <span className="block max-w-[18rem] truncate">{audit.protectedProperty || "Property"}</span>
+                  <span className={`block text-xs ${selected ? "text-white/75" : "text-slate-500"}`}>{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
+                  <span className="mt-2 grid grid-cols-3 gap-1 text-center text-xs">
+                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : "bg-white text-slate-700"}`}><b>{stats.total}</b><br />found</span>
+                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : stats.missing ? "bg-red-50 text-red-700" : "bg-white text-emerald-700"}`}><b>{stats.missing}</b><br />wording</span>
+                    <span className={`rounded px-2 py-1 ${selected ? "bg-white/15 text-white" : stats.sectionsDone === stats.sectionsTotal ? "bg-white text-emerald-700" : "bg-white text-amber-700"}`}><b>{stats.sectionsDone}/{stats.sectionsTotal}</b><br />done</span>
+                  </span>
+                </button>
+              );
+            })}
             </div>
           </div>
           <div className="grid gap-3 rounded-lg border-2 border-sky-100 bg-white p-3 shadow-sm">
@@ -172,18 +183,19 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             </div>
             <div className="flex gap-2 overflow-x-auto rounded-md bg-sky-50 p-2">
               {[
-                { id: "service" as const, label: "Service Center", count: serviceCenterHasComment ? serviceCenterComments.length : 0 },
-                { id: "signal" as const, label: "Signal Processing", count: activeSignalItems.length },
-                { id: "documentation" as const, label: "Documentation", count: activeDocumentationItems.length },
-                { id: "installation" as const, label: "Installation", count: activeInstallationItems.length },
+                { id: "service" as const, label: "Service Center", count: serviceCenterHasComment ? serviceCenterComments.length : 0, status: serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete) },
+                { id: "signal" as const, label: "Signal Processing", count: activeSignalItems.length, status: sectionTabStatus(activeAudit, "signal", activeSignalItems.map(({ item }) => item)) },
+                { id: "documentation" as const, label: "Documentation", count: activeDocumentationItems.length, status: sectionTabStatus(activeAudit, "documentation", activeDocumentationItems.map(({ item }) => item)) },
+                { id: "installation" as const, label: "Installation", count: activeInstallationItems.length, status: sectionTabStatus(activeAudit, "installation", activeInstallationItems.map(({ item }) => item)) },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
-                  className={`min-h-10 shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeReportSection === tab.id ? "border-sky-800 bg-sky-800 text-white shadow-sm" : "border-sky-100 bg-white text-slate-700 hover:bg-sky-100"}`}
+                  className={`min-h-12 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${activeReportSection === tab.id ? "border-sky-800 bg-sky-800 text-white shadow-sm" : reportSectionTabClass(tab.status)}`}
                   onClick={() => setActiveReportSection(tab.id)}
                 >
-                  {tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span>
+                  <span>{tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span></span>
+                  <span className={`block text-xs ${activeReportSection === tab.id ? "text-white/75" : reportSectionTabTextClass(tab.status)}`}>{reportSectionTabLabel(tab.status)}</span>
                 </button>
               ))}
             </div>
@@ -191,13 +203,18 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
               {activeReportSection === "service" ? (
                 <ServiceCenterReportEditor
                   hasComment={serviceCenterHasComment}
+                  done={serviceCenterDone}
                   comments={serviceCenterComments}
                   incomplete={serviceCenterIncomplete}
                   onHasCommentChange={(nextHasComment) => {
                     setServiceCenterHasComment(nextHasComment);
                     const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
                     if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
-                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterComments: nextComments });
+                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterDone, serviceCenterComments: nextComments });
+                  }}
+                  onDoneChange={(nextDone) => {
+                    setServiceCenterDone(nextDone);
+                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone: nextDone, serviceCenterComments });
                   }}
                   onUpdateComments={updateServiceCenterComments}
                   onUpdateComment={updateServiceCenterComment}
@@ -205,6 +222,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
               ) : activeAudit ? (
                 <ReportEditorSectionPanel
                   audit={activeAudit}
+                  section={activeReportSection as ReportPropertySection}
                   items={activeReportSection === "signal" ? activeSignalItems : activeReportSection === "documentation" ? activeDocumentationItems : activeInstallationItems}
                   emptyText={activeReportSection === "signal" ? "No signal processing variations for this property." : activeReportSection === "documentation" ? "No documentation variations for this property." : "No installation or device test variations for this property."}
                   onUpdateAudit={onUpdateAudit}
@@ -230,7 +248,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
 
   function updateServiceCenterComments(nextComments: ServiceCenterComment[]) {
     setServiceCenterComments(nextComments);
-    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterComments: nextComments });
+    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone, serviceCenterComments: nextComments });
   }
 
   function updateServiceCenterComment(id: string, patch: Partial<ServiceCenterComment>) {
@@ -316,16 +334,20 @@ function serviceCenterPatch(reportFields: Partial<ReportFindingValue>): Partial<
 
 function ServiceCenterReportEditor({
   hasComment,
+  done,
   comments,
   incomplete,
   onHasCommentChange,
+  onDoneChange,
   onUpdateComments,
   onUpdateComment,
 }: {
   hasComment: boolean;
+  done: boolean;
   comments: ServiceCenterComment[];
   incomplete: boolean;
   onHasCommentChange: (hasComment: boolean) => void;
+  onDoneChange: (done: boolean) => void;
   onUpdateComments: (comments: ServiceCenterComment[]) => void;
   onUpdateComment: (id: string, patch: Partial<ServiceCenterComment>) => void;
 }) {
@@ -346,13 +368,16 @@ function ServiceCenterReportEditor({
         <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-semibold text-amber-950">Service Center Comments</div>
-            <button
-              type="button"
-              className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
-              onClick={() => onUpdateComments([...comments, blankServiceCenterComment()])}
-            >
-              Add Finding
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <SectionDoneToggle done={done} disabled={incomplete} onChange={onDoneChange} />
+              <button
+                type="button"
+                className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                onClick={() => onUpdateComments([...comments, blankServiceCenterComment()])}
+              >
+                Add Finding
+              </button>
+            </div>
           </div>
           {comments.map((comment, index) => (
             <div key={comment.id} className="grid gap-2 rounded-md border border-amber-200 bg-white/70 p-3">
@@ -375,7 +400,7 @@ function ServiceCenterReportEditor({
               />
             </div>
           ))}
-          {incomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention.</div> : <div className="text-sm font-medium text-emerald-700">Service center comment ready for report.</div>}
+          {incomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention before it can be marked done.</div> : <div className="text-sm font-medium text-emerald-700">{done ? "Service center comment marked done." : "Service center comment ready for review."}</div>}
         </div>
       ) : (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No service center comments will print.</div>
@@ -384,12 +409,46 @@ function ServiceCenterReportEditor({
   );
 }
 
-function ReportEditorSectionPanel({ audit, items, emptyText, onUpdateAudit }: { audit: Audit; items: Array<{ audit: Audit; item: ReportItem }>; emptyText: string; onUpdateAudit: (audit: Audit) => void }) {
-  if (!items.length) return <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{emptyText}</div>;
+function ReportEditorSectionPanel({ audit, section, items, emptyText, onUpdateAudit }: { audit: Audit; section: ReportPropertySection; items: Array<{ audit: Audit; item: ReportItem }>; emptyText: string; onUpdateAudit: (audit: Audit) => void }) {
+  const sectionItems = items.map(({ item }) => item);
+  const missing = sectionItems.filter(reportItemNeedsAttention).length;
+  const done = Boolean(audit.reportSectionStatus?.[section]);
+  if (!items.length) {
+    return (
+      <div className="grid gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
+        <div>{emptyText}</div>
+        <SectionDoneToggle done={done} disabled={false} onChange={(nextDone) => onUpdateAudit(updateReportSectionStatus(audit, section, nextDone))} />
+      </div>
+    );
+  }
   return (
     <div className="grid gap-3">
+      <div className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 ${missing ? "border-amber-200 bg-amber-50" : done ? "border-emerald-200 bg-emerald-50" : "border-sky-200 bg-sky-50"}`}>
+        <div className="text-sm font-semibold text-navy">
+          {items.length} deficienc{items.length === 1 ? "y" : "ies"} in this section
+          <span className={`ml-2 text-xs ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? `${missing} need report wording` : "wording complete"}</span>
+        </div>
+        <SectionDoneToggle done={done} disabled={missing > 0} onChange={(nextDone) => onUpdateAudit(updateReportSectionStatus(audit, section, nextDone))} />
+      </div>
       {items.map(({ item }) => <ReportEditorItemCard key={`${audit.id}-${item.id}`} audit={audit} item={item} onUpdateAudit={onUpdateAudit} />)}
     </div>
+  );
+}
+
+function SectionDoneToggle({ done, disabled, onChange }: { done: boolean; disabled: boolean; onChange: (done: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-semibold transition ${done ? "border-emerald-300 bg-emerald-600 text-white" : disabled ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+      onClick={() => onChange(!done)}
+      title={disabled ? "Complete report wording before marking this section done." : "Mark this section done or not done."}
+    >
+      <span className={`h-4 w-8 rounded-full p-0.5 ${done ? "bg-white/30" : "bg-slate-200"}`}>
+        <span className={`block h-3 w-3 rounded-full bg-white transition ${done ? "translate-x-4" : "translate-x-0"}`} />
+      </span>
+      {done ? "Done" : "Mark done"}
+    </button>
   );
 }
 
@@ -662,6 +721,69 @@ function reportItemHasContent(item: ReportItem) {
   return Boolean(item.finding.trim() || item.requiredAction.trim() || item.codeEdition.trim() || item.codeSection.trim() || (item.codeStandard.trim() && item.codeStandard.trim() !== "NFPA 72"));
 }
 
+function reportItemNeedsAttention(item: ReportItem) {
+  return !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+}
+
+function reportPropertyStats(audit: Audit) {
+  const items = printableReportItems(audit);
+  const sections: ReportPropertySection[] = ["signal", "documentation", "installation"];
+  const sectionsWithWork = sections.filter((section) => sectionItemsForAudit(audit, section).length > 0);
+  const sectionsTotal = sectionsWithWork.length;
+  const sectionsDone = sectionsWithWork.filter((section) => audit.reportSectionStatus?.[section]).length;
+  const missing = items.filter(reportItemNeedsAttention).length;
+  return {
+    total: items.length,
+    missing,
+    sectionsDone,
+    sectionsTotal,
+    needsAttention: missing > 0 || sectionsDone < sectionsTotal,
+  };
+}
+
+function sectionItemsForAudit(audit: Audit, section: ReportPropertySection) {
+  return printableReportItems(audit).filter((item) => {
+    if (section === "signal") return item.reviewType === "Signal Processing Review";
+    if (section === "documentation") return item.reviewType === "Documentation Review";
+    return item.reviewType === "Installation Review";
+  });
+}
+
+type ReportSectionUiStatus = "none" | "needs" | "ready" | "done";
+
+function serviceCenterTabStatus(hasComment: boolean, done: boolean, incomplete: boolean): ReportSectionUiStatus {
+  if (!hasComment) return "done";
+  if (incomplete) return "needs";
+  return done ? "done" : "ready";
+}
+
+function sectionTabStatus(audit: Audit | undefined, section: ReportPropertySection, items: ReportItem[]): ReportSectionUiStatus {
+  if (!items.length) return audit?.reportSectionStatus?.[section] ? "done" : "none";
+  if (items.some(reportItemNeedsAttention)) return "needs";
+  return audit?.reportSectionStatus?.[section] ? "done" : "ready";
+}
+
+function reportSectionTabClass(status: ReportSectionUiStatus) {
+  if (status === "needs") return "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100";
+  if (status === "ready") return "border-sky-200 bg-white text-sky-900 hover:bg-sky-50";
+  if (status === "done") return "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100";
+  return "border-sky-100 bg-white text-slate-700 hover:bg-sky-100";
+}
+
+function reportSectionTabTextClass(status: ReportSectionUiStatus) {
+  if (status === "needs") return "text-amber-700";
+  if (status === "ready") return "text-sky-700";
+  if (status === "done") return "text-emerald-700";
+  return "text-slate-500";
+}
+
+function reportSectionTabLabel(status: ReportSectionUiStatus) {
+  if (status === "needs") return "Needs wording";
+  if (status === "ready") return "Ready to mark done";
+  if (status === "done") return "Done";
+  return "No deficiencies";
+}
+
 function expandReportItem(audit: Audit, item: ReportItem): ReportItem[] {
   const extras = audit.reportExtraFindings?.[item.baseId] || [];
   return [
@@ -881,6 +1003,17 @@ function removeReportFinding(audit: Audit, item: ReportItem): Audit {
     delete nextExtraFindings[item.baseId];
   }
   return { ...audit, updatedAt, reportExtraFindings: nextExtraFindings };
+}
+
+function updateReportSectionStatus(audit: Audit, section: ReportPropertySection, done: boolean): Audit {
+  return {
+    ...audit,
+    updatedAt: new Date().toISOString(),
+    reportSectionStatus: {
+      ...(audit.reportSectionStatus || {}),
+      [section]: done,
+    },
+  };
 }
 
 function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<ReportFindingValue>): Audit {

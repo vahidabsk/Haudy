@@ -3,6 +3,7 @@ export type ReviewStatus = "OK" | "VAR";
 export type DisplayStatus = "OK" | "VAR" | "NA";
 export type SignalType = "Alarm" | "Supervisory" | "Trouble";
 export type SignalHandlingStatus = "OK" | "VAR";
+export type ReportSectionStatus = Partial<Record<"signal" | "documentation" | "installation", boolean>>;
 
 export interface ParsedCertificate {
   fileName: string;
@@ -179,6 +180,7 @@ export interface Audit {
   matchesCertificate: boolean;
   certificateDisplayed: boolean;
   reportExtraFindings?: Record<string, ReportFindingEntry[]>;
+  reportSectionStatus?: ReportSectionStatus;
   signalLog: SignalLogRow[];
   documentation: AuditRow[];
   installation: AuditRow[];
