@@ -138,61 +138,82 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
           {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
-        <div className="grid gap-3">
-          <div className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-2">
+        <div className="grid gap-4">
+          <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Step 1</div>
+                <div className="text-sm font-bold text-navy">Choose Property</div>
+              </div>
+              <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500">{reportAudits.length} propert{reportAudits.length === 1 ? "y" : "ies"}</div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
             {reportAudits.map((audit) => (
               <button
                 key={audit.id}
                 type="button"
-                className={`min-h-10 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${activeAudit?.id === audit.id ? "border-navy bg-navy text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"}`}
+                className={`min-h-16 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${activeAudit?.id === audit.id ? "border-navy bg-navy text-white shadow-sm ring-2 ring-navy/20" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"}`}
                 onClick={() => setActiveAuditId(audit.id)}
               >
                 <span className="block max-w-[18rem] truncate">{audit.protectedProperty || "Property"}</span>
                 <span className={`block text-xs ${activeAudit?.id === audit.id ? "text-white/75" : "text-slate-500"}`}>{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
               </button>
             ))}
+            </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-white p-2">
-            {[
-              { id: "service" as const, label: "Service Center", count: serviceCenterHasComment ? serviceCenterComments.length : 0 },
-              { id: "signal" as const, label: "Signal Processing", count: activeSignalItems.length },
-              { id: "documentation" as const, label: "Documentation", count: activeDocumentationItems.length },
-              { id: "installation" as const, label: "Installation", count: activeInstallationItems.length },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`min-h-10 shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeReportSection === tab.id ? "border-sky-700 bg-sky-50 text-sky-900" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
-                onClick={() => setActiveReportSection(tab.id)}
-              >
-                {tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span>
-              </button>
-            ))}
+          <div className="grid gap-3 rounded-lg border-2 border-sky-100 bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sky-100 pb-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wide text-sky-700">Step 2</div>
+                <div className="text-base font-bold text-navy">{activeAudit ? `Edit: ${activeAudit.protectedProperty || "Selected Property"}` : "Edit Selected Property"}</div>
+                {activeAudit ? <div className="text-xs font-medium text-slate-500">{primaryCertificate(activeAudit)?.categoryCode || "CCN"} | {activeAudit.certificateNumber || "SN"}</div> : null}
+              </div>
+              <div className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">Sections below apply to this workspace</div>
+            </div>
+            <div className="flex gap-2 overflow-x-auto rounded-md bg-sky-50 p-2">
+              {[
+                { id: "service" as const, label: "Service Center", count: serviceCenterHasComment ? serviceCenterComments.length : 0 },
+                { id: "signal" as const, label: "Signal Processing", count: activeSignalItems.length },
+                { id: "documentation" as const, label: "Documentation", count: activeDocumentationItems.length },
+                { id: "installation" as const, label: "Installation", count: activeInstallationItems.length },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`min-h-10 shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeReportSection === tab.id ? "border-sky-800 bg-sky-800 text-white shadow-sm" : "border-sky-100 bg-white text-slate-700 hover:bg-sky-100"}`}
+                  onClick={() => setActiveReportSection(tab.id)}
+                >
+                  {tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span>
+                </button>
+              ))}
+            </div>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              {activeReportSection === "service" ? (
+                <ServiceCenterReportEditor
+                  hasComment={serviceCenterHasComment}
+                  comments={serviceCenterComments}
+                  incomplete={serviceCenterIncomplete}
+                  onHasCommentChange={(nextHasComment) => {
+                    setServiceCenterHasComment(nextHasComment);
+                    const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
+                    if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
+                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterComments: nextComments });
+                  }}
+                  onUpdateComments={updateServiceCenterComments}
+                  onUpdateComment={updateServiceCenterComment}
+                />
+              ) : activeAudit ? (
+                <ReportEditorSectionPanel
+                  audit={activeAudit}
+                  items={activeReportSection === "signal" ? activeSignalItems : activeReportSection === "documentation" ? activeDocumentationItems : activeInstallationItems}
+                  emptyText={activeReportSection === "signal" ? "No signal processing variations for this property." : activeReportSection === "documentation" ? "No documentation variations for this property." : "No installation or device test variations for this property."}
+                  onUpdateAudit={onUpdateAudit}
+                />
+              ) : (
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No properties found for this ASC.</div>
+              )}
+            </div>
           </div>
-          {activeReportSection === "service" ? (
-            <ServiceCenterReportEditor
-              hasComment={serviceCenterHasComment}
-              comments={serviceCenterComments}
-              incomplete={serviceCenterIncomplete}
-              onHasCommentChange={(nextHasComment) => {
-                setServiceCenterHasComment(nextHasComment);
-                const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
-                if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
-                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterComments: nextComments });
-              }}
-              onUpdateComments={updateServiceCenterComments}
-              onUpdateComment={updateServiceCenterComment}
-            />
-          ) : activeAudit ? (
-            <ReportEditorSectionPanel
-              audit={activeAudit}
-              items={activeReportSection === "signal" ? activeSignalItems : activeReportSection === "documentation" ? activeDocumentationItems : activeInstallationItems}
-              emptyText={activeReportSection === "signal" ? "No signal processing variations for this property." : activeReportSection === "documentation" ? "No documentation variations for this property." : "No installation or device test variations for this property."}
-              onUpdateAudit={onUpdateAudit}
-            />
-          ) : (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No properties found for this ASC.</div>
-          )}
           {reportItems.length ? (
             incomplete.length ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{incomplete.length} variation{incomplete.length === 1 ? "" : "s"} will print with blank report fields until completed.</div> : null
           ) : (
