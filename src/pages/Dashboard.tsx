@@ -133,10 +133,20 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   onClick={() => {
                     exportHaudyBackup();
-                    setTransferMessage("Haudy data file created.");
+                    setTransferMessage("Haudy data file created without photos. Best for tablets.");
                   }}
                 >
                   <Download size={16} /> Export Haudy Data
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => {
+                    exportHaudyBackup({ includePhotos: true });
+                    setTransferMessage("Haudy data file with photos created. Best for computer to computer.");
+                  }}
+                >
+                  <Download size={16} /> Export With Photos
                 </button>
                 <button
                   type="button"
@@ -287,8 +297,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           onCancel={() => setPendingImportFile(null)}
           onImport={async () => {
             try {
-              const count = await importHaudyBackupFile(pendingImportFile);
-              setTransferMessage(`Imported ${count} data item${count === 1 ? "" : "s"}. Reloading Haudy...`);
+              const result = await importHaudyBackupFile(pendingImportFile);
+              const photoNote = result.skippedPhotos ? ` ${result.skippedPhotos} photo item${result.skippedPhotos === 1 ? "" : "s"} could not fit on this device.` : "";
+              setTransferMessage(`Imported ${result.imported} data item${result.imported === 1 ? "" : "s"}.${photoNote} Reloading Haudy...`);
               setPendingImportFile(null);
               window.setTimeout(() => window.location.reload(), 500);
             } catch (error) {
