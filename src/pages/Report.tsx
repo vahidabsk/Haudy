@@ -361,9 +361,10 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
         <h2>Protected Property Comments</h2>
         {group.audits.map((audit) => {
           const certificate = primaryCertificate(audit);
-          const signalItems = collectReportItems(audit).filter((item) => item.reviewType === "Signal Processing Review");
-          const documentationItems = collectReportItems(audit).filter((item) => item.reviewType === "Documentation Review");
-          const installationItems = collectReportItems(audit).filter((item) => item.reviewType === "Installation Review");
+          const printableItems = printableReportItems(audit);
+          const signalItems = printableItems.filter((item) => item.reviewType === "Signal Processing Review");
+          const documentationItems = printableItems.filter((item) => item.reviewType === "Documentation Review");
+          const installationItems = printableItems.filter((item) => item.reviewType === "Installation Review");
           const addressLines = propertyAddressLines(certificate?.propertyAddress || "");
           return (
             <div key={audit.id} className="report-audit-block">
@@ -460,6 +461,14 @@ function collectReportItems(audit: Audit): ReportItem[] {
     ...audit.deviceTests.filter((row) => row.result === "VAR").map((row) => deviceItem(row)),
   ];
   return baseItems.flatMap((item) => expandReportItem(audit, item));
+}
+
+function printableReportItems(audit: Audit): ReportItem[] {
+  return collectReportItems(audit).filter((item) => item.extraIndex === undefined || reportItemHasContent(item));
+}
+
+function reportItemHasContent(item: ReportItem) {
+  return Boolean(item.finding.trim() || item.requiredAction.trim() || item.codeEdition.trim() || item.codeSection.trim() || (item.codeStandard.trim() && item.codeStandard.trim() !== "NFPA 72"));
 }
 
 function expandReportItem(audit: Audit, item: ReportItem): ReportItem[] {
@@ -795,7 +804,7 @@ function numberedDeficiencies(group: AscGroup, startNumber = 1) {
   const numbers = new Map<string, number>();
   let nextNumber = startNumber;
   group.audits.forEach((audit) => {
-    collectReportItems(audit).forEach((item) => {
+    printableReportItems(audit).forEach((item) => {
       numbers.set(deficiencyKey(audit.id, item.id), nextNumber);
       nextNumber += 1;
     });
