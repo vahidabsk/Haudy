@@ -242,7 +242,7 @@ function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: As
   const ascCertificate = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress);
   const ascAddressLines = ascReportAddressLines(ascCertificate, group.location);
   return (
-    <section className="report-page print-page bg-white text-black shadow-sm print:shadow-none">
+    <section className="report-page report-fixed-page print-page bg-white text-black shadow-sm print:shadow-none">
       <ReportHeader />
       <div className="report-letter">
         <p>{formatLongDate(date)}</p>
@@ -316,7 +316,7 @@ function serviceCenterPatch(reportFields: Partial<ReportFindingValue>): Partial<
 
 function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
   return (
-    <section className="report-page print-page bg-white text-black shadow-sm print:shadow-none">
+    <section className="report-page report-fixed-page print-page bg-white text-black shadow-sm print:shadow-none">
       <div className="report-letter report-late">
         <p><b>LATE RESPONSE</b></p>
         <p>To preserve the integrity of the UL Mark, timely resolution of issues noted as not being in compliance with the applicable codes, standards and /or program requirements is critical. If your reply is not received within 30 days from the date of this letter, where applicable based on the Listing type(s), the following actions will occur:</p>
@@ -881,7 +881,7 @@ function ReportHeader() {
 function ReportFooter() {
   return (
     <footer className="confirmation-footer">
-      <div>UL Solutions<br />333 Pfingsten Road<br />Northbrook, IL 600623<br />+1.887.854.3577<br /><b>UL.com/Solution</b></div>
+      <div>UL Solutions<br />333 Pfingsten Road<br />Northbrook, IL 60062<br />+1.887.854.3577<br /><b>UL.com/Solution</b></div>
       <div>UL LLC &copy; 2022. All rights reserved.</div>
     </footer>
   );

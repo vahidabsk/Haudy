@@ -649,6 +649,29 @@ textarea {
     box-shadow: none !important;
   }
 
+  .report-fixed-page {
+    min-height: calc(11in - 1.28in);
+    position: relative;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .report-fixed-page .report-letter {
+    font-size: 12px;
+    line-height: 1.18;
+    padding-bottom: 0.96in;
+  }
+
+  .report-fixed-page .report-letter p {
+    margin-bottom: 0.13in;
+  }
+
+  .report-fixed-page .confirmation-footer {
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
   .report-comments-page {
     padding-top: 0;
   }
