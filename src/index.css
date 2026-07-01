@@ -517,6 +517,8 @@ textarea {
 .report-property {
   margin: 0 0 0.16in;
   line-height: 1.35;
+  break-inside: avoid;
+  page-break-inside: avoid;
   break-after: avoid;
   page-break-after: avoid;
 }
@@ -527,6 +529,13 @@ textarea {
   font-size: inherit;
   font-weight: 400;
   text-decoration: underline;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.report-review-section {
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .report-review-section h3 {
@@ -540,6 +549,8 @@ textarea {
 
 .report-aligned-note {
   margin: 0 0 0.08in 0.35in;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .report-finding {
@@ -592,6 +603,11 @@ textarea {
     margin: 0;
   }
 
+  @page report {
+    size: letter;
+    margin: 0.62in 0.7in 0.66in;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -619,7 +635,19 @@ textarea {
   }
 
   .report-page {
+    page: report;
+    width: auto;
+    min-height: auto;
     margin: 0;
+    padding: 0;
     box-shadow: none !important;
+  }
+
+  .report-comments-page {
+    padding-top: 0;
+  }
+
+  .report-audit-block + .report-audit-block {
+    margin-top: 0.08in;
   }
 }
