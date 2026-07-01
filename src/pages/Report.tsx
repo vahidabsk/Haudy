@@ -360,7 +360,7 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
       </div>
       <div className="report-major-section">
         <h2>Protected Property Comments</h2>
-        {group.audits.map((audit) => {
+        {reportAuditsByCategory(group.audits).map((audit) => {
           const certificate = primaryCertificate(audit);
           const printableItems = printableReportItems(audit);
           const signalItems = printableItems.filter((item) => item.reviewType === "Signal Processing Review");
@@ -404,6 +404,23 @@ function ServiceCenterFinding({ number, comment }: { number: number; comment: Se
       </div>
     </div>
   );
+}
+
+function reportAuditsByCategory(audits: Audit[]) {
+  return [...audits].sort((first, second) => {
+    const firstCategory = primaryCertificate(first)?.categoryCode || "";
+    const secondCategory = primaryCertificate(second)?.categoryCode || "";
+    const categoryRank = categoryReportRank(firstCategory) - categoryReportRank(secondCategory);
+    if (categoryRank) return categoryRank;
+    return first.protectedProperty.localeCompare(second.protectedProperty);
+  });
+}
+
+function categoryReportRank(category: string) {
+  const normalized = category.trim().toUpperCase();
+  if (normalized === "UUFX") return 0;
+  if (normalized === "UUJS") return 1;
+  return 2;
 }
 
 function SignalReportSection({ audit, items, takeNumber }: { audit: Audit; items: ReportItem[]; takeNumber: () => number }) {
