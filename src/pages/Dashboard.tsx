@@ -63,20 +63,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
 
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-6 p-5 lg:grid-cols-[1fr_380px] lg:p-6">
-          <div className="grid content-start gap-4">
-            <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-md bg-navy text-white"><UploadCloud size={24} /></div>
-              <div>
-                <h2 className="text-2xl font-bold text-navy">Upload Certificate</h2>
-                <p className="mt-1 text-sm text-slate-600">Start a fire alarm system audit by uploading the DOCX certificate.</p>
-              </div>
-            </div>
-            <div className={`rounded-md border px-3 py-2 text-sm font-medium ${offlineReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-              {offlineReady ? "Offline ready on this device" : online ? "Preparing offline access. Keep this screen open online until ready." : "Offline access is not ready on this device yet."}
-            </div>
-            <UploadDialog onParsed={(certificate) => {
+      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <UploadDialog compact onParsed={(certificate) => {
               if (audits.audits.length === 0) {
                 setAscProfiles(clearAscProfiles());
                 setAscDocuments(clearAscDocuments());
@@ -93,82 +83,71 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               audits.createManyFromCertificates(certificate);
               return undefined;
             }} />
-            <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
-              <div>
-                <h3 className="font-semibold text-navy">Where do you want Haudy to store the files?</h3>
-                <p className="mt-1 text-sm text-slate-600">Haudy will create Haudy Storage, year, ASC, Confirmation, Report, and Field Notes folders.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={async () => {
-                    try {
-                      const year = new Date().getFullYear().toString();
-                      await prepareStorageFolders(groups.map((group) => ({
-                        year,
-                        ascName: group.ascName,
-                        cityState: group.location,
-                        psn: ascProfiles[group.key]?.psn || "not-set",
-                      })));
-                      setStorageMessage("Storage location saved and folders created.");
-                    } catch (error) {
-                      setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
-                    }
-                  }}
-                >
-                  Choose Storage Location
-                </button>
-                {storageMessage ? <span className="text-sm text-slate-600">{storageMessage}</span> : null}
-              </div>
-            </div>
-            <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
-              <div>
-                <h3 className="font-semibold text-navy">Move Haudy data between devices</h3>
-                <p className="mt-1 text-sm text-slate-600">Export one Haudy data file, move it to another device, then import it there.</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={async () => {
-                    setTransferMessage("Preparing Haudy data file...");
-                    await exportHaudyBackup();
-                    setTransferMessage("Haudy data file created without photos. Best for tablets.");
-                  }}
-                >
-                  <Download size={16} /> Export Haudy Data
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={async () => {
-                    setTransferMessage("Compressing photos and preparing Haudy data file...");
-                    await exportHaudyBackup({ includePhotos: true });
-                    setTransferMessage("Haudy data file with compressed photos created. Best for computer to computer.");
-                  }}
-                >
-                  <Download size={16} /> Export With Photos
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={() => importInputRef.current?.click()}
-                >
-                  <UploadCloud size={16} /> Import Haudy Data
-                </button>
-                <input ref={importInputRef} className="hidden" type="file" accept=".json,.haudy-data.json,application/json" onChange={(event) => chooseHaudyImportFile(event, setPendingImportFile)} />
-                {transferMessage ? <span className="text-sm text-slate-600">{transferMessage}</span> : null}
-              </div>
-            </div>
+            <button
+              type="button"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={async () => {
+                try {
+                  const year = new Date().getFullYear().toString();
+                  await prepareStorageFolders(groups.map((group) => ({
+                    year,
+                    ascName: group.ascName,
+                    cityState: group.location,
+                    psn: ascProfiles[group.key]?.psn || "not-set",
+                  })));
+                  setStorageMessage("Storage location saved.");
+                } catch (error) {
+                  setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
+                }
+              }}
+            >
+              Choose Storage
+            </button>
+            <button
+              type="button"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={async () => {
+                setTransferMessage("Preparing data file...");
+                await exportHaudyBackup();
+                setTransferMessage("Data file created without photos.");
+              }}
+            >
+              <Download size={16} /> Export
+            </button>
+            <button
+              type="button"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={async () => {
+                setTransferMessage("Preparing data file with photos...");
+                await exportHaudyBackup({ includePhotos: true });
+                setTransferMessage("Data file with compressed photos created.");
+              }}
+            >
+              <Download size={16} /> Export Photos
+            </button>
+            <button
+              type="button"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => importInputRef.current?.click()}
+            >
+              <UploadCloud size={16} /> Import
+            </button>
+            <input ref={importInputRef} className="hidden" type="file" accept=".json,.haudy-data.json,application/json" onChange={(event) => chooseHaudyImportFile(event, setPendingImportFile)} />
           </div>
-          <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <Metric label="ASCs" value={groups.length} />
-            <Metric label="Certificates" value={audits.audits.length} />
-            <Metric label="Offline Status" value={offlineReady ? "Ready" : "Preparing"} />
-            <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-600">Field notes are stored on this device for fast site work.</div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <StatusChip label="ASCs" value={groups.length} />
+            <StatusChip label="Certificates" value={audits.audits.length} />
+            <span className={`inline-flex min-h-9 items-center rounded-full border px-3 font-semibold ${offlineReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+              {offlineReady ? "Offline ready" : online ? "Preparing offline" : "Offline not ready"}
+            </span>
           </div>
         </div>
+        {storageMessage || transferMessage ? (
+          <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-2 text-sm text-slate-600">
+            {storageMessage ? <span>{storageMessage}</span> : null}
+            {transferMessage ? <span>{transferMessage}</span> : null}
+          </div>
+        ) : null}
       </section>
       <section className="grid gap-4">
         {audits.audits.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No certificates yet.</div> : null}
@@ -597,11 +576,11 @@ function auditIdentityAscKey(audit: { ascName: string; ascCity: string; ascState
   return [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function StatusChip({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <div className="text-xl font-bold text-navy">{value}</div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-    </div>
+    <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 font-semibold text-slate-700">
+      <b className="text-navy">{value}</b>
+      <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
+    </span>
   );
 }

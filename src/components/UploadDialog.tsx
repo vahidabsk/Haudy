@@ -4,7 +4,7 @@ import { parseCertificateText } from "../lib/certificate-parser";
 import { extractDocxText } from "../lib/docx-extract";
 import { ParsedCertificate } from "../lib/types";
 
-export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCertificate[]) => string | null | void }) {
+export function UploadDialog({ onParsed, compact = false }: { onParsed: (certificates: ParsedCertificate[]) => string | null | void; compact?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -29,7 +29,18 @@ export function UploadDialog({ onParsed }: { onParsed: (certificates: ParsedCert
     }
   }
 
-  return (
+  return compact ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100">
+        <UploadCloud size={16} />
+        <span>{busy ? "Reading..." : "Upload Certificate"}</span>
+        <input className="hidden" type="file" accept=".docx" multiple onChange={upload} disabled={busy} />
+      </label>
+      {message ? (
+        <span className={`text-sm font-semibold ${message.includes("uploaded") || message.includes("replaced") ? "text-emerald-700" : "text-red-700"}`}>{message}</span>
+      ) : null}
+    </div>
+  ) : (
     <div className="rounded-lg border border-slate-200 bg-white p-4">
       <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 text-center font-semibold text-navy transition hover:border-sky-400 hover:bg-sky-50">
         <span className="grid h-11 w-11 place-items-center rounded-md bg-navy text-white"><UploadCloud size={23} /></span>
