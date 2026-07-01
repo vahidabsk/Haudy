@@ -364,14 +364,13 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
           const signalItems = printableItems.filter((item) => item.reviewType === "Signal Processing Review");
           const documentationItems = printableItems.filter((item) => item.reviewType === "Documentation Review");
           const installationItems = printableItems.filter((item) => item.reviewType === "Installation Review");
-          const addressLines = propertyAddressLines(certificate?.propertyAddress || "");
+          const propertyLines = reportPropertyLines(audit, certificate);
           return (
             <div key={audit.id} className="report-audit-block">
               <p className="report-property">
                 <b>SN: {audit.certificateNumber}</b><br />
                 <b>CCN: {certificate?.categoryCode || ""}</b><br />
-                <b>{audit.protectedProperty}</b><br />
-                {addressLines.map((line) => <b key={line}>{line}<br /></b>)}
+                {propertyLines.map((line) => <b key={line}>{line}<br /></b>)}
               </p>
               {!audit.deviceSystemLocal ? <SignalReportSection audit={audit} items={signalItems} takeNumber={takeDeficiencyNumber} /> : null}
               <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." takeNumber={takeDeficiencyNumber} />
@@ -819,9 +818,42 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
 function propertyAddressLines(address: string) {
   const cleanAddress = cleanReportAddress(address);
   if (!cleanAddress) return [];
+  const fullAddressMatch = cleanAddress.match(/^(.+?),\s*([^,]+),?\s+([A-Z]{2}|California)\s+(\d{5}(?:-\d{4})?)(?:\s+UNITED STATES)?$/i);
+  if (fullAddressMatch) {
+    const state = fullAddressMatch[3].toUpperCase() === "CALIFORNIA" ? "CA" : fullAddressMatch[3].toUpperCase();
+    return [fullAddressMatch[1].trim(), `${fullAddressMatch[2].trim()}, ${state} ${fullAddressMatch[4]} UNITED STATES`];
+  }
+  const cityOnlyMatch = cleanAddress.match(/^([^,]+),?\s+([A-Z]{2}|California)\s+(\d{5}(?:-\d{4})?)(?:\s+UNITED STATES)?$/i);
+  if (cityOnlyMatch) {
+    const state = cityOnlyMatch[2].toUpperCase() === "CALIFORNIA" ? "CA" : cityOnlyMatch[2].toUpperCase();
+    return [`${cityOnlyMatch[1].trim()}, ${state} ${cityOnlyMatch[3]} UNITED STATES`];
+  }
   const parts = cleanAddress.split(",").map((part) => part.trim()).filter(Boolean);
   if (parts.length <= 1) return [cleanAddress];
   return [parts[0], parts.slice(1).join(", ")];
+}
+
+function reportPropertyLines(audit: Audit, certificate: ParsedCertificate | undefined) {
+  const propertyName = cleanReportAddress(audit.protectedProperty || certificate?.propertyName || "");
+  const addressLines = propertyAddressLines(certificate?.propertyAddress || "");
+  const split = splitTrailingStreetAddress(propertyName);
+  if (!split) return [propertyName, ...addressLines].filter(Boolean);
+
+  const hasStreetAddress = addressLines.some((line) => /\d/.test(line) && streetSuffixPattern.test(line));
+  const lines = [split.name];
+  if (!hasStreetAddress) lines.push(split.street);
+  return [...lines, ...addressLines].filter(Boolean);
+}
+
+const streetSuffixPattern = /\b(?:street|st\.?|avenue|ave\.?|road|rd\.?|drive|dr\.?|boulevard|blvd\.?|lane|ln\.?|court|ct\.?|circle|cir\.?|way|place|pl\.?|parkway|pkwy\.?)\b/i;
+
+function splitTrailingStreetAddress(value: string) {
+  const match = value.match(/\b(\d{1,6}\s+.+?\b(?:street|st\.?|avenue|ave\.?|road|rd\.?|drive|dr\.?|boulevard|blvd\.?|lane|ln\.?|court|ct\.?|circle|cir\.?|way|place|pl\.?|parkway|pkwy\.?))$/i);
+  if (!match?.index || match.index < 4) return null;
+  const name = value.slice(0, match.index).trim();
+  const street = match[1].trim();
+  if (!name || !street) return null;
+  return { name, street };
 }
 
 function ascReportAddressLines(certificate: ParsedCertificate | undefined, fallback: string) {
