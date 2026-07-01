@@ -11,6 +11,7 @@ import { ReportFindingFields, ReportFindingValue } from "../components/ReportFin
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
 type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests" | "sectionReview";
+type ReportEditorSection = "service" | "signal" | "documentation" | "installation";
 
 interface ReportItem {
   id: string;
@@ -65,12 +66,24 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const savedReportDraft = loadAscDocuments()[ascKey]?.report;
   const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
+  const reportAudits = useMemo(() => reportAuditsByCategory(group.audits), [group.audits]);
+  const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
+  const [activeReportSection, setActiveReportSection] = useState<ReportEditorSection>("service");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some((comment) => !comment.finding.trim() || !comment.requiredAction.trim() || !(comment.codeStandard || "NFPA 72").trim() || !comment.codeEdition.trim() || !comment.codeSection.trim());
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
+  const activeAudit = reportAudits.find((audit) => audit.id === activeAuditId) || reportAudits[0];
+  const activeItems = activeAudit ? reportItems.filter(({ audit }) => audit.id === activeAudit.id) : [];
+  const activeSignalItems = activeItems.filter(({ item }) => item.reviewType === "Signal Processing Review");
+  const activeDocumentationItems = activeItems.filter(({ item }) => item.reviewType === "Documentation Review");
+  const activeInstallationItems = activeItems.filter(({ item }) => item.reviewType === "Installation Review");
+
+  useEffect(() => {
+    if (reportAudits.length && !reportAudits.some((audit) => audit.id === activeAuditId)) setActiveAuditId(reportAudits[0].id);
+  }, [activeAuditId, reportAudits]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -125,112 +138,67 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
           {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
-        <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <label className="grid gap-1 text-sm font-medium text-slate-700">
-            Does the service center have any comments?
-            <select
-              className="min-h-11 rounded-md border bg-white px-3"
-              value={serviceCenterHasComment ? "YES" : "NO"}
-              onChange={(event) => {
-                const nextHasComment = event.target.value === "YES";
+        <div className="grid gap-3">
+          <div className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-2">
+            {reportAudits.map((audit) => (
+              <button
+                key={audit.id}
+                type="button"
+                className={`min-h-10 shrink-0 rounded-md border px-3 py-2 text-left text-sm font-semibold transition ${activeAudit?.id === audit.id ? "border-navy bg-navy text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"}`}
+                onClick={() => setActiveAuditId(audit.id)}
+              >
+                <span className="block max-w-[18rem] truncate">{audit.protectedProperty || "Property"}</span>
+                <span className={`block text-xs ${activeAudit?.id === audit.id ? "text-white/75" : "text-slate-500"}`}>{primaryCertificate(audit)?.categoryCode || "CCN"} | {audit.certificateNumber || "SN"}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto rounded-md border border-slate-200 bg-white p-2">
+            {[
+              { id: "service" as const, label: "Service Center", count: serviceCenterHasComment ? serviceCenterComments.length : 0 },
+              { id: "signal" as const, label: "Signal Processing", count: activeSignalItems.length },
+              { id: "documentation" as const, label: "Documentation", count: activeDocumentationItems.length },
+              { id: "installation" as const, label: "Installation", count: activeInstallationItems.length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`min-h-10 shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeReportSection === tab.id ? "border-sky-700 bg-sky-50 text-sky-900" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                onClick={() => setActiveReportSection(tab.id)}
+              >
+                {tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span>
+              </button>
+            ))}
+          </div>
+          {activeReportSection === "service" ? (
+            <ServiceCenterReportEditor
+              hasComment={serviceCenterHasComment}
+              comments={serviceCenterComments}
+              incomplete={serviceCenterIncomplete}
+              onHasCommentChange={(nextHasComment) => {
                 setServiceCenterHasComment(nextHasComment);
                 const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
                 if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
                 updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterComments: nextComments });
               }}
-            >
-              <option value="NO">No</option>
-              <option value="YES">Yes</option>
-            </select>
-          </label>
-          {serviceCenterHasComment ? (
-            <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-semibold text-amber-950">Service Center Comments</div>
-                <button
-                  type="button"
-                  className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
-                  onClick={() => updateServiceCenterComments([...serviceCenterComments, blankServiceCenterComment()])}
-                >
-                  Add Finding
-                </button>
-              </div>
-              {serviceCenterComments.map((comment, index) => (
-                <div key={comment.id} className="grid gap-2 rounded-md border border-amber-200 bg-white/70 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-amber-950">
-                    <span>Service Center Comment {index + 1}</span>
-                    {serviceCenterComments.length > 1 ? (
-                      <button
-                        type="button"
-                        className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
-                        onClick={() => updateServiceCenterComments(serviceCenterComments.filter((item) => item.id !== comment.id))}
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
-                  <ReportFindingFields
-                    value={serviceCenterReportValue(comment)}
-                    showCsisHelp
-                    onChange={(reportFields) => updateServiceCenterComment(comment.id, serviceCenterPatch(reportFields))}
-                  />
-                </div>
-              ))}
-              {serviceCenterIncomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention.</div> : <div className="text-sm font-medium text-emerald-700">Service center comment ready for report.</div>}
-            </div>
-          ) : null}
+              onUpdateComments={updateServiceCenterComments}
+              onUpdateComment={updateServiceCenterComment}
+            />
+          ) : activeAudit ? (
+            <ReportEditorSectionPanel
+              audit={activeAudit}
+              items={activeReportSection === "signal" ? activeSignalItems : activeReportSection === "documentation" ? activeDocumentationItems : activeInstallationItems}
+              emptyText={activeReportSection === "signal" ? "No signal processing variations for this property." : activeReportSection === "documentation" ? "No documentation variations for this property." : "No installation or device test variations for this property."}
+              onUpdateAudit={onUpdateAudit}
+            />
+          ) : (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No properties found for this ASC.</div>
+          )}
+          {reportItems.length ? (
+            incomplete.length ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{incomplete.length} variation{incomplete.length === 1 ? "" : "s"} will print with blank report fields until completed.</div> : null
+          ) : (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No variations found for this ASC.</div>
+          )}
         </div>
-        {reportItems.length ? (
-          <div className="grid gap-3">
-            {reportItems.map(({ audit, item }) => {
-              const missing = !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
-              const certificateCode = certificateCodeReference(audit);
-              return (
-                <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
-                  <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
-                  <div className="flex flex-wrap gap-2">
-                    {item.extraIndex === undefined ? (
-                      <button
-                        type="button"
-                        className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-50"
-                        onClick={() => onUpdateAudit(addReportFinding(audit, item))}
-                      >
-                        Add Finding
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="min-h-9 rounded-md border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
-                        onClick={() => onUpdateAudit(removeReportFinding(audit, item))}
-                      >
-                        Remove Finding
-                      </button>
-                    )}
-                  </div>
-                  {certificateCode.year ? <div className="text-xs font-medium text-slate-500">Certificate declared: {certificateCode.standard}, {certificateCode.year} Edition</div> : null}
-                  {item.note ? (
-                    <div className="text-sm font-medium text-red-700">
-                      <span className="font-bold">Field Note:</span> {item.note}
-                    </div>
-                  ) : (
-                    <div className="text-sm italic text-slate-500">Field note left empty.</div>
-                  )}
-                  <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
-                  <ReportFindingFields
-                    value={reportValue(item)}
-                    showCsisHelp
-                    helpStandard={certificateCode.standard}
-                    helpYear={certificateCode.year}
-                    onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
-                  />
-                </div>
-              );
-            })}
-            {incomplete.length ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{incomplete.length} variation{incomplete.length === 1 ? "" : "s"} will print with blank report fields until completed.</div> : null}
-          </div>
-        ) : (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No variations found for this ASC.</div>
-        )}
       </div>
 
       <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
@@ -323,6 +291,130 @@ function serviceCenterPatch(reportFields: Partial<ReportFindingValue>): Partial<
     ...("reportCodeEdition" in reportFields ? { codeEdition: reportFields.reportCodeEdition || "" } : {}),
     ...("reportCodeSection" in reportFields ? { codeSection: reportFields.reportCodeSection || "" } : {}),
   };
+}
+
+function ServiceCenterReportEditor({
+  hasComment,
+  comments,
+  incomplete,
+  onHasCommentChange,
+  onUpdateComments,
+  onUpdateComment,
+}: {
+  hasComment: boolean;
+  comments: ServiceCenterComment[];
+  incomplete: boolean;
+  onHasCommentChange: (hasComment: boolean) => void;
+  onUpdateComments: (comments: ServiceCenterComment[]) => void;
+  onUpdateComment: (id: string, patch: Partial<ServiceCenterComment>) => void;
+}) {
+  return (
+    <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+      <label className="grid gap-1 text-sm font-medium text-slate-700">
+        Does the service center have any comments?
+        <select
+          className="min-h-11 rounded-md border bg-white px-3"
+          value={hasComment ? "YES" : "NO"}
+          onChange={(event) => onHasCommentChange(event.target.value === "YES")}
+        >
+          <option value="NO">No</option>
+          <option value="YES">Yes</option>
+        </select>
+      </label>
+      {hasComment ? (
+        <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-amber-950">Service Center Comments</div>
+            <button
+              type="button"
+              className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+              onClick={() => onUpdateComments([...comments, blankServiceCenterComment()])}
+            >
+              Add Finding
+            </button>
+          </div>
+          {comments.map((comment, index) => (
+            <div key={comment.id} className="grid gap-2 rounded-md border border-amber-200 bg-white/70 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-amber-950">
+                <span>Service Center Comment {index + 1}</span>
+                {comments.length > 1 ? (
+                  <button
+                    type="button"
+                    className="rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                    onClick={() => onUpdateComments(comments.filter((item) => item.id !== comment.id))}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <ReportFindingFields
+                value={serviceCenterReportValue(comment)}
+                showCsisHelp
+                onChange={(reportFields) => onUpdateComment(comment.id, serviceCenterPatch(reportFields))}
+              />
+            </div>
+          ))}
+          {incomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention.</div> : <div className="text-sm font-medium text-emerald-700">Service center comment ready for report.</div>}
+        </div>
+      ) : (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No service center comments will print.</div>
+      )}
+    </div>
+  );
+}
+
+function ReportEditorSectionPanel({ audit, items, emptyText, onUpdateAudit }: { audit: Audit; items: Array<{ audit: Audit; item: ReportItem }>; emptyText: string; onUpdateAudit: (audit: Audit) => void }) {
+  if (!items.length) return <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{emptyText}</div>;
+  return (
+    <div className="grid gap-3">
+      {items.map(({ item }) => <ReportEditorItemCard key={`${audit.id}-${item.id}`} audit={audit} item={item} onUpdateAudit={onUpdateAudit} />)}
+    </div>
+  );
+}
+
+function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; item: ReportItem; onUpdateAudit: (audit: Audit) => void }) {
+  const missing = !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+  const certificateCode = certificateCodeReference(audit);
+  return (
+    <div className="grid gap-1 rounded-md border bg-slate-50 p-3">
+      <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
+      <div className="flex flex-wrap gap-2">
+        {item.extraIndex === undefined ? (
+          <button
+            type="button"
+            className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+            onClick={() => onUpdateAudit(addReportFinding(audit, item))}
+          >
+            Add Finding
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="min-h-9 rounded-md border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
+            onClick={() => onUpdateAudit(removeReportFinding(audit, item))}
+          >
+            Remove Finding
+          </button>
+        )}
+      </div>
+      {certificateCode.year ? <div className="text-xs font-medium text-slate-500">Certificate declared: {certificateCode.standard}, {certificateCode.year} Edition</div> : null}
+      {item.note ? (
+        <div className="text-sm font-medium text-red-700">
+          <span className="font-bold">Field Note:</span> {item.note}
+        </div>
+      ) : (
+        <div className="text-sm italic text-slate-500">Field note left empty.</div>
+      )}
+      <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report wording needs attention." : "Ready for report."}</div>
+      <ReportFindingFields
+        value={reportValue(item)}
+        showCsisHelp
+        helpStandard={certificateCode.standard}
+        helpYear={certificateCode.year}
+        onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
+      />
+    </div>
+  );
 }
 
 function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
