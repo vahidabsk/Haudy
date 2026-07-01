@@ -58,6 +58,8 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     systemDeviations: systemDeviations(lines),
     controlUnitMfr: labelValue(joined, "Control Unit Manufacturer"),
     controlUnitModel: labelValue(joined, "Control Unit Model"),
+    signalTransmitterMfr: labelValue(joined, "Signal Transmitter Manufacturer") || labelValue(joined, "Transmitter Manufacturer"),
+    signalTransmitterModel: labelValue(joined, "Signal Transmitter Model") || labelValue(joined, "Transmitter Model"),
     primaryTransmission: labelValue(joined, "Primary Transmission Method"),
     retransmission: labelValue(joined, "Retransmission To Fire Department"),
     centralStation: monitoring.name,
