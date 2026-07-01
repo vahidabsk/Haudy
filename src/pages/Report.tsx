@@ -70,15 +70,16 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [serviceCenterDone, setServiceCenterDone] = useState(savedReportDraft?.serviceCenterDone ?? false);
   const [serviceCenterMinimized, setServiceCenterMinimized] = useState(false);
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
+  const [reportLetterDate, setReportLetterDate] = useState(savedReportDraft?.letterDate || todayInputValue());
   const reportAudits = useMemo(() => reportAuditsByCategory(group.audits), [group.audits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
   const [activeReportSection, setActiveReportSection] = useState<ReportEditorSection>("signal");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => reportItemNeedsAttention(item));
   const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some(serviceCenterCommentNeedsAttention);
-  const today = new Date();
+  const reportDate = dateFromInput(reportLetterDate);
   const fileReferences = referenceFiles(group.audits);
-  const reportName = reportFileName(group, today, fileReferences, scn);
+  const reportName = reportFileName(group, reportDate, fileReferences, scn);
   const activeAudit = reportAudits.find((audit) => audit.id === activeAuditId) || reportAudits[0];
   const activeItems = activeAudit ? reportItems.filter(({ audit }) => audit.id === activeAudit.id) : [];
   const activeSignalItems = activeItems.filter(({ item }) => item.reviewType === "Signal Processing Review");
@@ -114,11 +115,11 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             <button
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
-                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
                 setSavedAt(next[ascKey]?.report?.updatedAt || "");
                 try {
                   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
-                  await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: today.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
+                  await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
                   setFolderMessage("Saved to Haudy Storage.");
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
@@ -134,13 +135,30 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           <p className="mt-1 text-sm text-slate-600">{reportItems.length} deficienc{reportItems.length === 1 ? "y" : "ies"} noted from completed field notes. Complete the report language before printing.</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-          <span className="font-semibold text-navy">POC:</span> {pocName || ""}
-          <span className="mx-2 text-slate-300">|</span>
-          <span className="font-semibold text-navy">SCN:</span> {scn || ""}
-          <span className="mx-2 text-slate-300">|</span>
-          <span className="font-semibold text-navy">PSN:</span> {psn || ""}
-          {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
-          {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span className="font-semibold text-navy">POC:</span> {pocName || ""}
+              <span className="mx-2 text-slate-300">|</span>
+              <span className="font-semibold text-navy">SCN:</span> {scn || ""}
+              <span className="mx-2 text-slate-300">|</span>
+              <span className="font-semibold text-navy">PSN:</span> {psn || ""}
+              {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
+              {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
+            </div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              Report date
+              <input
+                className="min-h-10 rounded-md border border-slate-300 bg-white px-3"
+                type="date"
+                value={reportLetterDate}
+                onChange={(event) => {
+                  const nextDate = event.target.value;
+                  setReportLetterDate(nextDate);
+                  updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, letterDate: nextDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+                }}
+              />
+            </label>
+          </div>
         </div>
         <div className="grid gap-4">
           <div className={`grid gap-3 rounded-lg border-2 p-3 shadow-sm ${serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete) === "needs" ? "border-amber-200 bg-amber-50" : serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete) === "done" ? "border-emerald-200 bg-emerald-50" : "border-sky-100 bg-white"}`}>
@@ -266,7 +284,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
         </div>
       </div>
 
-      <ReportLetterPage group={group} pocName={pocName} date={today} files={fileReferences} scn={scn} psn={psn} />
+      <ReportLetterPage group={group} pocName={pocName} date={reportDate} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditor={auditor} />
       <AuditCommentsPage group={group} serviceCenterHasComment={serviceCenterHasComment} serviceCenterComments={serviceCenterComments} />
     </main>
@@ -274,7 +292,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
 
   function updateServiceCenterComments(nextComments: ServiceCenterComment[]) {
     setServiceCenterComments(nextComments);
-    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone, serviceCenterComments: nextComments });
+    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments: nextComments });
   }
 
   function updateServiceCenterComment(id: string, patch: Partial<ServiceCenterComment>) {
@@ -1308,4 +1326,13 @@ function formatAscAddress(value: string) {
 
 function formatLongDate(value: Date) {
   return value.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function dateFromInput(value: string) {
+  return value ? new Date(`${value}T12:00:00`) : new Date();
+}
+
+function todayInputValue() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 }
