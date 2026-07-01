@@ -82,6 +82,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           <ReadonlyAuditInfo label="Auditor" value={audit.auditorName} />
           <ReadonlyAuditInfo label="Certificate" value={audit.certificateNumber} />
         </div>
+        <CertificateSummary certificate={primary} />
         <div className="flex flex-wrap gap-2 rounded-md border bg-white p-2">
           {auditTabs.map(({ Icon, ...tab }) => (
             <button
@@ -96,7 +97,6 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           ))}
         </div>
       </section>
-      <CertificateSummary certificate={primary} />
       <section className="grid gap-2 rounded-lg border bg-white p-4 shadow-sm">
         <h3 className="flex items-center gap-2 font-semibold text-navy"><ClipboardCheck size={18} className="text-emerald-600" />Certificate</h3>
         {audit.certificates.map((certificate, index) => (
