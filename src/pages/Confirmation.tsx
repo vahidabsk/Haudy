@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
-import { saveAscDocument } from "../lib/asc-documents";
+import { loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
@@ -13,26 +13,33 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
   const auditorName = auditor?.name || "";
   const store = useAudits(auditorName);
   const group = groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
+  const savedConfirmation = loadAscDocuments()[decodeURIComponent(ascKey)]?.confirmation;
   const pocName = searchParams.get("poc") || "";
-  const startDate = searchParams.get("start") || searchParams.get("date") || "";
-  const endDate = searchParams.get("end") || startDate;
+  const startDate = searchParams.get("start") || searchParams.get("date") || savedConfirmation?.startDate || "";
+  const endDate = searchParams.get("end") || savedConfirmation?.endDate || startDate;
+  const conversationDate = searchParams.get("conversation") || savedConfirmation?.conversationDate || todayInputValue();
+  const letterDate = searchParams.get("letter") || savedConfirmation?.letterDate || todayInputValue();
   const scn = searchParams.get("scn") || "";
   const psn = searchParams.get("psn") || "";
 
   if (!group) return <main className="p-6">ASC not found.</main>;
 
-  return <ConfirmationDocument ascKey={decodeURIComponent(ascKey)} group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} scn={scn} psn={psn} />;
+  return <ConfirmationDocument ascKey={decodeURIComponent(ascKey)} group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} conversationDate={conversationDate} letterDate={letterDate} scn={scn} psn={psn} />;
 }
 
-function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; scn: string; psn: string }) {
+function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, conversationDate, letterDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; conversationDate: string; letterDate: string; scn: string; psn: string }) {
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
+  const [auditStartDate, setAuditStartDate] = useState(startDate);
+  const [auditEndDate, setAuditEndDate] = useState(endDate || startDate);
+  const [scheduleConversationDate, setScheduleConversationDate] = useState(conversationDate);
+  const [confirmationLetterDate, setConfirmationLetterDate] = useState(letterDate);
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
   const fileReferences = referenceFiles(group.audits);
   const selectedSites = groupByCategory(group.audits);
-  const scheduledYear = startDate ? dateParts(startDate).year : today.getFullYear().toString();
+  const scheduledYear = auditStartDate ? dateParts(auditStartDate).year : today.getFullYear().toString();
   const confirmationFileName = confirmationName({
     year: scheduledYear,
     ascName: group.ascName,
@@ -41,6 +48,18 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     scn,
     categories: selectedSites.map((section) => section.category),
   });
+  const maxEndDate = maxAuditEndDate(auditStartDate);
+  const updateDates = (next: { startDate?: string; endDate?: string; conversationDate?: string; letterDate?: string }) => {
+    const nextStartDate = next.startDate ?? auditStartDate;
+    const nextEndDate = next.endDate ?? auditEndDate;
+    const nextConversationDate = next.conversationDate ?? scheduleConversationDate;
+    const nextLetterDate = next.letterDate ?? confirmationLetterDate;
+    setAuditStartDate(nextStartDate);
+    setAuditEndDate(nextEndDate);
+    setScheduleConversationDate(nextConversationDate);
+    setConfirmationLetterDate(nextLetterDate);
+    updateAscDocumentDraft(ascKey, "confirmation", { pocName, scn, psn, startDate: nextStartDate, endDate: nextEndDate, conversationDate: nextConversationDate, letterDate: nextLetterDate });
+  };
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -67,7 +86,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
             <button
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
-                const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate, endDate });
+                const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
                 setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
                 try {
                   await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
@@ -90,12 +109,35 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
           {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
+        <div className="grid gap-3 rounded-md border border-sky-100 bg-sky-50 p-3 sm:grid-cols-4">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit start date
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={auditStartDate} onChange={(event) => {
+              const nextStartDate = event.target.value;
+              const nextMaxEndDate = maxAuditEndDate(nextStartDate);
+              const nextEndDate = !auditEndDate || auditEndDate < nextStartDate || (nextMaxEndDate && auditEndDate > nextMaxEndDate) ? nextStartDate : auditEndDate;
+              updateDates({ startDate: nextStartDate, endDate: nextEndDate });
+            }} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit end date
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={auditEndDate} min={auditStartDate} max={maxEndDate} onChange={(event) => updateDates({ endDate: event.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Schedule conversation date
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={scheduleConversationDate} onChange={(event) => updateDates({ conversationDate: event.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Letter date
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={confirmationLetterDate} onChange={(event) => updateDates({ letterDate: event.target.value })} />
+          </label>
+        </div>
       </div>
 
       <section className="confirmation-page print-page bg-white text-black shadow-sm print:shadow-none">
         <ConfirmationHeader />
         <div className="confirmation-letter">
-          <p>{formatLongDate(today)}</p>
+          <p>{formatLongDate(confirmationLetterDate || today)}</p>
           <p>
             {pocName}<br />
             {group.ascName}<br />
@@ -104,7 +146,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           <p>Our Reference: FILE(s): {fileReferences || "Not listed"}<span className="confirmation-reference-gap">SCN: {scn || ""}</span><span className="confirmation-reference-gap">PSN: {psn || ""}</span></p>
           <p>Subject: Annual Audit Confirmation</p>
           <p>Dear {firstName(pocName)} ,</p>
-          <p>This is to confirm our conversation on {formatLongDate(today)} during which we scheduled the annual audit of the referenced file for {formatDateRange(startDate, endDate)}.</p>
+          <p>This is to confirm our conversation on {formatLongDate(scheduleConversationDate || today)} during which we scheduled the annual audit of the referenced file for {formatDateRange(auditStartDate, auditEndDate)}.</p>
           <p>As noted in the Service Agreement that your organization executed with UL, your continued Listing is contingent upon your continued ability to deliver Code/Standard compliant service. Your organization was granted a Listing based on a favorable assessment of its ability to fulfill this obligation. Our audit this year is intended to verify this ability.</p>
           <p>We will review compliance to the applicable standards for the category or categories being audited. This could include but is not limited to certificated field installations, documentation, records, signal handling, operational procedures, response procedures, and/or monitoring facilities.</p>
           <p>Our objective is to verify that your organization is still capable of delivering Code/Standard compliant service. Our desire is to make the process as smooth as possible. Our experience is that preparation is key to success on both counts.</p>
@@ -312,4 +354,17 @@ function daysBetween(start: Date, end: Date) {
 function dateParts(value: string) {
   const date = value ? new Date(`${value}T12:00:00`) : new Date();
   return { date, year: date.getFullYear().toString() };
+}
+
+function maxAuditEndDate(startDate: string) {
+  const [year, month, day] = startDate.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + 4);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function todayInputValue() {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 }
