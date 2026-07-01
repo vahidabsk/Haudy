@@ -2,6 +2,7 @@ import { DictationNotes } from "./DictationNotes";
 import { AuditorReportDatabase, AuditorReportSelection } from "./AuditorReportDatabase";
 import { AuditorReportFinding } from "../lib/auditor-report-findings";
 import { CsisDefectList } from "./CsisDefectList";
+import { isReferenceUsed, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 
 export interface ReportFindingValue {
   reportFinding: string;
@@ -15,7 +16,10 @@ const editionOptions = ["2022", "2019", "2016", "2013", "2010", "2007", "2002"];
 const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70"];
 
 export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpStandard?: string; helpYear?: string }) {
-  const selectedStandard = value.reportCodeStandard || "NFPA 72";
+  const standardUsed = isReferenceUsed(value.reportCodeStandard);
+  const editionUsed = isReferenceUsed(value.reportCodeEdition);
+  const sectionUsed = isReferenceUsed(value.reportCodeSection);
+  const selectedStandard = standardUsed ? value.reportCodeStandard || "NFPA 72" : "";
   function applyAuditorReportSelection(finding: AuditorReportFinding, selection: AuditorReportSelection) {
     const referenceFields = {
       reportCodeStandard: finding.standard || "NFPA 72",
@@ -70,20 +74,44 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
       </label>
       <div className="grid gap-3 md:grid-cols-[minmax(140px,1fr)_minmax(120px,1fr)] xl:grid-cols-[minmax(150px,0.8fr)_minmax(130px,0.7fr)_minmax(300px,2fr)]">
         <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
-          Code Reference
-          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3" list="report-code-standard-options" value={selectedStandard} onChange={(event) => onChange({ reportCodeStandard: event.target.value })} placeholder="Example: NFPA 72" />
+          <span className="flex items-center justify-between gap-2">
+            Code Reference
+            <ReferenceUseToggle used={standardUsed} onChange={(used) => onChange({ reportCodeStandard: used ? "NFPA 72" : UNUSED_REFERENCE_VALUE })} />
+          </span>
+          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3 disabled:bg-slate-100 disabled:text-slate-400" disabled={!standardUsed} list="report-code-standard-options" value={selectedStandard} onChange={(event) => onChange({ reportCodeStandard: event.target.value })} placeholder={standardUsed ? "Example: NFPA 72" : "Not used"} />
           <datalist id="report-code-standard-options">{standardOptions.map((standard) => <option key={standard} value={standard} />)}</datalist>
         </label>
         <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
-          Edition
-          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3" list="report-code-edition-options" value={value.reportCodeEdition} onChange={(event) => onChange({ reportCodeEdition: event.target.value })} placeholder="Example: 2022" />
+          <span className="flex items-center justify-between gap-2">
+            Edition
+            <ReferenceUseToggle used={editionUsed} onChange={(used) => onChange({ reportCodeEdition: used ? "" : UNUSED_REFERENCE_VALUE })} />
+          </span>
+          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3 disabled:bg-slate-100 disabled:text-slate-400" disabled={!editionUsed} list="report-code-edition-options" value={editionUsed ? value.reportCodeEdition : ""} onChange={(event) => onChange({ reportCodeEdition: event.target.value })} placeholder={editionUsed ? "Example: 2022" : "Not used"} />
           <datalist id="report-code-edition-options">{editionOptions.map((edition) => <option key={edition} value={edition} />)}</datalist>
         </label>
         <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700 md:col-span-2 xl:col-span-1">
-          Section / paragraph number
-          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3" value={value.reportCodeSection} onChange={(event) => onChange({ reportCodeSection: event.target.value })} placeholder="Example: 26.3.8.1" />
+          <span className="flex items-center justify-between gap-2">
+            Section / paragraph number
+            <ReferenceUseToggle used={sectionUsed} onChange={(used) => onChange({ reportCodeSection: used ? "" : UNUSED_REFERENCE_VALUE })} />
+          </span>
+          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3 disabled:bg-slate-100 disabled:text-slate-400" disabled={!sectionUsed} value={sectionUsed ? value.reportCodeSection : ""} onChange={(event) => onChange({ reportCodeSection: event.target.value })} placeholder={sectionUsed ? "Example: 26.3.8.1" : "Not used"} />
         </label>
       </div>
     </div>
+  );
+}
+
+function ReferenceUseToggle({ used, onChange }: { used: boolean; onChange: (used: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      className={`rounded-full border px-2 py-1 text-xs font-semibold ${used ? "border-slate-200 bg-white text-slate-600" : "border-slate-300 bg-slate-200 text-slate-700"}`}
+      onClick={(event) => {
+        event.preventDefault();
+        onChange(!used);
+      }}
+    >
+      {used ? "Use" : "Not used"}
+    </button>
   );
 }

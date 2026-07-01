@@ -6,6 +6,7 @@ import { loadAscDocuments, saveAscDocument, ServiceCenterComment, updateAscDocum
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { loadPhoto } from "../lib/photo-store";
+import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
@@ -72,8 +73,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
   const [activeReportSection, setActiveReportSection] = useState<ReportEditorSection>("signal");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
-  const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
-  const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some((comment) => !comment.finding.trim() || !comment.requiredAction.trim() || !(comment.codeStandard || "NFPA 72").trim() || !comment.codeEdition.trim() || !comment.codeSection.trim());
+  const incomplete = reportItems.filter(({ item }) => reportItemNeedsAttention(item));
+  const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some(serviceCenterCommentNeedsAttention);
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -334,7 +335,7 @@ function serviceCenterPatch(reportFields: Partial<ReportFindingValue>): Partial<
   return {
     ...("reportFinding" in reportFields ? { finding: reportFields.reportFinding || "" } : {}),
     ...("reportRequiredAction" in reportFields ? { requiredAction: reportFields.reportRequiredAction || "" } : {}),
-    ...("reportCodeStandard" in reportFields ? { codeStandard: reportFields.reportCodeStandard || "NFPA 72" } : {}),
+    ...("reportCodeStandard" in reportFields ? { codeStandard: reportFields.reportCodeStandard || (reportFields.reportCodeStandard === UNUSED_REFERENCE_VALUE ? UNUSED_REFERENCE_VALUE : "NFPA 72") } : {}),
     ...("reportCodeEdition" in reportFields ? { codeEdition: reportFields.reportCodeEdition || "" } : {}),
     ...("reportCodeSection" in reportFields ? { codeSection: reportFields.reportCodeSection || "" } : {}),
   };
@@ -461,7 +462,7 @@ function SectionDoneToggle({ done, disabled, onChange }: { done: boolean; disabl
 }
 
 function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; item: ReportItem; onUpdateAudit: (audit: Audit) => void }) {
-  const missing = !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+  const missing = reportItemNeedsAttention(item);
   const certificateCode = certificateCodeReference(audit);
   return (
     <div className="grid gap-1 rounded-md border bg-slate-50 p-3">
@@ -730,7 +731,11 @@ function reportItemHasContent(item: ReportItem) {
 }
 
 function reportItemNeedsAttention(item: ReportItem) {
-  return !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim();
+  return !item.finding.trim() || !item.requiredAction.trim() || !isReferenceComplete(item.codeStandard, "NFPA 72") || !isReferenceComplete(item.codeEdition) || !isReferenceComplete(item.codeSection);
+}
+
+function serviceCenterCommentNeedsAttention(comment: ServiceCenterComment) {
+  return !comment.finding.trim() || !comment.requiredAction.trim() || !isReferenceComplete(comment.codeStandard, "NFPA 72") || !isReferenceComplete(comment.codeEdition) || !isReferenceComplete(comment.codeSection);
 }
 
 function reportPropertyStats(audit: Audit) {
@@ -1028,7 +1033,7 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
   const patch = {
     ...("reportFinding" in reportFields ? { reportFinding: reportFields.reportFinding || "" } : {}),
     ...("reportRequiredAction" in reportFields ? { reportRequiredAction: reportFields.reportRequiredAction || "" } : {}),
-    ...("reportCodeStandard" in reportFields ? { reportCodeStandard: reportFields.reportCodeStandard || "NFPA 72" } : {}),
+    ...("reportCodeStandard" in reportFields ? { reportCodeStandard: reportFields.reportCodeStandard || (reportFields.reportCodeStandard === UNUSED_REFERENCE_VALUE ? UNUSED_REFERENCE_VALUE : "NFPA 72") } : {}),
     ...("reportCodeEdition" in reportFields ? { reportCodeEdition: reportFields.reportCodeEdition || "" } : {}),
     ...("reportCodeSection" in reportFields ? { reportCodeSection: reportFields.reportCodeSection || "" } : {}),
   };
@@ -1041,7 +1046,7 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
       ...existing,
       ...("reportFinding" in reportFields ? { finding: reportFields.reportFinding || "" } : {}),
       ...("reportRequiredAction" in reportFields ? { requiredAction: reportFields.reportRequiredAction || "" } : {}),
-      ...("reportCodeStandard" in reportFields ? { codeStandard: reportFields.reportCodeStandard || "NFPA 72" } : {}),
+      ...("reportCodeStandard" in reportFields ? { codeStandard: reportFields.reportCodeStandard || (reportFields.reportCodeStandard === UNUSED_REFERENCE_VALUE ? UNUSED_REFERENCE_VALUE : "NFPA 72") } : {}),
       ...("reportCodeEdition" in reportFields ? { codeEdition: reportFields.reportCodeEdition || "" } : {}),
       ...("reportCodeSection" in reportFields ? { codeSection: reportFields.reportCodeSection || "" } : {}),
     };
@@ -1203,17 +1208,21 @@ function escapeRegExp(value: string) {
 }
 
 function formatCodeReference(item: ReportItem) {
-  const edition = item.codeEdition ? `${item.codeEdition.replace(/\D/g, "") || item.codeEdition} Edition` : "";
-  const section = item.codeSection ? `Section ${item.codeSection}` : "";
-  const standard = item.codeStandard || "NFPA 72";
-  return [standard, edition, section].filter(Boolean).join(", ");
+  const standard = printableReferenceValue(item.codeStandard, "NFPA 72");
+  const editionValue = printableReferenceValue(item.codeEdition);
+  const sectionValue = printableReferenceValue(item.codeSection);
+  const edition = editionValue ? `${editionValue.replace(/\D/g, "") || editionValue} Edition` : "";
+  const section = sectionValue ? `Section ${sectionValue}` : "";
+  return [standard, edition, section].filter(Boolean).join(", ") || "Not used";
 }
 
 function formatServiceCenterCodeReference(comment: ServiceCenterComment) {
-  const edition = comment.codeEdition ? `${comment.codeEdition.replace(/\D/g, "") || comment.codeEdition} Edition` : "";
-  const section = comment.codeSection ? `Section ${comment.codeSection}` : "";
-  const standard = comment.codeStandard || "NFPA 72";
-  return [standard, edition, section].filter(Boolean).join(", ");
+  const standard = printableReferenceValue(comment.codeStandard, "NFPA 72");
+  const editionValue = printableReferenceValue(comment.codeEdition);
+  const sectionValue = printableReferenceValue(comment.codeSection);
+  const edition = editionValue ? `${editionValue.replace(/\D/g, "") || editionValue} Edition` : "";
+  const section = sectionValue ? `Section ${sectionValue}` : "";
+  return [standard, edition, section].filter(Boolean).join(", ") || "Not used";
 }
 
 function ReportHeader() {
