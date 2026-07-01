@@ -442,7 +442,7 @@ textarea {
   width: 8.5in;
   min-height: 11in;
   margin: 0 auto 24px;
-  padding: 0.62in 0.78in 0.62in;
+  padding: 0.55in 0.7in 0.58in;
   break-after: page;
   page-break-after: always;
   overflow: visible;
@@ -484,7 +484,7 @@ textarea {
 }
 
 .report-comments-page {
-  padding-top: 0.42in;
+  padding-top: 0.38in;
   font-size: 13px;
   line-height: 1.25;
 }
@@ -505,8 +505,8 @@ textarea {
 
 .report-audit-block {
   margin: 0 0 0.22in;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  break-inside: auto;
+  page-break-inside: auto;
 }
 
 .report-audit-block + .report-audit-block {
@@ -517,6 +517,8 @@ textarea {
 .report-property {
   margin: 0 0 0.16in;
   line-height: 1.35;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .report-major-section h2 {
@@ -532,6 +534,8 @@ textarea {
   text-align: center;
   font-size: 12.5px;
   font-weight: 400;
+  break-after: avoid;
+  page-break-after: avoid;
 }
 
 .report-aligned-note {
@@ -539,7 +543,7 @@ textarea {
 }
 
 .report-finding {
-  margin: 0 0 0.2in 0.5in;
+  margin: 0 0 0.16in 0.5in;
   break-inside: avoid;
   page-break-inside: avoid;
 }
