@@ -1,5 +1,6 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ReactNode, useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAudit } from "../lib/local-document-storage";
@@ -48,22 +49,32 @@ function ExportDocument({ audit }: { audit: Audit }) {
 
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
-      <div className="no-print mb-4 flex justify-end gap-2">
-        <button className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={csv}>Download CSV</button>
-        <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
-        <button
-          className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={async () => {
-            try {
-              await saveCurrentDocumentSnapshot(storageDetailsFromAudit(audit, "Field Notes", exportFileName));
-              setFolderMessage("Saved to Haudy Storage.");
-            } catch (error) {
-              setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
-            }
-          }}
-        >
-          Save Field Note
-        </button>
+      <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to="/">
+            <ArrowLeft size={16} /> Back to ASCs
+          </Link>
+          <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(ascKey(audit))}`}>
+            Back to Properties
+          </Link>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={csv}>Download CSV</button>
+          <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+          <button
+            className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={async () => {
+              try {
+                await saveCurrentDocumentSnapshot(storageDetailsFromAudit(audit, "Field Notes", exportFileName));
+                setFolderMessage("Saved to Haudy Storage.");
+              } catch (error) {
+                setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+              }
+            }}
+          >
+            Save Field Note
+          </button>
+        </div>
       </div>
       {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}
       <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>

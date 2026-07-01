@@ -131,8 +131,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <button
                   type="button"
                   className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={() => {
-                    exportHaudyBackup();
+                  onClick={async () => {
+                    setTransferMessage("Preparing Haudy data file...");
+                    await exportHaudyBackup();
                     setTransferMessage("Haudy data file created without photos. Best for tablets.");
                   }}
                 >
@@ -141,9 +142,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <button
                   type="button"
                   className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  onClick={() => {
-                    exportHaudyBackup({ includePhotos: true });
-                    setTransferMessage("Haudy data file with photos created. Best for computer to computer.");
+                  onClick={async () => {
+                    setTransferMessage("Compressing photos and preparing Haudy data file...");
+                    await exportHaudyBackup({ includePhotos: true });
+                    setTransferMessage("Haudy data file with compressed photos created. Best for computer to computer.");
                   }}
                 >
                   <Download size={16} /> Export With Photos

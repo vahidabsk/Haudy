@@ -15,13 +15,13 @@ export interface HaudyImportResult {
   skippedPhotos: number;
 }
 
-export function exportHaudyBackup({ includePhotos = false } = {}) {
+export async function exportHaudyBackup({ includePhotos = false } = {}) {
   const backup: HaudyBackupFile = {
     app: "Haudy",
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     includesPhotos: includePhotos,
-    entries: readHaudyEntries(includePhotos),
+    entries: await readHaudyEntries(includePhotos),
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -91,20 +91,26 @@ function extractJsonObject(value: string) {
   return value.slice(start, end + 1);
 }
 
-function readHaudyEntries(includePhotos: boolean) {
+async function readHaudyEntries(includePhotos: boolean) {
   const entries: Record<string, string> = {};
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
     if (!key?.startsWith(HAUDY_PREFIX)) continue;
     if (!includePhotos && key.startsWith(PHOTO_PREFIX)) continue;
     const value = localStorage.getItem(key);
-    if (value !== null) entries[key] = key === "haudy.audits" && !includePhotos ? stripPhotoReferences(value) : value;
+    if (value !== null) entries[key] = await exportEntryValue(key, value, includePhotos);
   }
   return entries;
 }
 
+async function exportEntryValue(key: string, value: string, includePhotos: boolean) {
+  if (key === "haudy.audits" && !includePhotos) return stripPhotoReferences(value);
+  if (includePhotos && key.startsWith(PHOTO_PREFIX)) return compressPhotoDataUrl(value);
+  return value;
+}
+
 function replaceHaudyEntries(entries: Record<string, string>) {
-  const previousEntries = readHaudyEntries(true);
+  const previousEntries = readCurrentHaudyEntries();
   Object.keys(localStorage)
     .filter((key) => key.startsWith(HAUDY_PREFIX))
     .forEach((key) => localStorage.removeItem(key));
@@ -131,6 +137,17 @@ function replaceHaudyEntries(entries: Record<string, string>) {
     throw error;
   }
   return { imported, skippedPhotos };
+}
+
+function readCurrentHaudyEntries() {
+  const entries: Record<string, string> = {};
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key?.startsWith(HAUDY_PREFIX)) continue;
+    const value = localStorage.getItem(key);
+    if (value !== null) entries[key] = value;
+  }
+  return entries;
 }
 
 function restoreEntries(entries: Record<string, string>) {
@@ -163,4 +180,27 @@ function stripPhotoReferences(value: string) {
   } catch {
     return value;
   }
+}
+
+function compressPhotoDataUrl(dataUrl: string) {
+  if (!dataUrl.startsWith("data:image/")) return dataUrl;
+  return new Promise<string>((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const longEdge = Math.max(image.width, image.height);
+      const scale = Math.min(1, 900 / longEdge);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.58));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
 }
