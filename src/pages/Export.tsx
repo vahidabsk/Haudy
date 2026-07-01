@@ -131,16 +131,21 @@ function Header({ audit }: { audit: Audit }) {
       </div>
       <div className="field-header-row field-header-row-bottom">
         <span className="field-header-item">Certificate #:<Line value={audit.certificateNumber} width="auto" /></span>
-        <span className="field-header-item">PP:<Line value={audit.protectedProperty} width="auto" /></span>
+        <span className="field-header-item">PP:<Line value={protectedPropertyHeader(audit)} width="auto" /></span>
       </div>
     </div>
   );
 }
 
+function protectedPropertyHeader(audit: Audit) {
+  const certificate = primaryCertificate(audit);
+  return [audit.protectedProperty, propertyAddressForName(certificate?.propertyAddress || "")].filter(Boolean).join(" ").trim();
+}
+
 function fieldNotesName(audit: Audit) {
   const certificate = primaryCertificate(audit);
   const year = (audit.auditDate || audit.createdAt || new Date().toISOString()).slice(0, 4);
-  const property = [audit.protectedProperty, propertyAddressForName(certificate?.propertyAddress || "")].filter(Boolean).join(" ").trim();
+  const property = protectedPropertyHeader(audit);
   return [
     `Filed Notes_${year}`,
     property.toUpperCase(),
