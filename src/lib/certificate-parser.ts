@@ -90,7 +90,7 @@ function standaloneBlock(lines: string[], label: string) {
   for (const line of lines.slice(index + 1)) {
     if (isHeading(line)) break;
     block.push(line);
-    if (block.length >= 3) break;
+    if (block.length >= 5) break;
   }
   return block;
 }
