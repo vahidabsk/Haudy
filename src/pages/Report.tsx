@@ -344,7 +344,8 @@ function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
 
 function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterComments }: { group: AscGroup; serviceCenterHasComment: boolean; serviceCenterComments: ServiceCenterComment[] }) {
   const printableServiceComments = serviceCenterHasComment ? serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()) : [];
-  const deficiencyNumbers = numberedDeficiencies(group, printableServiceComments.length + 1);
+  let nextDeficiencyNumber = printableServiceComments.length + 1;
+  const takeDeficiencyNumber = () => nextDeficiencyNumber++;
   return (
     <section className="report-page report-comments-page print-page bg-white text-black shadow-sm print:shadow-none">
       <h1>Audit Comments</h1>
@@ -374,9 +375,9 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
                 <b>{audit.protectedProperty}</b><br />
                 {addressLines.map((line) => <b key={line}>{line}<br /></b>)}
               </p>
-              {!audit.deviceSystemLocal ? <SignalReportSection audit={audit} items={signalItems} numbers={deficiencyNumbers} /> : null}
-              <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." numbers={deficiencyNumbers} auditId={audit.id} />
-              <ReportSection title="Installation Review" items={installationItems} emptyText="** No non-compliance issues were identified during the installation review." numbers={deficiencyNumbers} auditId={audit.id} />
+              {!audit.deviceSystemLocal ? <SignalReportSection audit={audit} items={signalItems} takeNumber={takeDeficiencyNumber} /> : null}
+              <ReportSection title="Documentation Review" items={documentationItems} emptyText="** No non-compliance issues were identified during the documentation review." takeNumber={takeDeficiencyNumber} />
+              <ReportSection title="Installation Review" items={installationItems} emptyText="** No non-compliance issues were identified during the installation review." takeNumber={takeDeficiencyNumber} />
             </div>
           );
         })}
@@ -405,7 +406,7 @@ function ServiceCenterFinding({ number, comment }: { number: number; comment: Se
   );
 }
 
-function SignalReportSection({ audit, items, numbers }: { audit: Audit; items: ReportItem[]; numbers: Map<string, number> }) {
+function SignalReportSection({ audit, items, takeNumber }: { audit: Audit; items: ReportItem[]; takeNumber: () => number }) {
   const counts = {
     alarm: audit.signalLog.filter((row) => row.signalType === "Alarm").length,
     supervisory: audit.signalLog.filter((row) => row.signalType === "Supervisory").length,
@@ -416,17 +417,17 @@ function SignalReportSection({ audit, items, numbers }: { audit: Audit; items: R
       <h3>----Signal Processing Review----</h3>
       <p className="report-aligned-note">A total of {counts.alarm} alarm, {counts.supervisory} supervisory, and {counts.trouble} trouble signal event(s) has been reviewed.</p>
       {!items.length ? <p className="report-aligned-note">** No non-compliance issues were identified during the signal review.</p> : null}
-      {items.map((item) => <ReportFinding key={item.id} item={item} number={numbers.get(deficiencyKey(audit.id, item.id)) || 0} />)}
+      {items.map((item) => <ReportFinding key={item.id} item={item} number={takeNumber()} />)}
     </div>
   );
 }
 
-function ReportSection({ title, items, emptyText, numbers, auditId }: { title: ReportReview; items: ReportItem[]; emptyText: string; numbers: Map<string, number>; auditId: string }) {
+function ReportSection({ title, items, emptyText, takeNumber }: { title: ReportReview; items: ReportItem[]; emptyText: string; takeNumber: () => number }) {
   return (
     <div className="report-review-section">
       <h3>----{title}----</h3>
       {!items.length ? <p className="report-aligned-note">{emptyText}</p> : null}
-      {items.map((item) => <ReportFinding key={item.id} item={item} number={numbers.get(deficiencyKey(auditId, item.id)) || 0} />)}
+      {items.map((item) => <ReportFinding key={item.id} item={item} number={takeNumber()} />)}
     </div>
   );
 }
@@ -798,22 +799,6 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
     return { ...audit, updatedAt, installation: audit.installation.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
   }
   return { ...audit, updatedAt, deviceTests: audit.deviceTests.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
-}
-
-function numberedDeficiencies(group: AscGroup, startNumber = 1) {
-  const numbers = new Map<string, number>();
-  let nextNumber = startNumber;
-  group.audits.forEach((audit) => {
-    printableReportItems(audit).forEach((item) => {
-      numbers.set(deficiencyKey(audit.id, item.id), nextNumber);
-      nextNumber += 1;
-    });
-  });
-  return numbers;
-}
-
-function deficiencyKey(auditId: string, itemId: string) {
-  return `${auditId}:${itemId}`;
 }
 
 function propertyAddressLines(address: string) {
