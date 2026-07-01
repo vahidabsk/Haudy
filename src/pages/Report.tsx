@@ -70,7 +70,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const reportAudits = useMemo(() => reportAuditsByCategory(group.audits), [group.audits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
-  const [activeReportSection, setActiveReportSection] = useState<ReportEditorSection>("service");
+  const [activeReportSection, setActiveReportSection] = useState<ReportEditorSection>("signal");
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
   const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some((comment) => !comment.finding.trim() || !comment.requiredAction.trim() || !(comment.codeStandard || "NFPA 72").trim() || !comment.codeEdition.trim() || !comment.codeSection.trim());
@@ -141,6 +141,34 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
           {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
         <div className="grid gap-4">
+          <div className={`grid gap-3 rounded-lg border-2 p-3 shadow-sm ${serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete) === "needs" ? "border-amber-200 bg-amber-50" : serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete) === "done" ? "border-emerald-200 bg-emerald-50" : "border-sky-100 bg-white"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/70 pb-3">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wide text-slate-500">ASC Level</div>
+                <div className="text-base font-bold text-navy">Service Center Comments</div>
+                <div className="text-xs font-medium text-slate-600">{group.ascName}</div>
+              </div>
+              <div className={`rounded-full px-3 py-1 text-xs font-semibold ${reportSectionTabTextClass(serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete))}`}>{reportSectionTabLabel(serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete))}</div>
+            </div>
+            <ServiceCenterReportEditor
+              hasComment={serviceCenterHasComment}
+              done={serviceCenterDone}
+              comments={serviceCenterComments}
+              incomplete={serviceCenterIncomplete}
+              onHasCommentChange={(nextHasComment) => {
+                setServiceCenterHasComment(nextHasComment);
+                const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
+                if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
+                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterDone, serviceCenterComments: nextComments });
+              }}
+              onDoneChange={(nextDone) => {
+                setServiceCenterDone(nextDone);
+                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone: nextDone, serviceCenterComments });
+              }}
+              onUpdateComments={updateServiceCenterComments}
+              onUpdateComment={updateServiceCenterComment}
+            />
+          </div>
           <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -183,7 +211,6 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
             </div>
             <div className="flex gap-2 overflow-x-auto rounded-md bg-sky-50 p-2">
               {[
-                { id: "service" as const, label: "Service Center", count: serviceCenterHasComment ? serviceCenterComments.length : 0, status: serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete) },
                 { id: "signal" as const, label: "Signal Processing", count: activeSignalItems.length, status: sectionTabStatus(activeAudit, "signal", activeSignalItems.map(({ item }) => item)) },
                 { id: "documentation" as const, label: "Documentation", count: activeDocumentationItems.length, status: sectionTabStatus(activeAudit, "documentation", activeDocumentationItems.map(({ item }) => item)) },
                 { id: "installation" as const, label: "Installation", count: activeInstallationItems.length, status: sectionTabStatus(activeAudit, "installation", activeInstallationItems.map(({ item }) => item)) },
@@ -197,29 +224,10 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                   <span>{tab.label} <span className="ml-1 text-xs opacity-70">({tab.count})</span></span>
                   <span className={`block text-xs ${activeReportSection === tab.id ? "text-white/75" : reportSectionTabTextClass(tab.status)}`}>{reportSectionTabLabel(tab.status)}</span>
                 </button>
-              ))}
+            ))}
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              {activeReportSection === "service" ? (
-                <ServiceCenterReportEditor
-                  hasComment={serviceCenterHasComment}
-                  done={serviceCenterDone}
-                  comments={serviceCenterComments}
-                  incomplete={serviceCenterIncomplete}
-                  onHasCommentChange={(nextHasComment) => {
-                    setServiceCenterHasComment(nextHasComment);
-                    const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
-                    if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
-                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterDone, serviceCenterComments: nextComments });
-                  }}
-                  onDoneChange={(nextDone) => {
-                    setServiceCenterDone(nextDone);
-                    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone: nextDone, serviceCenterComments });
-                  }}
-                  onUpdateComments={updateServiceCenterComments}
-                  onUpdateComment={updateServiceCenterComment}
-                />
-              ) : activeAudit ? (
+              {activeAudit ? (
                 <ReportEditorSectionPanel
                   audit={activeAudit}
                   section={activeReportSection as ReportPropertySection}
