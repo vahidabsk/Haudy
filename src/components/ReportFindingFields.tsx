@@ -52,20 +52,20 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
         Required Action
         <DictationNotes rows={2} value={value.reportRequiredAction} onChange={(reportRequiredAction) => onChange({ reportRequiredAction })} />
       </label>
-      <div className="grid gap-3 sm:grid-cols-[160px_160px_1fr]">
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+      <div className="grid gap-3 md:grid-cols-[minmax(140px,1fr)_minmax(120px,1fr)] xl:grid-cols-[minmax(150px,0.8fr)_minmax(130px,0.7fr)_minmax(300px,2fr)]">
+        <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
           Code Reference
-          <input className="min-h-11 rounded-md border bg-white px-3" list="report-code-standard-options" value={selectedStandard} onChange={(event) => onChange({ reportCodeStandard: event.target.value })} placeholder="Example: NFPA 72" />
+          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3" list="report-code-standard-options" value={selectedStandard} onChange={(event) => onChange({ reportCodeStandard: event.target.value })} placeholder="Example: NFPA 72" />
           <datalist id="report-code-standard-options">{standardOptions.map((standard) => <option key={standard} value={standard} />)}</datalist>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
           Edition
-          <input className="min-h-11 rounded-md border bg-white px-3" list="report-code-edition-options" value={value.reportCodeEdition} onChange={(event) => onChange({ reportCodeEdition: event.target.value })} placeholder="Example: 2022" />
+          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3" list="report-code-edition-options" value={value.reportCodeEdition} onChange={(event) => onChange({ reportCodeEdition: event.target.value })} placeholder="Example: 2022" />
           <datalist id="report-code-edition-options">{editionOptions.map((edition) => <option key={edition} value={edition} />)}</datalist>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700 md:col-span-2 xl:col-span-1">
           Section / paragraph number
-          <input className="min-h-11 rounded-md border bg-white px-3" value={value.reportCodeSection} onChange={(event) => onChange({ reportCodeSection: event.target.value })} placeholder="Example: 26.3.8.1" />
+          <input className="min-h-11 min-w-0 rounded-md border bg-white px-3" value={value.reportCodeSection} onChange={(event) => onChange({ reportCodeSection: event.target.value })} placeholder="Example: 26.3.8.1" />
         </label>
       </div>
     </div>
