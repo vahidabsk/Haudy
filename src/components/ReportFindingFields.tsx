@@ -1,5 +1,6 @@
 import { DictationNotes } from "./DictationNotes";
-import { AuditorReportDatabase } from "./AuditorReportDatabase";
+import { AuditorReportDatabase, AuditorReportSelection } from "./AuditorReportDatabase";
+import { AuditorReportFinding } from "../lib/auditor-report-findings";
 import { CsisDefectList } from "./CsisDefectList";
 
 export interface ReportFindingValue {
@@ -15,6 +16,27 @@ const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70"];
 
 export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpStandard?: string; helpYear?: string }) {
   const selectedStandard = value.reportCodeStandard || "NFPA 72";
+  function applyAuditorReportSelection(finding: AuditorReportFinding, selection: AuditorReportSelection) {
+    const referenceFields = {
+      reportCodeStandard: finding.standard || "NFPA 72",
+      reportCodeEdition: finding.year || "",
+      reportCodeSection: finding.section || "",
+    };
+    if (selection === "finding") {
+      onChange({ reportFinding: finding.finding });
+    } else if (selection === "requiredAction") {
+      onChange({ reportRequiredAction: finding.requiredAction });
+    } else if (selection === "reference") {
+      onChange(referenceFields);
+    } else {
+      onChange({
+        reportFinding: finding.finding,
+        reportRequiredAction: finding.requiredAction,
+        ...referenceFields,
+      });
+    }
+  }
+
   return (
     <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50/60 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -33,13 +55,7 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
             <AuditorReportDatabase
               initialStandard={helpStandard}
               initialYear={helpYear}
-              onSelect={(finding) => onChange({
-                reportFinding: finding.finding,
-                reportRequiredAction: finding.requiredAction,
-                reportCodeStandard: finding.standard || "NFPA 72",
-                reportCodeEdition: finding.year || "",
-                reportCodeSection: finding.section || "",
-              })}
+              onSelect={applyAuditorReportSelection}
             />
           </div>
         ) : null}

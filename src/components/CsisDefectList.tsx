@@ -97,7 +97,7 @@ export function CsisDefectList({ initialStandard = "", initialYear = "", onSelec
                         className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
                         onClick={() => selectDefect(result)}
                       >
-                        <CheckCircle2 size={16} /> Use this code
+                        <CheckCircle2 size={16} /> Use reference
                       </button>
                     </div>
                   </div>

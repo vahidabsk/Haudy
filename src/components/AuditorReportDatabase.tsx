@@ -9,10 +9,12 @@ import {
   searchAuditorReportFindings,
 } from "../lib/auditor-report-findings";
 
+export type AuditorReportSelection = "finding" | "requiredAction" | "reference" | "all";
+
 interface AuditorReportDatabaseProps {
   initialStandard?: string;
   initialYear?: string;
-  onSelect: (finding: AuditorReportFinding) => void;
+  onSelect: (finding: AuditorReportFinding, selection: AuditorReportSelection) => void;
 }
 
 export function AuditorReportDatabase({ initialStandard = "", initialYear = "", onSelect }: AuditorReportDatabaseProps) {
@@ -32,8 +34,8 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
     setOpen(true);
   }
 
-  function selectFinding(finding: AuditorReportFinding) {
-    onSelect(finding);
+  function selectFinding(finding: AuditorReportFinding, selection: AuditorReportSelection) {
+    onSelect(finding, selection);
     setOpen(false);
   }
 
@@ -52,7 +54,7 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-navy">Auditor Report Database</h3>
-                <p className="text-sm text-slate-600">Search report wording and select a result to fill Finding, Required Action, and Code Reference.</p>
+                <p className="text-sm text-slate-600">Search report wording and use only the part you need, or use the full row.</p>
               </div>
               <button type="button" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800" onClick={() => setOpen(false)} aria-label="Close Auditor Report Database">
                 <X size={20} />
@@ -112,13 +114,34 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
                       <p className="max-w-full whitespace-normal [overflow-wrap:anywhere]"><span className="font-semibold text-navy">Finding:</span> {result.finding}</p>
                       <p className="max-w-full whitespace-normal [overflow-wrap:anywhere]"><span className="font-semibold text-navy">Required Action:</span> {result.requiredAction}</p>
                     </div>
-                    <div>
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
-                        onClick={() => selectFinding(result)}
+                        onClick={() => selectFinding(result, "finding")}
                       >
-                        <CheckCircle2 size={16} /> Use wording
+                        <CheckCircle2 size={16} /> Use finding
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100"
+                        onClick={() => selectFinding(result, "requiredAction")}
+                      >
+                        <CheckCircle2 size={16} /> Use required action
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800 hover:bg-violet-100"
+                        onClick={() => selectFinding(result, "reference")}
+                      >
+                        <CheckCircle2 size={16} /> Use reference
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                        onClick={() => selectFinding(result, "all")}
+                      >
+                        <CheckCircle2 size={16} /> Use all
                       </button>
                     </div>
                   </div>
