@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
@@ -7,6 +7,7 @@ import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, updateAscDocum
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
+import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
 import { prepareStorageFolders } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
@@ -29,7 +30,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
   const [storageMessage, setStorageMessage] = useState("");
+  const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     function refresh() {
@@ -116,6 +120,33 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   Choose Storage Location
                 </button>
                 {storageMessage ? <span className="text-sm text-slate-600">{storageMessage}</span> : null}
+              </div>
+            </div>
+            <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div>
+                <h3 className="font-semibold text-navy">Move Haudy data between devices</h3>
+                <p className="mt-1 text-sm text-slate-600">Export one Haudy data file, move it to another device, then import it there.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => {
+                    exportHaudyBackup();
+                    setTransferMessage("Haudy data file created.");
+                  }}
+                >
+                  <Download size={16} /> Export Haudy Data
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => importInputRef.current?.click()}
+                >
+                  <UploadCloud size={16} /> Import Haudy Data
+                </button>
+                <input ref={importInputRef} className="hidden" type="file" accept=".json,.haudy-data.json,application/json" onChange={(event) => chooseHaudyImportFile(event, setPendingImportFile)} />
+                {transferMessage ? <span className="text-sm text-slate-600">{transferMessage}</span> : null}
               </div>
             </div>
           </div>
@@ -250,7 +281,51 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
+      {pendingImportFile ? (
+        <ImportDataDialog
+          file={pendingImportFile}
+          onCancel={() => setPendingImportFile(null)}
+          onImport={async () => {
+            try {
+              const count = await importHaudyBackupFile(pendingImportFile);
+              setTransferMessage(`Imported ${count} data item${count === 1 ? "" : "s"}. Reloading Haudy...`);
+              setPendingImportFile(null);
+              window.setTimeout(() => window.location.reload(), 500);
+            } catch (error) {
+              setTransferMessage(error instanceof Error ? error.message : "Could not import this Haudy data file.");
+              setPendingImportFile(null);
+            }
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function chooseHaudyImportFile(event: ChangeEvent<HTMLInputElement>, setPendingImportFile: (file: File | null) => void) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  setPendingImportFile(file);
+}
+
+function ImportDataDialog({ file, onCancel, onImport }: { file: File; onCancel: () => void; onImport: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-navy">Import Haudy Data?</h2>
+          <p className="mt-1 text-sm text-slate-600">{file.name}</p>
+        </div>
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-950">
+          This will replace the current Haudy data on this device with the data from the selected file.
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button className="min-h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" onClick={onImport}>Import and Reload</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
