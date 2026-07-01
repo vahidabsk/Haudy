@@ -2,7 +2,7 @@ import { DictationNotes } from "./DictationNotes";
 import { AuditorReportDatabase, AuditorReportSelection } from "./AuditorReportDatabase";
 import { AuditorReportFinding } from "../lib/auditor-report-findings";
 import { CsisDefectList } from "./CsisDefectList";
-import { isReferenceUsed, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
+import { isReferenceComplete, isReferenceUsed, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 
 export interface ReportFindingValue {
   reportFinding: string;
@@ -20,6 +20,13 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
   const editionUsed = isReferenceUsed(value.reportCodeEdition);
   const sectionUsed = isReferenceUsed(value.reportCodeSection);
   const selectedStandard = standardUsed ? value.reportCodeStandard || "NFPA 72" : "";
+  const complete = Boolean(
+    value.reportFinding.trim() &&
+    value.reportRequiredAction.trim() &&
+    isReferenceComplete(value.reportCodeStandard, "NFPA 72") &&
+    isReferenceComplete(value.reportCodeEdition) &&
+    isReferenceComplete(value.reportCodeSection),
+  );
   function applyAuditorReportSelection(finding: AuditorReportFinding, selection: AuditorReportSelection) {
     const referenceFields = {
       reportCodeStandard: finding.standard || "NFPA 72",
@@ -42,9 +49,9 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
   }
 
   return (
-    <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50/60 p-3">
+    <div className={`grid gap-3 rounded-md border p-3 transition-colors ${complete ? "border-emerald-200 bg-emerald-50/50" : "border-amber-200 bg-amber-50/60"}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-amber-950">Report language for this variation</div>
+        <div className={`text-sm font-semibold ${complete ? "text-emerald-900" : "text-amber-950"}`}>Report language for this variation</div>
         {showCsisHelp ? (
           <div className="flex flex-wrap gap-2">
             <CsisDefectList
