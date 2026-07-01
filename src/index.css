@@ -612,6 +612,56 @@ textarea {
   font-weight: 700;
 }
 
+.report-photo-appendix {
+  margin-top: 0.36in;
+  break-before: page;
+  page-break-before: always;
+}
+
+.report-photo-appendix h2 {
+  margin: 0 0 0.08in;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.report-photo-intro {
+  margin: 0 0 0.18in;
+  text-align: center;
+}
+
+.report-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.18in;
+}
+
+.report-photo-card {
+  margin: 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-photo-card img {
+  display: block;
+  width: 100%;
+  max-height: 3.2in;
+  object-fit: contain;
+  border: 1px solid #222;
+  background: #fff;
+}
+
+.report-photo-card figcaption {
+  margin-top: 0.06in;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.report-photo-card figcaption span {
+  display: block;
+}
+
 @media print {
   @page {
     size: letter;

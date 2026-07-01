@@ -5,6 +5,7 @@ import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments, saveAscDocument, ServiceCenterComment, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
+import { loadPhoto } from "../lib/photo-store";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
@@ -25,6 +26,16 @@ interface ReportItem {
   codeStandard: string;
   codeEdition: string;
   codeSection: string;
+}
+
+interface ReportPhotoItem {
+  id: string;
+  photoId: string;
+  dataUrl: string;
+  deficiencyNumber: number;
+  propertyName: string;
+  reviewType: ReportReview;
+  category: string;
 }
 
 export function ReportPage({ auditor }: { auditor: Auditor | null }) {
@@ -342,6 +353,7 @@ function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
 
 function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterComments }: { group: AscGroup; serviceCenterHasComment: boolean; serviceCenterComments: ServiceCenterComment[] }) {
   const printableServiceComments = serviceCenterHasComment ? serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()) : [];
+  const photoItems = reportPhotoAppendixItems(group.audits, printableServiceComments.length);
   let nextDeficiencyNumber = printableServiceComments.length + 1;
   const takeDeficiencyNumber = () => nextDeficiencyNumber++;
   return (
@@ -380,6 +392,7 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
         })}
       </div>
       <p className="report-end">***END***</p>
+      <ReportPhotoAppendix photos={photoItems} />
     </section>
   );
 }
@@ -466,6 +479,28 @@ function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
   );
 }
 
+function ReportPhotoAppendix({ photos }: { photos: ReportPhotoItem[] }) {
+  if (!photos.length) return null;
+  return (
+    <section className="report-photo-appendix">
+      <h2>Deficiency Photographs</h2>
+      <p className="report-photo-intro">Installation review photographs captured by the auditor are referenced to the related report deficiency below.</p>
+      <div className="report-photo-grid">
+        {photos.map((photo) => (
+          <figure key={photo.id} className="report-photo-card">
+            <img src={photo.dataUrl} alt={`Deficiency ${photo.deficiencyNumber} - ${photo.category}`} />
+            <figcaption>
+              <b>Deficiency {photo.deficiencyNumber}</b>
+              <span>{photo.reviewType} - {photo.category}</span>
+              <span>{photo.propertyName}</span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function collectReportItems(audit: Audit): ReportItem[] {
   const baseItems = [
     ...sectionReviewItems(audit),
@@ -476,6 +511,34 @@ function collectReportItems(audit: Audit): ReportItem[] {
     ...audit.deviceTests.filter((row) => row.result === "VAR").map((row) => deviceItem(row)),
   ];
   return baseItems.flatMap((item) => expandReportItem(audit, item));
+}
+
+function reportPhotoAppendixItems(audits: Audit[], serviceCenterCount: number): ReportPhotoItem[] {
+  let nextNumber = serviceCenterCount + 1;
+  const photos: ReportPhotoItem[] = [];
+  reportAuditsByCategory(audits).forEach((audit) => {
+    const installationRows = new Map(audit.installation.map((row) => [row.id, row]));
+    printableReportItems(audit).forEach((item) => {
+      const deficiencyNumber = nextNumber++;
+      if (item.source !== "installation" || item.extraIndex !== undefined) return;
+      const row = installationRows.get(item.rowId);
+      if (!row?.photos.length) return;
+      row.photos.forEach((photoId, index) => {
+        const dataUrl = loadPhoto(photoId);
+        if (!dataUrl) return;
+        photos.push({
+          id: `${item.id}-${photoId}-${index}`,
+          photoId,
+          dataUrl,
+          deficiencyNumber,
+          propertyName: audit.protectedProperty,
+          reviewType: item.reviewType,
+          category: item.category,
+        });
+      });
+    });
+  });
+  return photos;
 }
 
 function printableReportItems(audit: Audit): ReportItem[] {
