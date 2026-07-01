@@ -68,6 +68,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const savedReportDraft = loadAscDocuments()[ascKey]?.report;
   const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
   const [serviceCenterDone, setServiceCenterDone] = useState(savedReportDraft?.serviceCenterDone ?? false);
+  const [serviceCenterMinimized, setServiceCenterMinimized] = useState(false);
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const reportAudits = useMemo(() => reportAuditsByCategory(group.audits), [group.audits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
@@ -149,26 +150,43 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                 <div className="text-base font-bold text-navy">Service Center Comments</div>
                 <div className="text-xs font-medium text-slate-600">{group.ascName}</div>
               </div>
-              <div className={`rounded-full px-3 py-1 text-xs font-semibold ${reportSectionTabTextClass(serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete))}`}>{reportSectionTabLabel(serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete))}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className={`rounded-full px-3 py-1 text-xs font-semibold ${reportSectionTabTextClass(serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete))}`}>{reportSectionTabLabel(serviceCenterTabStatus(serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete))}</div>
+                {(serviceCenterHasComment || serviceCenterComments.some((comment) => comment.finding || comment.requiredAction || comment.codeSection)) ? (
+                  <button
+                    type="button"
+                    className="min-h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => setServiceCenterMinimized(!serviceCenterMinimized)}
+                  >
+                    {serviceCenterMinimized ? "Edit Comments" : "Minimize"}
+                  </button>
+                ) : null}
+              </div>
             </div>
-            <ServiceCenterReportEditor
-              hasComment={serviceCenterHasComment}
-              done={serviceCenterDone}
-              comments={serviceCenterComments}
-              incomplete={serviceCenterIncomplete}
-              onHasCommentChange={(nextHasComment) => {
-                setServiceCenterHasComment(nextHasComment);
-                const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
-                if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
-                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterDone, serviceCenterComments: nextComments });
-              }}
-              onDoneChange={(nextDone) => {
-                setServiceCenterDone(nextDone);
-                updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone: nextDone, serviceCenterComments });
-              }}
-              onUpdateComments={updateServiceCenterComments}
-              onUpdateComment={updateServiceCenterComment}
-            />
+            {serviceCenterMinimized ? (
+              <div className="rounded-md border border-white/70 bg-white/60 p-3 text-sm font-medium text-slate-700">
+                {serviceCenterHasComment ? `${serviceCenterComments.length} service center comment${serviceCenterComments.length === 1 ? "" : "s"} hidden.` : "No service center comments will print."}
+              </div>
+            ) : (
+              <ServiceCenterReportEditor
+                hasComment={serviceCenterHasComment}
+                done={serviceCenterDone}
+                comments={serviceCenterComments}
+                incomplete={serviceCenterIncomplete}
+                onHasCommentChange={(nextHasComment) => {
+                  setServiceCenterHasComment(nextHasComment);
+                  const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
+                  if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
+                  updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterDone, serviceCenterComments: nextComments });
+                }}
+                onDoneChange={(nextDone) => {
+                  setServiceCenterDone(nextDone);
+                  updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone: nextDone, serviceCenterComments });
+                }}
+                onUpdateComments={updateServiceCenterComments}
+                onUpdateComment={updateServiceCenterComment}
+              />
+            )}
           </div>
           <div className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
