@@ -48,6 +48,7 @@ export function auditHasProgress(audit: Audit) {
     audit.certificateMatchReportRequiredAction ||
     audit.certificateDisplayedReportFinding ||
     audit.certificateDisplayedReportRequiredAction ||
+    Object.values(audit.reportExtraFindings || {}).some((entries) => entries.some((entry) => entry.finding || entry.requiredAction || entry.codeSection)) ||
     audit.comments ||
     audit.signalLog.some((row) => row.signalType || row.handlingStatus || row.date || row.time || row.description || row.notes || row.reportFinding || row.reportRequiredAction || row.reportCodeSection) ||
     audit.documentation.some((row) => row.status || row.notes || row.reportFinding || row.reportRequiredAction || row.reportCodeSection || row.photos.length) ||

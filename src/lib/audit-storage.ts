@@ -132,6 +132,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     primaryCertificateIndex: 0,
     matchesCertificate: false,
     certificateDisplayed: false,
+    reportExtraFindings: {},
     signalLog: [signalRow(now)],
     documentation: documentationElements.map((element) => row(element, auditorName, now)),
     installation: installationElements.map((element) => row(element, auditorName, now)),
@@ -259,11 +260,26 @@ function normalizeAudit(audit: Audit): Audit {
     certificateDisplayedReportCodeEdition: audit.certificateDisplayedReportCodeEdition ?? "",
     certificateDisplayedReportCodeSection: audit.certificateDisplayedReportCodeSection ?? "",
     deviceSystemLocal: audit.deviceSystemLocal ?? false,
+    reportExtraFindings: normalizeReportExtraFindings(audit.reportExtraFindings),
     signalLog: normalizeSignalRows(audit.signalLog, now),
     documentation: normalizeRows(audit.documentation, documentationElements, audit.auditorName, now),
     installation: normalizeRows(audit.installation, installationElements, audit.auditorName, now),
     deviceTests: normalizeDeviceRows(audit.deviceTests, now),
   };
+}
+
+function normalizeReportExtraFindings(findings: Audit["reportExtraFindings"]): Audit["reportExtraFindings"] {
+  if (!findings) return {};
+  return Object.fromEntries(Object.entries(findings).map(([key, entries]) => [
+    key,
+    entries.map((entry) => ({
+      finding: entry.finding || "",
+      requiredAction: entry.requiredAction || "",
+      codeStandard: entry.codeStandard || "NFPA 72",
+      codeEdition: entry.codeEdition || "",
+      codeSection: entry.codeSection || "",
+    })),
+  ]));
 }
 
 function normalizeSignalRows(rows: Audit["signalLog"], updatedAt: string): Audit["signalLog"] {

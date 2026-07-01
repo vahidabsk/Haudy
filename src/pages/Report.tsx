@@ -5,7 +5,7 @@ import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments, saveAscDocument, ServiceCenterComment, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
-import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, SignalLogRow } from "../lib/types";
+import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
@@ -13,6 +13,8 @@ type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTest
 
 interface ReportItem {
   id: string;
+  baseId: string;
+  extraIndex?: number;
   source: ReportSource;
   rowId: string;
   reviewType: ReportReview;
@@ -175,6 +177,25 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
               return (
                 <div key={`${audit.id}-${item.id}`} className="grid gap-1 rounded-md border bg-slate-50 p-3">
                   <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {item.extraIndex === undefined ? (
+                      <button
+                        type="button"
+                        className="min-h-9 rounded-md border border-amber-300 bg-white px-3 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+                        onClick={() => onUpdateAudit(addReportFinding(audit, item))}
+                      >
+                        Add Finding
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="min-h-9 rounded-md border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50"
+                        onClick={() => onUpdateAudit(removeReportFinding(audit, item))}
+                      >
+                        Remove Finding
+                      </button>
+                    )}
+                  </div>
                   {certificateCode.year ? <div className="text-xs font-medium text-slate-500">Certificate declared: {certificateCode.standard}, {certificateCode.year} Edition</div> : null}
                   {item.note ? (
                     <div className="text-sm font-medium text-red-700">
@@ -430,13 +451,31 @@ function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
 }
 
 function collectReportItems(audit: Audit): ReportItem[] {
-  return [
+  const baseItems = [
     ...sectionReviewItems(audit),
     ...(audit.deviceSystemLocal ? [] : audit.signalLog.filter((row) => row.handlingStatus === "VAR").map((row) => signalItem(row))),
     ...audit.documentation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Documentation Review")),
     ...certificateConditionItems(audit),
     ...audit.installation.filter((row) => row.status === "VAR").map((row) => checklistItem(row, "Installation Review")),
     ...audit.deviceTests.filter((row) => row.result === "VAR").map((row) => deviceItem(row)),
+  ];
+  return baseItems.flatMap((item) => expandReportItem(audit, item));
+}
+
+function expandReportItem(audit: Audit, item: ReportItem): ReportItem[] {
+  const extras = audit.reportExtraFindings?.[item.baseId] || [];
+  return [
+    item,
+    ...extras.map((entry, extraIndex) => ({
+      ...item,
+      id: `${item.baseId}-extra-${extraIndex}`,
+      extraIndex,
+      finding: entry.finding,
+      requiredAction: entry.requiredAction,
+      codeStandard: entry.codeStandard,
+      codeEdition: entry.codeEdition,
+      codeSection: entry.codeSection,
+    })),
   ];
 }
 
@@ -445,6 +484,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
   if (!audit.deviceSystemLocal && !audit.signalProcessingReviewed && (audit.editedFields?.signalProcessingReviewed || audit.signalReviewNotes)) {
     items.push({
       id: `section-signal-${audit.id}`,
+      baseId: `section-signal-${audit.id}`,
       source: "sectionReview",
       rowId: "signalProcessingReviewed",
       reviewType: "Signal Processing Review",
@@ -460,6 +500,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
   if (!audit.documentationReviewed && (audit.editedFields?.documentationReviewed || audit.documentationReviewNotes)) {
     items.push({
       id: `section-documentation-${audit.id}`,
+      baseId: `section-documentation-${audit.id}`,
       source: "sectionReview",
       rowId: "documentationReviewed",
       reviewType: "Documentation Review",
@@ -475,6 +516,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
   if (!audit.installationReviewed && (audit.editedFields?.installationReviewed || audit.installationReviewNotes)) {
     items.push({
       id: `section-installation-${audit.id}`,
+      baseId: `section-installation-${audit.id}`,
       source: "sectionReview",
       rowId: "installationReviewed",
       reviewType: "Installation Review",
@@ -490,6 +532,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
   if (!audit.deviceTestingReviewed && (audit.editedFields?.deviceTestingReviewed || audit.deviceTestingNotes)) {
     items.push({
       id: `section-device-${audit.id}`,
+      baseId: `section-device-${audit.id}`,
       source: "sectionReview",
       rowId: "deviceTestingReviewed",
       reviewType: "Installation Review",
@@ -508,6 +551,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
 function signalItem(row: SignalLogRow): ReportItem {
   return {
     id: `signal-${row.id}`,
+    baseId: `signal-${row.id}`,
     source: "signalLog",
     rowId: row.id,
     reviewType: "Signal Processing Review",
@@ -524,6 +568,7 @@ function signalItem(row: SignalLogRow): ReportItem {
 function checklistItem(row: AuditRow, reviewType: ReportReview): ReportItem {
   return {
     id: `${reviewType}-${row.id}`,
+    baseId: `${reviewType}-${row.id}`,
     source: reviewType === "Documentation Review" ? "documentation" : "installation",
     rowId: row.id,
     reviewType,
@@ -540,6 +585,7 @@ function checklistItem(row: AuditRow, reviewType: ReportReview): ReportItem {
 function deviceItem(row: DeviceTestRow): ReportItem {
   return {
     id: `device-${row.id}`,
+    baseId: `device-${row.id}`,
     source: "deviceTests",
     rowId: row.id,
     reviewType: "Installation Review",
@@ -558,6 +604,7 @@ function certificateConditionItems(audit: Audit): ReportItem[] {
   if (audit.matchesCertificateStatus === "VAR") {
     items.push({
       id: `certificate-match-${audit.id}`,
+      baseId: `certificate-match-${audit.id}`,
       source: "installation",
       rowId: `certificate-match-${audit.id}`,
       reviewType: "Installation Review",
@@ -573,6 +620,7 @@ function certificateConditionItems(audit: Audit): ReportItem[] {
   if (audit.certificateDisplayedStatus === "VAR") {
     items.push({
       id: `certificate-displayed-${audit.id}`,
+      baseId: `certificate-displayed-${audit.id}`,
       source: "installation",
       rowId: `certificate-displayed-${audit.id}`,
       reviewType: "Installation Review",
@@ -598,6 +646,43 @@ function reportValue(item: ReportItem): ReportFindingValue {
   };
 }
 
+function blankReportFindingEntry(): ReportFindingEntry {
+  return {
+    finding: "",
+    requiredAction: "",
+    codeStandard: "NFPA 72",
+    codeEdition: "",
+    codeSection: "",
+  };
+}
+
+function addReportFinding(audit: Audit, item: ReportItem): Audit {
+  const updatedAt = new Date().toISOString();
+  const current = audit.reportExtraFindings?.[item.baseId] || [];
+  return {
+    ...audit,
+    updatedAt,
+    reportExtraFindings: {
+      ...(audit.reportExtraFindings || {}),
+      [item.baseId]: [...current, blankReportFindingEntry()],
+    },
+  };
+}
+
+function removeReportFinding(audit: Audit, item: ReportItem): Audit {
+  if (item.extraIndex === undefined) return audit;
+  const updatedAt = new Date().toISOString();
+  const current = audit.reportExtraFindings?.[item.baseId] || [];
+  const nextEntries = current.filter((_, index) => index !== item.extraIndex);
+  const nextExtraFindings = { ...(audit.reportExtraFindings || {}) };
+  if (nextEntries.length) {
+    nextExtraFindings[item.baseId] = nextEntries;
+  } else {
+    delete nextExtraFindings[item.baseId];
+  }
+  return { ...audit, updatedAt, reportExtraFindings: nextExtraFindings };
+}
+
 function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<ReportFindingValue>): Audit {
   const patch = {
     ...("reportFinding" in reportFields ? { reportFinding: reportFields.reportFinding || "" } : {}),
@@ -607,6 +692,27 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
     ...("reportCodeSection" in reportFields ? { reportCodeSection: reportFields.reportCodeSection || "" } : {}),
   };
   const updatedAt = new Date().toISOString();
+  if (item.extraIndex !== undefined) {
+    const current = audit.reportExtraFindings?.[item.baseId] || [];
+    const nextEntries = [...current];
+    const existing = nextEntries[item.extraIndex] || blankReportFindingEntry();
+    nextEntries[item.extraIndex] = {
+      ...existing,
+      ...("reportFinding" in reportFields ? { finding: reportFields.reportFinding || "" } : {}),
+      ...("reportRequiredAction" in reportFields ? { requiredAction: reportFields.reportRequiredAction || "" } : {}),
+      ...("reportCodeStandard" in reportFields ? { codeStandard: reportFields.reportCodeStandard || "NFPA 72" } : {}),
+      ...("reportCodeEdition" in reportFields ? { codeEdition: reportFields.reportCodeEdition || "" } : {}),
+      ...("reportCodeSection" in reportFields ? { codeSection: reportFields.reportCodeSection || "" } : {}),
+    };
+    return {
+      ...audit,
+      updatedAt,
+      reportExtraFindings: {
+        ...(audit.reportExtraFindings || {}),
+        [item.baseId]: nextEntries,
+      },
+    };
+  }
   if (item.source === "signalLog") {
     return { ...audit, updatedAt, signalLog: audit.signalLog.map((row) => row.id === item.rowId ? { ...row, ...patch, updatedAt } : row) };
   }

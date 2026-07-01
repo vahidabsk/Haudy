@@ -64,6 +64,14 @@ export interface AuditRow {
   updatedBy: string;
 }
 
+export interface ReportFindingEntry {
+  finding: string;
+  requiredAction: string;
+  codeStandard: string;
+  codeEdition: string;
+  codeSection: string;
+}
+
 export interface SignalLogRow {
   id: string;
   signalType: SignalType | "";
@@ -170,6 +178,7 @@ export interface Audit {
   primaryCertificateIndex: number;
   matchesCertificate: boolean;
   certificateDisplayed: boolean;
+  reportExtraFindings?: Record<string, ReportFindingEntry[]>;
   signalLog: SignalLogRow[];
   documentation: AuditRow[];
   installation: AuditRow[];
