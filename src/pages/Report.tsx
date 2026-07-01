@@ -6,7 +6,6 @@ import { loadAscDocuments, saveAscDocument, ServiceCenterComment, updateAscDocum
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, SignalLogRow } from "../lib/types";
-import { DictationNotes } from "../components/DictationNotes";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
@@ -55,7 +54,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
   const incomplete = reportItems.filter(({ item }) => !item.finding.trim() || !item.requiredAction.trim() || !(item.codeStandard || "NFPA 72").trim() || !item.codeEdition.trim() || !item.codeSection.trim());
-  const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some((comment) => !comment.finding.trim() || !comment.requiredAction.trim());
+  const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some((comment) => !comment.finding.trim() || !comment.requiredAction.trim() || !(comment.codeStandard || "NFPA 72").trim() || !comment.codeEdition.trim() || !comment.codeSection.trim());
   const today = new Date();
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, today, fileReferences, scn);
@@ -157,22 +156,11 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                       </button>
                     ) : null}
                   </div>
-                  <label className="grid gap-1 text-sm font-medium text-slate-700">
-                    Finding
-                    <DictationNotes
-                      rows={2}
-                      value={comment.finding}
-                      onChange={(finding) => updateServiceCenterComment(comment.id, { finding })}
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm font-medium text-slate-700">
-                    Required Action
-                    <DictationNotes
-                      rows={2}
-                      value={comment.requiredAction}
-                      onChange={(requiredAction) => updateServiceCenterComment(comment.id, { requiredAction })}
-                    />
-                  </label>
+                  <ReportFindingFields
+                    value={serviceCenterReportValue(comment)}
+                    showCsisHelp
+                    onChange={(reportFields) => updateServiceCenterComment(comment.id, serviceCenterPatch(reportFields))}
+                  />
                 </div>
               ))}
               {serviceCenterIncomplete ? <div className="text-sm font-medium text-amber-800">Service center comment needs attention.</div> : <div className="text-sm font-medium text-emerald-700">Service center comment ready for report.</div>}
@@ -254,17 +242,55 @@ function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: As
   );
 }
 
-function serviceCenterCommentsFromDraft(draft?: { serviceCenterComments?: ServiceCenterComment[]; serviceCenterReportFinding?: string; serviceCenterReportRequiredAction?: string }) {
-  if (draft?.serviceCenterComments?.length) return draft.serviceCenterComments;
-  return [{
+function serviceCenterCommentsFromDraft(draft?: { serviceCenterComments?: Partial<ServiceCenterComment>[]; serviceCenterReportFinding?: string; serviceCenterReportRequiredAction?: string }) {
+  if (draft?.serviceCenterComments?.length) return draft.serviceCenterComments.map(normalizeServiceCenterComment);
+  return [normalizeServiceCenterComment({
     id: "service-center-1",
     finding: draft?.serviceCenterReportFinding || "",
     requiredAction: draft?.serviceCenterReportRequiredAction || "",
-  }];
+  })];
+}
+
+function normalizeServiceCenterComment(comment: Partial<ServiceCenterComment>, index = 0): ServiceCenterComment {
+  return {
+    id: comment.id || `service-center-${index + 1}`,
+    finding: comment.finding || "",
+    requiredAction: comment.requiredAction || "",
+    codeStandard: comment.codeStandard || "NFPA 72",
+    codeEdition: comment.codeEdition || "",
+    codeSection: comment.codeSection || "",
+  };
 }
 
 function blankServiceCenterComment(): ServiceCenterComment {
-  return { id: `service-center-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, finding: "", requiredAction: "" };
+  return {
+    id: `service-center-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    finding: "",
+    requiredAction: "",
+    codeStandard: "NFPA 72",
+    codeEdition: "",
+    codeSection: "",
+  };
+}
+
+function serviceCenterReportValue(comment: ServiceCenterComment): ReportFindingValue {
+  return {
+    reportFinding: comment.finding,
+    reportRequiredAction: comment.requiredAction,
+    reportCodeStandard: comment.codeStandard || "NFPA 72",
+    reportCodeEdition: comment.codeEdition,
+    reportCodeSection: comment.codeSection,
+  };
+}
+
+function serviceCenterPatch(reportFields: Partial<ReportFindingValue>): Partial<ServiceCenterComment> {
+  return {
+    ...("reportFinding" in reportFields ? { finding: reportFields.reportFinding || "" } : {}),
+    ...("reportRequiredAction" in reportFields ? { requiredAction: reportFields.reportRequiredAction || "" } : {}),
+    ...("reportCodeStandard" in reportFields ? { codeStandard: reportFields.reportCodeStandard || "NFPA 72" } : {}),
+    ...("reportCodeEdition" in reportFields ? { codeEdition: reportFields.reportCodeEdition || "" } : {}),
+    ...("reportCodeSection" in reportFields ? { codeSection: reportFields.reportCodeSection || "" } : {}),
+  };
 }
 
 function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
@@ -305,7 +331,7 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
       <div className="report-major-section">
         <h2>Service Center Comments</h2>
         {printableServiceComments.length ? (
-          printableServiceComments.map((comment, index) => <ServiceCenterFinding key={comment.id} number={index + 1} finding={comment.finding} requiredAction={comment.requiredAction} />)
+          printableServiceComments.map((comment, index) => <ServiceCenterFinding key={comment.id} number={index + 1} comment={comment} />)
         ) : (
           <p className="report-aligned-note">** No non-compliance issues were identified during the audit.</p>
         )}
@@ -338,16 +364,20 @@ function AuditCommentsPage({ group, serviceCenterHasComment, serviceCenterCommen
   );
 }
 
-function ServiceCenterFinding({ number, finding, requiredAction }: { number: number; finding: string; requiredAction: string }) {
+function ServiceCenterFinding({ number, comment }: { number: number; comment: ServiceCenterComment }) {
   return (
     <div className="report-finding">
       <div className="report-finding-row">
         <span className="report-finding-number">{number ? `${number}.` : ""}</span>
-        <p><span className="report-finding-label">Finding:</span> {finding}</p>
+        <p><span className="report-finding-label">Finding:</span> {comment.finding}</p>
       </div>
       <div className="report-finding-row">
         <span className="report-finding-number" />
-        <p><span className="report-finding-label">Required Action:</span> {requiredAction}</p>
+        <p><span className="report-finding-label">Required Action:</span> {comment.requiredAction}</p>
+      </div>
+      <div className="report-finding-row">
+        <span className="report-finding-number" />
+        <p><span className="report-code-reference-label">Code Reference:</span> {formatServiceCenterCodeReference(comment)}</p>
       </div>
     </div>
   );
@@ -712,6 +742,13 @@ function formatCodeReference(item: ReportItem) {
   const edition = item.codeEdition ? `${item.codeEdition.replace(/\D/g, "") || item.codeEdition} Edition` : "";
   const section = item.codeSection ? `Section ${item.codeSection}` : "";
   const standard = item.codeStandard || "NFPA 72";
+  return [standard, edition, section].filter(Boolean).join(", ");
+}
+
+function formatServiceCenterCodeReference(comment: ServiceCenterComment) {
+  const edition = comment.codeEdition ? `${comment.codeEdition.replace(/\D/g, "") || comment.codeEdition} Edition` : "";
+  const section = comment.codeSection ? `Section ${comment.codeSection}` : "";
+  const standard = comment.codeStandard || "NFPA 72";
   return [standard, edition, section].filter(Boolean).join(", ");
 }
 

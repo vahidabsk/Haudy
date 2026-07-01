@@ -18,6 +18,9 @@ export interface ServiceCenterComment {
   id: string;
   finding: string;
   requiredAction: string;
+  codeStandard: string;
+  codeEdition: string;
+  codeSection: string;
 }
 
 export interface AscDocumentState {

@@ -15,7 +15,6 @@ const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70"];
 
 export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpStandard?: string; helpYear?: string }) {
   const selectedStandard = value.reportCodeStandard || "NFPA 72";
-  const selectedEdition = value.reportCodeEdition;
   return (
     <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50/60 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -56,19 +55,13 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
       <div className="grid gap-3 sm:grid-cols-[160px_160px_1fr]">
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           Code Reference
-          <select className="min-h-11 rounded-md border bg-white px-3" value={selectedStandard} onChange={(event) => onChange({ reportCodeStandard: event.target.value })}>
-            <option value="">Standard</option>
-            {selectedStandard && !standardOptions.includes(selectedStandard) ? <option value={selectedStandard}>{selectedStandard}</option> : null}
-            {standardOptions.map((standard) => <option key={standard} value={standard}>{standard}</option>)}
-          </select>
+          <input className="min-h-11 rounded-md border bg-white px-3" list="report-code-standard-options" value={selectedStandard} onChange={(event) => onChange({ reportCodeStandard: event.target.value })} placeholder="Example: NFPA 72" />
+          <datalist id="report-code-standard-options">{standardOptions.map((standard) => <option key={standard} value={standard} />)}</datalist>
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           Edition
-          <select className="min-h-11 rounded-md border bg-white px-3" value={value.reportCodeEdition} onChange={(event) => onChange({ reportCodeEdition: event.target.value })}>
-            <option value="">Edition</option>
-            {selectedEdition && !editionOptions.includes(selectedEdition) ? <option value={selectedEdition}>{selectedEdition} Edition</option> : null}
-            {editionOptions.map((edition) => <option key={edition} value={edition}>{edition} Edition</option>)}
-          </select>
+          <input className="min-h-11 rounded-md border bg-white px-3" list="report-code-edition-options" value={value.reportCodeEdition} onChange={(event) => onChange({ reportCodeEdition: event.target.value })} placeholder="Example: 2022" />
+          <datalist id="report-code-edition-options">{editionOptions.map((edition) => <option key={edition} value={edition} />)}</datalist>
         </label>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           Section / paragraph number
