@@ -27,11 +27,24 @@ export async function exportHaudyBackup({ includePhotos = false } = {}) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `Haudy_Data_${includePhotos ? "With_Photos_" : ""}${new Date().toISOString().slice(0, 10)}.haudy-data.json`;
+  link.download = `Haudy_Data_${includePhotos ? "With_Photos" : "Without_Photos"}_${fileTimestamp()}.haudy-data.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function fileTimestamp() {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "_",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+  ].join("");
 }
 
 export async function importHaudyBackupFile(file: File) {

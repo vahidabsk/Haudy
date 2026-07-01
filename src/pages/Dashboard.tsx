@@ -112,7 +112,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 setTransferMessage("Data file created without photos.");
               }}
             >
-              <Download size={16} /> Export
+              <Download size={16} /> Export Data - No Photos
             </button>
             <button
               type="button"
@@ -123,7 +123,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 setTransferMessage("Data file with compressed photos created.");
               }}
             >
-              <Download size={16} /> Export Photos
+              <Download size={16} /> Export Data - With Photos
             </button>
             <button
               type="button"
