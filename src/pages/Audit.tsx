@@ -26,7 +26,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const navigate = useNavigate();
   const store = useAudits(auditorName);
   const savedAudit = store.audits.find((item) => item.id === auditId);
-  const [draftAudit, setDraftAudit] = useState<Audit | undefined>(savedAudit);
+  const [draftAudit, setDraftAudit] = useState<Audit | undefined>(() => cloneAudit(savedAudit));
   const [activeTab, setActiveTab] = useState<AuditTab>("signal");
   const [pendingNavigation, setPendingNavigation] = useState("");
   const audit = draftAudit || savedAudit;
@@ -38,14 +38,14 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const auditDateOptionKey = auditDateOptions.map((option) => option.value).join("|");
 
   useEffect(() => {
-    setDraftAudit(savedAudit);
+    setDraftAudit(cloneAudit(savedAudit));
     setPendingNavigation("");
   }, [savedAudit?.id]);
 
   useEffect(() => {
     if (!draftAudit || !auditDateOptions.length) return;
     if (auditDateOptions.some((option) => option.value === draftAudit.auditDate)) return;
-    setDraftAudit({ ...draftAudit, auditDate: auditDateOptions[0].value, updatedAt: nowIso() });
+    setDraftAudit(cloneAudit({ ...draftAudit, auditDate: auditDateOptions[0].value, updatedAt: nowIso() }));
   }, [draftAudit?.id, draftAudit?.auditDate, auditDateOptionKey]);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   if (!audit) return <main className="p-6">Audit not found.</main>;
 
   function update(next: Audit) {
-    setDraftAudit({ ...next, updatedAt: nowIso() });
+    setDraftAudit(cloneAudit({ ...next, updatedAt: nowIso() }));
   }
 
   const currentAudit = audit;
@@ -69,7 +69,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   function saveAndReturn() {
-    store.updateAudit({ ...currentAudit, updatedAt: nowIso() });
+    store.updateAudit(cloneAudit({ ...currentAudit, updatedAt: nowIso() })!);
     navigate("/");
   }
   function requestNavigation(path: string) {
@@ -81,13 +81,17 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   }
   function saveAndLeave() {
     if (!pendingNavigation) return;
-    store.updateAudit({ ...currentAudit, updatedAt: nowIso() });
-    navigate(pendingNavigation);
+    const destination = pendingNavigation;
+    setPendingNavigation("");
+    store.updateAudit(cloneAudit({ ...currentAudit, updatedAt: nowIso() })!);
+    navigate(destination);
   }
   function leaveWithoutSaving() {
     if (!pendingNavigation) return;
-    setDraftAudit(savedAudit);
-    navigate(pendingNavigation);
+    const destination = pendingNavigation;
+    setPendingNavigation("");
+    setDraftAudit(cloneAudit(savedAudit));
+    navigate(destination);
   }
 
   return (
@@ -249,6 +253,12 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
       ) : null}
     </main>
   );
+}
+
+function cloneAudit(audit?: Audit) {
+  if (!audit) return undefined;
+  if (typeof structuredClone === "function") return structuredClone(audit);
+  return JSON.parse(JSON.stringify(audit)) as Audit;
 }
 
 function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: { onSave: () => void; onDiscard: () => void; onCancel: () => void }) {
