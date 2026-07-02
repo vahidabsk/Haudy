@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import { Flame, UserRound } from "lucide-react";
+import { Flame, HelpCircle, UserRound } from "lucide-react";
 import { Auditor } from "../lib/types";
 
-export function UlHeader({ auditor, onChange }: { auditor: Auditor | null; onChange: () => void }) {
+export function UlHeader({ auditor, onChange, onHelp }: { auditor: Auditor | null; onChange: () => void; onHelp: () => void }) {
   return (
     <header className="no-print">
       <div className="h-1 bg-signal" />
@@ -19,6 +19,10 @@ export function UlHeader({ auditor, onChange }: { auditor: Auditor | null; onCha
           </Link>
           <div className="flex items-center gap-2 text-sm">
             <span className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 sm:flex"><UserRound size={16} />{auditor?.name || "No auditor"}</span>
+            <button className="inline-flex min-h-11 items-center gap-2 rounded-md border border-white/30 px-3 font-medium hover:bg-white/10" onClick={onHelp} title="Open Haudy operating help">
+              <HelpCircle size={17} />
+              <span className="hidden sm:inline">Help</span>
+            </button>
             <button className="min-h-11 rounded-md border border-white/30 px-3 font-medium hover:bg-white/10" onClick={onChange}>
               Edit Profile
             </button>

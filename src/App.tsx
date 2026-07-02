@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AuditorGate } from "./components/AuditorGate";
+import { OperatingHelp } from "./components/OperatingHelp";
 import { UlHeader } from "./components/UlHeader";
 import { useAuditor } from "./hooks/use-auditor";
 import { AscPropertiesPage, Dashboard } from "./pages/Dashboard";
@@ -12,6 +13,7 @@ import { ReportPage } from "./pages/Report";
 export default function App() {
   const auditor = useAuditor();
   const [editingAuditor, setEditingAuditor] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenAt = useRef<number | null>(null);
@@ -60,7 +62,7 @@ export default function App() {
       }}
       onCancel={() => setEditingAuditor(false)}
     >
-      <UlHeader auditor={auditor.auditor} onChange={() => setEditingAuditor(true)} />
+      <UlHeader auditor={auditor.auditor} onChange={() => setEditingAuditor(true)} onHelp={() => setShowHelp(true)} />
       <Routes>
         <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/asc/:ascKey/report" element={<ReportPage auditor={auditor.auditor} />} />
@@ -69,6 +71,7 @@ export default function App() {
         <Route path="/audit/:auditId" element={<AuditPage auditorName={auditor.auditor?.name || ""} />} />
         <Route path="/audit/:auditId/export" element={<ExportPage auditorName={auditor.auditor?.name || ""} />} />
       </Routes>
+      {showHelp ? <OperatingHelp onClose={() => setShowHelp(false)} /> : null}
     </AuditorGate>
   );
 }
