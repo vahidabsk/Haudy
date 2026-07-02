@@ -548,6 +548,7 @@ function todayInputValue() {
 export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const { ascKey = "" } = useParams();
+  const [deleteAudit, setDeleteAudit] = useState<Audit | null>(null);
   const group = groupByAsc(audits.audits).find((item) => item.key === decodeURIComponent(ascKey));
 
   if (!group) {
@@ -610,16 +611,9 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
                     <span className="font-semibold text-navy">Standard:</span> {audit.codeEdition || "not detected"}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit Field Note</Link>
-                    <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}/export`}><Download size={16} /> Export Field Note</Link>
-                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => {
-                      const deletingLastPropertyForAsc = group.audits.length === 1;
-                      audits.deleteAudit(audit.id);
-                      deleteAscDocuments(group.key);
-                      if (deletingLastPropertyForAsc) {
-                        deleteAscProfile(group.key);
-                      }
-                    }}><Trash2 size={16} /> Delete Field Note</button>
+                    <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit</Link>
+                    <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}/export`}><Download size={16} /> Export</Link>
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteAudit(audit)}><Trash2 size={16} /> Delete</button>
                   </div>
                 </div>
               </article>
@@ -627,7 +621,45 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
           </section>
         ))}
       </section>
+      {deleteAudit ? (
+        <DeletePropertyDialog
+          audit={deleteAudit}
+          onCancel={() => setDeleteAudit(null)}
+          onDelete={() => {
+            const deletingLastPropertyForAsc = group.audits.length === 1;
+            audits.deleteAudit(deleteAudit.id);
+            deleteAscDocuments(group.key);
+            if (deletingLastPropertyForAsc) {
+              deleteAscProfile(group.key);
+            }
+            setDeleteAudit(null);
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function DeletePropertyDialog({ audit, onCancel, onDelete }: { audit: Audit; onCancel: () => void; onDelete: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-red-800">Delete Field Note?</h2>
+          <p className="mt-1 text-sm text-slate-600">{audit.protectedProperty || "Selected property"}</p>
+        </div>
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-950">
+          <p className="font-semibold">Are you sure you want to delete this property field note?</p>
+          <p className="mt-1">This will remove the certificate, field note entries, report wording for this property, and any captured photos connected to it from Haudy on this device.</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-300 bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700" onClick={onDelete}>
+            <Trash2 size={16} /> Delete
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
