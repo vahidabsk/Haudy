@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
-import { loadAscDocuments, saveAscDocument, ServiceCenterComment, updateAscDocumentDraft } from "../lib/asc-documents";
+import { loadAscDocuments, saveAscDocument, ServiceCenterComment } from "../lib/asc-documents";
+import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { loadPhoto } from "../lib/photo-store";
@@ -57,24 +58,28 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
       pocName={searchParams.get("poc") || ""}
       scn={searchParams.get("scn") || ""}
       psn={searchParams.get("psn") || ""}
-      onUpdateAudit={store.updateAudit}
     />
   );
 }
 
-function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAudit }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string; onUpdateAudit: (audit: Audit) => void }) {
+function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string }) {
+  const navigate = useNavigate();
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
   const savedReportDraft = loadAscDocuments()[ascKey]?.report;
+  const [draftAudits, setDraftAudits] = useState<Audit[]>(() => cloneAudits(group.audits));
   const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
   const [serviceCenterDone, setServiceCenterDone] = useState(savedReportDraft?.serviceCenterDone ?? false);
   const [serviceCenterMinimized, setServiceCenterMinimized] = useState(false);
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const [reportLetterDate, setReportLetterDate] = useState(savedReportDraft?.letterDate || todayInputValue());
-  const reportAudits = useMemo(() => reportAuditsByCategory(group.audits), [group.audits]);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => reportSnapshot({ audits: group.audits, letterDate: savedReportDraft?.letterDate || todayInputValue(), serviceCenterHasComment: savedReportDraft?.serviceCenterHasComment ?? false, serviceCenterDone: savedReportDraft?.serviceCenterDone ?? false, serviceCenterComments: serviceCenterCommentsFromDraft(savedReportDraft) }));
+  const [pendingNavigation, setPendingNavigation] = useState("");
+  const reportGroup = useMemo(() => ({ ...group, audits: draftAudits }), [group, draftAudits]);
+  const reportAudits = useMemo(() => reportAuditsByCategory(draftAudits), [draftAudits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
   const [activeReportSection, setActiveReportSection] = useState<ReportEditorSection>("signal");
-  const reportItems = useMemo(() => group.audits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [group.audits]);
+  const reportItems = useMemo(() => draftAudits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [draftAudits]);
   const incomplete = reportItems.filter(({ item }) => reportItemNeedsAttention(item));
   const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some(serviceCenterCommentNeedsAttention);
   const reportDate = dateFromInput(reportLetterDate);
@@ -85,6 +90,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
   const activeSignalItems = activeItems.filter(({ item }) => item.reviewType === "Signal Processing Review");
   const activeDocumentationItems = activeItems.filter(({ item }) => item.reviewType === "Documentation Review");
   const activeInstallationItems = activeItems.filter(({ item }) => item.reviewType === "Installation Review");
+  const currentSnapshot = reportSnapshot({ audits: draftAudits, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+  const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
 
   useEffect(() => {
     if (reportAudits.length && !reportAudits.some((audit) => audit.id === activeAuditId)) setActiveAuditId(reportAudits[0].id);
@@ -98,35 +105,71 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
     };
   }, [reportName]);
 
+  function updateDraftAudit(nextAudit: Audit) {
+    setDraftAudits((current) => current.map((audit) => (audit.id === nextAudit.id ? cloneAudit(nextAudit) : audit)));
+  }
+
+  async function saveReport() {
+    const allAudits = loadAudits();
+    const draftById = new Map(draftAudits.map((audit) => [audit.id, audit]));
+    const nextAudits = allAudits.map((audit) => draftById.get(audit.id) || audit);
+    saveAudits(nextAudits);
+    const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+    setSavedAt(next[ascKey]?.report?.updatedAt || "");
+    setSavedSnapshot(currentSnapshot);
+    try {
+      const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+      await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
+      setFolderMessage("Saved to Haudy Storage.");
+    } catch (error) {
+      setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+    }
+  }
+
+  function requestNavigation(path: string) {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(path);
+      return;
+    }
+    navigate(path);
+  }
+
+  async function saveAndNavigate() {
+    if (!pendingNavigation) return;
+    const destination = pendingNavigation;
+    setPendingNavigation("");
+    await saveReport();
+    navigate(destination);
+  }
+
+  function discardAndNavigate() {
+    if (!pendingNavigation) return;
+    const destination = pendingNavigation;
+    setPendingNavigation("");
+    navigate(destination);
+  }
+
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
       <div className="no-print mb-4 grid gap-3 rounded-lg border bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
-            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to="/">
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation("/")}>
               <ArrowLeft size={16} /> Back to ASCs
-            </Link>
-            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(group.key)}`}>
+            </button>
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation(`/asc/${encodeURIComponent(group.key)}`)}>
               Back to Properties
-            </Link>
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+            <span className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-semibold ${hasUnsavedChanges ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
+            <button type="button" className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
             <button
+              type="button"
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-              onClick={async () => {
-                const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
-                setSavedAt(next[ascKey]?.report?.updatedAt || "");
-                try {
-                  const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
-                  await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
-                  setFolderMessage("Saved to Haudy Storage.");
-                } catch (error) {
-                  setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
-                }
-              }}
+              onClick={saveReport}
             >
-              Save Report
+              Save Report Draft
             </button>
           </div>
         </div>
@@ -154,7 +197,6 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                 onChange={(event) => {
                   const nextDate = event.target.value;
                   setReportLetterDate(nextDate);
-                  updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, letterDate: nextDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
                 }}
               />
             </label>
@@ -195,11 +237,9 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                   setServiceCenterHasComment(nextHasComment);
                   const nextComments = nextHasComment && !serviceCenterComments.length ? [blankServiceCenterComment()] : serviceCenterComments;
                   if (nextComments !== serviceCenterComments) setServiceCenterComments(nextComments);
-                  updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment: nextHasComment, serviceCenterDone, serviceCenterComments: nextComments });
                 }}
                 onDoneChange={(nextDone) => {
                   setServiceCenterDone(nextDone);
-                  updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, serviceCenterHasComment, serviceCenterDone: nextDone, serviceCenterComments });
                 }}
                 onUpdateComments={updateServiceCenterComments}
                 onUpdateComment={updateServiceCenterComment}
@@ -269,7 +309,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
                   section={activeReportSection as ReportPropertySection}
                   items={activeReportSection === "signal" ? activeSignalItems : activeReportSection === "documentation" ? activeDocumentationItems : activeInstallationItems}
                   emptyText={activeReportSection === "signal" ? "No signal processing variations for this property." : activeReportSection === "documentation" ? "No documentation variations for this property." : "No installation or device test variations for this property."}
-                  onUpdateAudit={onUpdateAudit}
+                  onUpdateAudit={updateDraftAudit}
                 />
               ) : (
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">No properties found for this ASC.</div>
@@ -284,20 +324,56 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, onUpdateAud
         </div>
       </div>
 
-      <ReportLetterPage group={group} pocName={pocName} date={reportDate} files={fileReferences} scn={scn} psn={psn} />
+      <ReportLetterPage group={reportGroup} pocName={pocName} date={reportDate} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditor={auditor} />
-      <AuditCommentsPage group={group} serviceCenterHasComment={serviceCenterHasComment} serviceCenterComments={serviceCenterComments} />
+      <AuditCommentsPage group={reportGroup} serviceCenterHasComment={serviceCenterHasComment} serviceCenterComments={serviceCenterComments} />
+      {pendingNavigation ? <UnsavedChangesDialog onSave={saveAndNavigate} onDiscard={discardAndNavigate} onCancel={() => setPendingNavigation("")} /> : null}
     </main>
   );
 
   function updateServiceCenterComments(nextComments: ServiceCenterComment[]) {
     setServiceCenterComments(nextComments);
-    updateAscDocumentDraft(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments: nextComments });
   }
 
   function updateServiceCenterComment(id: string, patch: Partial<ServiceCenterComment>) {
     updateServiceCenterComments(serviceCenterComments.map((comment) => (comment.id === id ? { ...comment, ...patch } : comment)));
   }
+}
+
+function cloneAudit(audit: Audit) {
+  return JSON.parse(JSON.stringify(audit)) as Audit;
+}
+
+function cloneAudits(audits: Audit[]) {
+  return audits.map(cloneAudit);
+}
+
+function reportSnapshot(details: { audits: Audit[]; letterDate: string; serviceCenterHasComment: boolean; serviceCenterDone: boolean; serviceCenterComments: ServiceCenterComment[] }) {
+  return JSON.stringify({
+    audits: details.audits,
+    letterDate: details.letterDate || "",
+    serviceCenterHasComment: details.serviceCenterHasComment,
+    serviceCenterDone: details.serviceCenterDone,
+    serviceCenterComments: details.serviceCenterComments,
+  });
+}
+
+function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: { onSave: () => void | Promise<void>; onDiscard: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-navy">Unsaved Changes</h2>
+          <p className="mt-1 text-sm text-slate-600">Save your changes before leaving this page?</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="button" className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={onDiscard}>Discard Changes</button>
+          <button type="button" className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" onClick={onSave}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ReportLetterPage({ group, pocName, date, files, scn, psn }: { group: AscGroup; pocName: string; date: Date; files: string; scn: string; psn: string }) {

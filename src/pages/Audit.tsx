@@ -78,9 +78,8 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
     setDraftAudit(cloneAudit(saved));
     return saved;
   }
-  function saveAndReturn() {
+  function saveFieldNote() {
     commitAudit();
-    navigate("/");
   }
   function requestNavigation(path: string) {
     if (hasUnsavedChanges) {
@@ -124,8 +123,8 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
             </label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {hasUnsavedChanges ? <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">Unsaved changes</span> : null}
-            <button type="button" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
+            <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${hasUnsavedChanges ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
+            <button type="button" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveFieldNote}><Save size={16} />Save Field Note</button>
           </div>
         </div>
         <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-5">
@@ -275,13 +274,13 @@ function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: { onSave: () => v
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
       <div className="grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-2xl">
         <div>
-          <h2 className="text-xl font-bold text-navy">Unsaved Field Notes</h2>
-          <p className="mt-1 text-sm text-slate-600">You changed this field note. Save before leaving?</p>
+          <h2 className="text-xl font-bold text-navy">Unsaved Changes</h2>
+          <p className="mt-1 text-sm text-slate-600">Save your changes before leaving this page?</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
-          <button type="button" className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={onDiscard}>Leave Without Saving</button>
-          <button type="button" className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" onClick={onSave}>Save and Leave</button>
+          <button type="button" className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={onDiscard}>Discard Changes</button>
+          <button type="button" className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" onClick={onSave}>Save</button>
         </div>
       </div>
     </div>

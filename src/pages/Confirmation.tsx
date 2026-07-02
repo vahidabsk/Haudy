@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
-import { loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
+import { loadAscDocuments, saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
@@ -30,6 +30,7 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
 }
 
 function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, startTime, meetingLocation, conversationDate, letterDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; startTime: string; meetingLocation: string; conversationDate: string; letterDate: string; scn: string; psn: string }) {
+  const navigate = useNavigate();
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
   const [auditStartDate, setAuditStartDate] = useState(startDate);
@@ -38,6 +39,8 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
   const [auditMeetingLocation, setAuditMeetingLocation] = useState(meetingLocation);
   const [scheduleConversationDate, setScheduleConversationDate] = useState(conversationDate);
   const [confirmationLetterDate, setConfirmationLetterDate] = useState(letterDate);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => confirmationSnapshot({ startDate, endDate: endDate || startDate, startTime, meetingLocation, conversationDate, letterDate }));
+  const [pendingNavigation, setPendingNavigation] = useState("");
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
@@ -53,6 +56,8 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     categories: selectedSites.map((section) => section.category),
   });
   const maxEndDate = maxAuditEndDate(auditStartDate);
+  const currentSnapshot = confirmationSnapshot({ startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
+  const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
   const updateDetails = (next: { startDate?: string; endDate?: string; startTime?: string; meetingLocation?: string; conversationDate?: string; letterDate?: string }) => {
     const nextStartDate = next.startDate ?? auditStartDate;
     const nextEndDate = next.endDate ?? auditEndDate;
@@ -66,8 +71,42 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     setAuditMeetingLocation(nextMeetingLocation);
     setScheduleConversationDate(nextConversationDate);
     setConfirmationLetterDate(nextLetterDate);
-    updateAscDocumentDraft(ascKey, "confirmation", { pocName, scn, psn, startDate: nextStartDate, endDate: nextEndDate, startTime: nextStartTime, meetingLocation: nextMeetingLocation, conversationDate: nextConversationDate, letterDate: nextLetterDate });
   };
+
+  async function saveConfirmation() {
+    const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
+    setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
+    setSavedSnapshot(currentSnapshot);
+    try {
+      await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
+      setFolderMessage("Saved to Haudy Storage.");
+    } catch (error) {
+      setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+    }
+  }
+
+  function requestNavigation(path: string) {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(path);
+      return;
+    }
+    navigate(path);
+  }
+
+  async function saveAndNavigate() {
+    if (!pendingNavigation) return;
+    const destination = pendingNavigation;
+    setPendingNavigation("");
+    await saveConfirmation();
+    navigate(destination);
+  }
+
+  function discardAndNavigate() {
+    if (!pendingNavigation) return;
+    const destination = pendingNavigation;
+    setPendingNavigation("");
+    navigate(destination);
+  }
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -82,27 +121,20 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
       <div className="no-print mb-4 grid gap-3 rounded-lg border bg-white p-4 shadow-sm">
         <div className="flex flex-wrap justify-between gap-2">
           <div className="flex flex-wrap gap-2">
-            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to="/">
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation("/")}>
               <ArrowLeft size={16} /> Back to ASCs
-            </Link>
-            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(group.key)}`}>
+            </button>
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation(`/asc/${encodeURIComponent(group.key)}`)}>
               Back to Properties
-            </Link>
+            </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+            <span className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-semibold ${hasUnsavedChanges ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
+            <button type="button" className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
             <button
+              type="button"
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-              onClick={async () => {
-                const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
-                setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
-                try {
-                  await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
-                  setFolderMessage("Saved to Haudy Storage.");
-                } catch (error) {
-                  setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
-                }
-              }}
+              onClick={saveConfirmation}
             >
               Save Confirmation
             </button>
@@ -204,7 +236,37 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           </div>
         ))}
       </section>
+      {pendingNavigation ? <UnsavedChangesDialog onSave={saveAndNavigate} onDiscard={discardAndNavigate} onCancel={() => setPendingNavigation("")} /> : null}
     </main>
+  );
+}
+
+function confirmationSnapshot(details: { startDate: string; endDate: string; startTime: string; meetingLocation: string; conversationDate: string; letterDate: string }) {
+  return JSON.stringify({
+    startDate: details.startDate || "",
+    endDate: details.endDate || "",
+    startTime: details.startTime || "",
+    meetingLocation: details.meetingLocation || "",
+    conversationDate: details.conversationDate || "",
+    letterDate: details.letterDate || "",
+  });
+}
+
+function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: { onSave: () => void | Promise<void>; onDiscard: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-navy">Unsaved Changes</h2>
+          <p className="mt-1 text-sm text-slate-600">Save your changes before leaving this page?</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="button" className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={onDiscard}>Discard Changes</button>
+          <button type="button" className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" onClick={onSave}>Save</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
