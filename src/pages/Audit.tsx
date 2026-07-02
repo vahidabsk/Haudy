@@ -10,6 +10,7 @@ import { DictationNotes } from "../components/DictationNotes";
 import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments } from "../lib/asc-documents";
 import { loadAscProfiles } from "../lib/asc-profile";
+import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
@@ -68,8 +69,17 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
+  function commitAudit() {
+    const saved = cloneAudit({ ...currentAudit, updatedAt: nowIso() })!;
+    const allAudits = loadAudits();
+    const nextAudits = allAudits.map((item) => (item.id === saved.id ? saved : item));
+    saveAudits(nextAudits.some((item) => item.id === saved.id) ? nextAudits : [saved, ...allAudits]);
+    store.setAudits(nextAudits.some((item) => item.id === saved.id) ? nextAudits : [saved, ...allAudits]);
+    setDraftAudit(cloneAudit(saved));
+    return saved;
+  }
   function saveAndReturn() {
-    store.updateAudit(cloneAudit({ ...currentAudit, updatedAt: nowIso() })!);
+    commitAudit();
     navigate("/");
   }
   function requestNavigation(path: string) {
@@ -83,7 +93,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
     if (!pendingNavigation) return;
     const destination = pendingNavigation;
     setPendingNavigation("");
-    store.updateAudit(cloneAudit({ ...currentAudit, updatedAt: nowIso() })!);
+    commitAudit();
     navigate(destination);
   }
   function leaveWithoutSaving() {
@@ -115,7 +125,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {hasUnsavedChanges ? <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">Unsaved changes</span> : null}
-            <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
+            <button type="button" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
           </div>
         </div>
         <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-5">
@@ -257,7 +267,6 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
 
 function cloneAudit(audit?: Audit) {
   if (!audit) return undefined;
-  if (typeof structuredClone === "function") return structuredClone(audit);
   return JSON.parse(JSON.stringify(audit)) as Audit;
 }
 
