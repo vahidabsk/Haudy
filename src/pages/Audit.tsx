@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, FileText, RadioTower, Save, Wrench, Zap } from "lucide-react";
 import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
@@ -25,8 +25,12 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const { auditId } = useParams();
   const navigate = useNavigate();
   const store = useAudits(auditorName);
-  const audit = store.audits.find((item) => item.id === auditId);
+  const savedAudit = store.audits.find((item) => item.id === auditId);
+  const [draftAudit, setDraftAudit] = useState<Audit | undefined>(savedAudit);
   const [activeTab, setActiveTab] = useState<AuditTab>("signal");
+  const [pendingNavigation, setPendingNavigation] = useState("");
+  const audit = draftAudit || savedAudit;
+  const hasUnsavedChanges = Boolean(savedAudit && draftAudit && JSON.stringify(savedAudit) !== JSON.stringify(draftAudit));
   const ascKey = audit ? [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|") : "";
   const confirmation = ascKey ? loadAscDocuments()[ascKey]?.confirmation : undefined;
   const ascProfile = ascKey ? loadAscProfiles()[ascKey] : undefined;
@@ -34,15 +38,30 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const auditDateOptionKey = auditDateOptions.map((option) => option.value).join("|");
 
   useEffect(() => {
-    if (!audit || !auditDateOptions.length) return;
-    if (auditDateOptions.some((option) => option.value === audit.auditDate)) return;
-    store.updateAudit({ ...audit, auditDate: auditDateOptions[0].value, updatedAt: nowIso() });
-  }, [audit?.id, audit?.auditDate, auditDateOptionKey]);
+    setDraftAudit(savedAudit);
+    setPendingNavigation("");
+  }, [savedAudit?.id]);
+
+  useEffect(() => {
+    if (!draftAudit || !auditDateOptions.length) return;
+    if (auditDateOptions.some((option) => option.value === draftAudit.auditDate)) return;
+    setDraftAudit({ ...draftAudit, auditDate: auditDateOptions[0].value, updatedAt: nowIso() });
+  }, [draftAudit?.id, draftAudit?.auditDate, auditDateOptionKey]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
 
   if (!audit) return <main className="p-6">Audit not found.</main>;
 
   function update(next: Audit) {
-    store.updateAudit({ ...next, updatedAt: nowIso() });
+    setDraftAudit({ ...next, updatedAt: nowIso() });
   }
 
   const currentAudit = audit;
@@ -50,8 +69,25 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   function saveAndReturn() {
-    update(currentAudit);
+    store.updateAudit({ ...currentAudit, updatedAt: nowIso() });
     navigate("/");
+  }
+  function requestNavigation(path: string) {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(path);
+      return;
+    }
+    navigate(path);
+  }
+  function saveAndLeave() {
+    if (!pendingNavigation) return;
+    store.updateAudit({ ...currentAudit, updatedAt: nowIso() });
+    navigate(pendingNavigation);
+  }
+  function leaveWithoutSaving() {
+    if (!pendingNavigation) return;
+    setDraftAudit(savedAudit);
+    navigate(pendingNavigation);
   }
 
   return (
@@ -59,9 +95,9 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-wrap items-end gap-3">
-            <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/asc/${encodeURIComponent(ascKey)}`}>
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation(`/asc/${encodeURIComponent(ascKey)}`)}>
               <ArrowLeft size={16} /> Back to Properties
-            </Link>
+            </button>
             <label className="grid gap-1 text-sm font-semibold text-navy">
               Field audit date
               {auditDateOptions.length ? (
@@ -73,7 +109,10 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
               )}
             </label>
           </div>
-          <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasUnsavedChanges ? <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">Unsaved changes</span> : null}
+            <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={saveAndReturn}><Save size={16} />Save</button>
+          </div>
         </div>
         <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-5">
           <ReadonlyAuditInfo label="ASC" value={[audit.ascName, audit.ascCity, audit.ascState].filter(Boolean).join(" - ")} />
@@ -201,7 +240,32 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
           </div>
         ) : null}
       </section>
+      {pendingNavigation ? (
+        <UnsavedChangesDialog
+          onSave={saveAndLeave}
+          onDiscard={leaveWithoutSaving}
+          onCancel={() => setPendingNavigation("")}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: { onSave: () => void; onDiscard: () => void; onCancel: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-navy">Unsaved Field Notes</h2>
+          <p className="mt-1 text-sm text-slate-600">You changed this field note. Save before leaving?</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="button" className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100" onClick={onDiscard}>Leave Without Saving</button>
+          <button type="button" className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100" onClick={onSave}>Save and Leave</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
