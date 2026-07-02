@@ -55,6 +55,15 @@ export function useAudits(auditorName = "") {
           return next;
         });
       },
+      deleteAudits(ids: string[]) {
+        const idSet = new Set(ids);
+        setAudits((current) => {
+          current.filter((audit) => idSet.has(audit.id)).forEach(removeAuditPhotos);
+          const next = current.filter((audit) => !idSet.has(audit.id));
+          saveAudits(next);
+          return next;
+        });
+      },
       updateAudit(nextAudit: Audit) {
         setAudits((current) => {
           const next = current.map((audit) => (audit.id === nextAudit.id ? nextAudit : audit));

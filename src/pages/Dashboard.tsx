@@ -33,6 +33,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [deleteAscGroup, setDeleteAscGroup] = useState<AscGroup | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -223,6 +224,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   }}>
                     <FileText size={16} /> {reportSaved ? "View / Edit Report" : "Create Report"}
                   </button>
+                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteAscGroup(group)}>
+                    <Trash2 size={16} /> Delete ASC
+                  </button>
                 </div>
               </div>
             ) : (
@@ -230,6 +234,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <span>To create confirmation letter and report, add POC, SCN, and PSN.</span>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100" onClick={() => setProfileGroup(group)}>
                   <FilePenLine size={16} /> Add Info
+                </button>
+                <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteAscGroup(group)}>
+                  <Trash2 size={16} /> Delete ASC
                 </button>
               </div>
             )}
@@ -294,7 +301,62 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
+      {deleteAscGroup ? (
+        <DeleteAscDialog
+          group={deleteAscGroup}
+          onCancel={() => setDeleteAscGroup(null)}
+          onDelete={() => {
+            const auditIds = deleteAscGroup.audits.map((audit) => audit.id);
+            audits.deleteAudits(auditIds);
+            deleteAscDocuments(deleteAscGroup.key);
+            deleteAscProfile(deleteAscGroup.key);
+            setAscDocuments(loadAscDocuments());
+            setAscProfiles(loadAscProfiles());
+            setDeleteAscGroup(null);
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function DeleteAscDialog({ group, onCancel, onDelete }: { group: AscGroup; onCancel: () => void; onDelete: () => void }) {
+  const [confirmation, setConfirmation] = useState("");
+  const ready = confirmation.trim().toUpperCase() === "DELETE";
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 px-4">
+      <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-red-800">Delete ASC?</h2>
+          <p className="mt-1 text-sm text-slate-600">{group.ascName}</p>
+        </div>
+        <div className="grid gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-950">
+          <p className="font-semibold">This will permanently remove this ASC from Haudy on this device.</p>
+          <ul className="list-disc pl-5">
+            <li>{group.audits.length} propert{group.audits.length === 1 ? "y" : "ies"} and certificate{group.audits.length === 1 ? "" : "s"}</li>
+            <li>All field notes under this ASC</li>
+            <li>Report draft and confirmation draft for this ASC</li>
+            <li>Captured photos connected to these field notes</li>
+            <li>Saved POC, SCN, and PSN information for this ASC</li>
+          </ul>
+        </div>
+        <label className="grid gap-1 text-sm font-semibold text-slate-700">
+          Type DELETE to confirm
+          <input
+            className="min-h-11 rounded-md border border-slate-300 px-3 text-base"
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.target.value)}
+            autoFocus
+          />
+        </label>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-300 bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={!ready} onClick={onDelete}>
+            <Trash2 size={16} /> Delete ASC
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
