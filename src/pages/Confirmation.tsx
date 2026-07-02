@@ -17,6 +17,8 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
   const pocName = searchParams.get("poc") || "";
   const startDate = searchParams.get("start") || searchParams.get("date") || savedConfirmation?.startDate || "";
   const endDate = searchParams.get("end") || savedConfirmation?.endDate || startDate;
+  const startTime = searchParams.get("time") || savedConfirmation?.startTime || "";
+  const meetingLocation = searchParams.get("location") || savedConfirmation?.meetingLocation || "";
   const conversationDate = searchParams.get("conversation") || savedConfirmation?.conversationDate || todayInputValue();
   const letterDate = searchParams.get("letter") || savedConfirmation?.letterDate || todayInputValue();
   const scn = searchParams.get("scn") || "";
@@ -24,14 +26,16 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
 
   if (!group) return <main className="p-6">ASC not found.</main>;
 
-  return <ConfirmationDocument ascKey={decodeURIComponent(ascKey)} group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} conversationDate={conversationDate} letterDate={letterDate} scn={scn} psn={psn} />;
+  return <ConfirmationDocument ascKey={decodeURIComponent(ascKey)} group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} startTime={startTime} meetingLocation={meetingLocation} conversationDate={conversationDate} letterDate={letterDate} scn={scn} psn={psn} />;
 }
 
-function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, conversationDate, letterDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; conversationDate: string; letterDate: string; scn: string; psn: string }) {
+function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endDate, startTime, meetingLocation, conversationDate, letterDate, scn, psn }: { ascKey: string; group: AscGroup; auditor: Auditor | null; pocName: string; startDate: string; endDate: string; startTime: string; meetingLocation: string; conversationDate: string; letterDate: string; scn: string; psn: string }) {
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
   const [auditStartDate, setAuditStartDate] = useState(startDate);
   const [auditEndDate, setAuditEndDate] = useState(endDate || startDate);
+  const [auditStartTime, setAuditStartTime] = useState(startTime);
+  const [auditMeetingLocation, setAuditMeetingLocation] = useState(meetingLocation);
   const [scheduleConversationDate, setScheduleConversationDate] = useState(conversationDate);
   const [confirmationLetterDate, setConfirmationLetterDate] = useState(letterDate);
   const today = new Date();
@@ -49,16 +53,20 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     categories: selectedSites.map((section) => section.category),
   });
   const maxEndDate = maxAuditEndDate(auditStartDate);
-  const updateDates = (next: { startDate?: string; endDate?: string; conversationDate?: string; letterDate?: string }) => {
+  const updateDetails = (next: { startDate?: string; endDate?: string; startTime?: string; meetingLocation?: string; conversationDate?: string; letterDate?: string }) => {
     const nextStartDate = next.startDate ?? auditStartDate;
     const nextEndDate = next.endDate ?? auditEndDate;
+    const nextStartTime = next.startTime ?? auditStartTime;
+    const nextMeetingLocation = next.meetingLocation ?? auditMeetingLocation;
     const nextConversationDate = next.conversationDate ?? scheduleConversationDate;
     const nextLetterDate = next.letterDate ?? confirmationLetterDate;
     setAuditStartDate(nextStartDate);
     setAuditEndDate(nextEndDate);
+    setAuditStartTime(nextStartTime);
+    setAuditMeetingLocation(nextMeetingLocation);
     setScheduleConversationDate(nextConversationDate);
     setConfirmationLetterDate(nextLetterDate);
-    updateAscDocumentDraft(ascKey, "confirmation", { pocName, scn, psn, startDate: nextStartDate, endDate: nextEndDate, conversationDate: nextConversationDate, letterDate: nextLetterDate });
+    updateAscDocumentDraft(ascKey, "confirmation", { pocName, scn, psn, startDate: nextStartDate, endDate: nextEndDate, startTime: nextStartTime, meetingLocation: nextMeetingLocation, conversationDate: nextConversationDate, letterDate: nextLetterDate });
   };
 
   useEffect(() => {
@@ -86,7 +94,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
             <button
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
               onClick={async () => {
-                const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
+                const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
                 setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
                 try {
                   await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
@@ -109,27 +117,35 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           {savedAt ? <div className="mt-1 text-xs text-emerald-700">Saved.</div> : null}
           {folderMessage ? <div className="mt-1 text-xs text-slate-600">{folderMessage}</div> : null}
         </div>
-        <div className="grid gap-3 rounded-md border border-sky-100 bg-sky-50 p-3 sm:grid-cols-4">
+        <div className="grid gap-3 rounded-md border border-sky-100 bg-sky-50 p-3 sm:grid-cols-3">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit start date
             <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={auditStartDate} onChange={(event) => {
               const nextStartDate = event.target.value;
               const nextMaxEndDate = maxAuditEndDate(nextStartDate);
               const nextEndDate = !auditEndDate || auditEndDate < nextStartDate || (nextMaxEndDate && auditEndDate > nextMaxEndDate) ? nextStartDate : auditEndDate;
-              updateDates({ startDate: nextStartDate, endDate: nextEndDate });
+              updateDetails({ startDate: nextStartDate, endDate: nextEndDate });
             }} />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit end date
-            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={auditEndDate} min={auditStartDate} max={maxEndDate} onChange={(event) => updateDates({ endDate: event.target.value })} />
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={auditEndDate} min={auditStartDate} max={maxEndDate} onChange={(event) => updateDetails({ endDate: event.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit start time <span className="font-normal text-slate-500">(optional)</span>
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="time" value={auditStartTime} onChange={(event) => updateDetails({ startTime: event.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700 sm:col-span-3">
+            Audit meeting location <span className="font-normal text-slate-500">(optional)</span>
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" value={auditMeetingLocation} onChange={(event) => updateDetails({ meetingLocation: event.target.value })} placeholder="Example: Main lobby, fire command center, or central station office" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Schedule conversation date
-            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={scheduleConversationDate} onChange={(event) => updateDates({ conversationDate: event.target.value })} />
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={scheduleConversationDate} onChange={(event) => updateDetails({ conversationDate: event.target.value })} />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Letter date
-            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={confirmationLetterDate} onChange={(event) => updateDates({ letterDate: event.target.value })} />
+            <input className="min-h-11 rounded-md border border-slate-300 bg-white px-3" type="date" value={confirmationLetterDate} onChange={(event) => updateDetails({ letterDate: event.target.value })} />
           </label>
         </div>
       </div>
@@ -145,8 +161,8 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           </p>
           <p>Our Reference: FILE(s): {fileReferences || "Not listed"}<span className="confirmation-reference-gap">SCN: {scn || ""}</span><span className="confirmation-reference-gap">PSN: {psn || ""}</span></p>
           <p>Subject: Annual Audit Confirmation</p>
-          <p>Dear {firstName(pocName)} ,</p>
-          <p>This is to confirm our conversation on {formatLongDate(scheduleConversationDate || today)} during which we scheduled the annual audit of the referenced file for {formatDateRange(auditStartDate, auditEndDate)}.</p>
+          <p>Dear {fullName(pocName)},</p>
+          <p>This is to confirm our conversation on {formatLongDate(scheduleConversationDate || today)} during which we scheduled the annual audit of the referenced file for {formatDateRange(auditStartDate, auditEndDate)}{auditScheduleDetails(auditStartTime, auditMeetingLocation)}.</p>
           <p>As noted in the Service Agreement that your organization executed with UL, your continued Listing is contingent upon your continued ability to deliver Code/Standard compliant service. Your organization was granted a Listing based on a favorable assessment of its ability to fulfill this obligation. Our audit this year is intended to verify this ability.</p>
           <p>We will review compliance to the applicable standards for the category or categories being audited. This could include but is not limited to certificated field installations, documentation, records, signal handling, operational procedures, response procedures, and/or monitoring facilities.</p>
           <p>Our objective is to verify that your organization is still capable of delivering Code/Standard compliant service. Our desire is to make the process as smooth as possible. Our experience is that preparation is key to success on both counts.</p>
@@ -207,7 +223,7 @@ function ConfirmationFooter() {
       <div>
         UL Solutions<br />
         333 Pfingsten Road<br />
-        Northbrook, IL 600623<br />
+        Northbrook, IL 60062<br />
         +1.887.854.3577<br />
         <b>UL.com/Solution</b>
       </div>
@@ -276,7 +292,7 @@ function formatSiteAddress(address: string) {
 }
 
 function formatAscAddressLines(address: string) {
-  const normalized = address.replace(/\s+/g, " ").trim();
+  const normalized = cleanCountryTail(address).replace(/\s+/g, " ").trim();
   const match = normalized.match(/^(.*?),\s*([^,]+),\s*([A-Z]{2}|[A-Za-z]+)\s+([0-9-]+)(?:\s+(UNITED STATES|United States))?$/);
   if (!match) return normalized ? [normalized] : [];
 
@@ -286,6 +302,10 @@ function formatAscAddressLines(address: string) {
   const postalCode = match[4].trim();
   const country = match[5]?.toUpperCase() || "UNITED STATES";
   return [street, `${city}, ${state} ${postalCode} ${country}`];
+}
+
+function cleanCountryTail(value: string) {
+  return value.replace(/\bUNITED STATES\b.*$/i, "UNITED STATES").trim();
 }
 
 function stateName(value: string) {
@@ -307,8 +327,28 @@ function categoryFromText(value: string) {
   return value.match(/\b(UUFX|UUJS|UUHX|UUFM)\b/i)?.[1]?.toUpperCase();
 }
 
-function firstName(name: string) {
-  return name.trim().split(/\s+/)[0] || "there";
+function fullName(name: string) {
+  return name.trim().replace(/\s+/g, " ") || "there";
+}
+
+function auditScheduleDetails(startTime: string, meetingLocation: string) {
+  const time = formatTime(startTime);
+  const location = meetingLocation.trim();
+  if (time && location) return `, beginning at ${time} at ${location}`;
+  if (time) return `, beginning at ${time}`;
+  if (location) return `, beginning at ${location}`;
+  return "";
+}
+
+function formatTime(value: string) {
+  if (!value) return "";
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 function formatLongDate(value: string | Date) {

@@ -205,6 +205,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                         psn: profile.psn,
                         start: documents.confirmation.startDate || "",
                         end: documents.confirmation.endDate || documents.confirmation.startDate || "",
+                        time: documents.confirmation.startTime || "",
+                        location: documents.confirmation.meetingLocation || "",
                         conversation: documents.confirmation.conversationDate || "",
                         letter: documents.confirmation.letterDate || "",
                       });
@@ -256,7 +258,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           onCreate={(details) => {
             const profile = ascProfiles[confirmationGroup.key];
             if (!profile) return;
-            setAscDocuments(updateAscDocumentDraft(confirmationGroup.key, "confirmation", { pocName: profile.pocName, scn: profile.scn, psn: profile.psn, startDate: details.start, endDate: details.end, conversationDate: details.conversation, letterDate: details.letter }));
+            setAscDocuments(updateAscDocumentDraft(confirmationGroup.key, "confirmation", { pocName: profile.pocName, scn: profile.scn, psn: profile.psn, startDate: details.start, endDate: details.end, startTime: details.time, meetingLocation: details.location, conversationDate: details.conversation, letterDate: details.letter }));
             const params = new URLSearchParams({ ...details, poc: profile.pocName, scn: profile.scn, psn: profile.psn });
             navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
           }}
@@ -401,6 +403,8 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
 function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscGroup; profile?: AscProfile; onClose: () => void; onCreate: (details: Record<string, string>) => void }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [meetingLocation, setMeetingLocation] = useState("");
   const [conversationDate, setConversationDate] = useState(todayInputValue());
   const [letterDate, setLetterDate] = useState(todayInputValue());
   const maxEndDate = maxAuditEndDate(startDate);
@@ -412,7 +416,7 @@ function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscG
         className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onCreate({ start: startDate, end: endDate, conversation: conversationDate, letter: letterDate });
+          if (ready) onCreate({ start: startDate, end: endDate, time: startTime, location: meetingLocation.trim(), conversation: conversationDate, letter: letterDate });
         }}
       >
         <div>
@@ -437,6 +441,14 @@ function ConfirmationDialog({ group, profile, onClose, onCreate }: { group: AscG
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit end date
             <input className="min-h-11 rounded-md border px-3" type="date" value={endDate} min={startDate} max={maxEndDate} onChange={(event) => setEndDate(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit start time <span className="font-normal text-slate-500">(optional)</span>
+            <input className="min-h-11 rounded-md border px-3" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit meeting location <span className="font-normal text-slate-500">(optional)</span>
+            <input className="min-h-11 rounded-md border px-3" value={meetingLocation} onChange={(event) => setMeetingLocation(event.target.value)} placeholder="Main lobby, fire command center, or ASC office" />
           </label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Schedule conversation date

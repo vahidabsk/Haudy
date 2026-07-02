@@ -7,6 +7,8 @@ export interface SavedDocumentStatus {
   psn: string;
   startDate?: string;
   endDate?: string;
+  startTime?: string;
+  meetingLocation?: string;
   conversationDate?: string;
   letterDate?: string;
   serviceCenterHasComment?: boolean;
