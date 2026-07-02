@@ -31,3 +31,8 @@ bun install && bun run build
 ## Upgrade Path
 
 For production-grade certificate intake, add `pdfjs-dist` for PDF text extraction and OCR such as `tesseract.js` for scanned/image-only PDFs. For multi-user persistence, add authenticated backend storage.
+
+## Handbooks
+
+- [User Operation Manual](docs/HAUDY_USER_OPERATION_MANUAL.md)
+- [IT And Engineering Handbook](docs/HAUDY_IT_ENGINEERING_HANDBOOK.md)
