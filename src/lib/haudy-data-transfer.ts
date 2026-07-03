@@ -1,6 +1,11 @@
 const BACKUP_VERSION = 1;
 const HAUDY_PREFIX = "haudy.";
 const PHOTO_PREFIX = "haudy.photos.";
+const DEVICE_ONLY_KEYS = new Set([
+  "haudy.localAuth",
+  "haudy.localSession",
+  "haudy.offlineReady",
+]);
 
 interface HaudyBackupFile {
   app: "Haudy";
@@ -108,7 +113,7 @@ async function readHaudyEntries(includePhotos: boolean) {
   const entries: Record<string, string> = {};
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
-    if (!key?.startsWith(HAUDY_PREFIX)) continue;
+    if (!key || !isTransferableHaudyKey(key)) continue;
     if (!includePhotos && key.startsWith(PHOTO_PREFIX)) continue;
     const value = localStorage.getItem(key);
     if (value !== null) entries[key] = await exportEntryValue(key, value, includePhotos);
@@ -125,14 +130,14 @@ async function exportEntryValue(key: string, value: string, includePhotos: boole
 function replaceHaudyEntries(entries: Record<string, string>) {
   const previousEntries = readCurrentHaudyEntries();
   Object.keys(localStorage)
-    .filter((key) => key.startsWith(HAUDY_PREFIX))
+    .filter(isTransferableHaudyKey)
     .forEach((key) => localStorage.removeItem(key));
 
   let imported = 0;
   let skippedPhotos = 0;
   try {
     Object.entries(entries).forEach(([key, value]) => {
-      if (key.startsWith(HAUDY_PREFIX) && typeof value === "string") {
+      if (isTransferableHaudyKey(key) && typeof value === "string") {
         try {
           localStorage.setItem(key, value);
           imported += 1;
@@ -156,7 +161,7 @@ function readCurrentHaudyEntries() {
   const entries: Record<string, string> = {};
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
-    if (!key?.startsWith(HAUDY_PREFIX)) continue;
+    if (!key || !isTransferableHaudyKey(key)) continue;
     const value = localStorage.getItem(key);
     if (value !== null) entries[key] = value;
   }
@@ -165,7 +170,7 @@ function readCurrentHaudyEntries() {
 
 function restoreEntries(entries: Record<string, string>) {
   Object.keys(localStorage)
-    .filter((key) => key.startsWith(HAUDY_PREFIX))
+    .filter(isTransferableHaudyKey)
     .forEach((key) => localStorage.removeItem(key));
 
   Object.entries(entries).forEach(([key, value]) => {
@@ -175,6 +180,10 @@ function restoreEntries(entries: Record<string, string>) {
       // Best effort restore. If the browser quota is already full, keep going.
     }
   });
+}
+
+function isTransferableHaudyKey(key: string) {
+  return key.startsWith(HAUDY_PREFIX) && !DEVICE_ONLY_KEYS.has(key);
 }
 
 function stripPhotoReferences(value: string) {

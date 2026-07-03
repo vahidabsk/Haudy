@@ -8,6 +8,7 @@ import {
   loadLocalSession,
   LocalSession,
   resetLocalUserPassword,
+  saveLocalSession,
   unlockAsLocalUser,
   verifyAdmin,
   verifyLocalUser,
@@ -41,6 +42,13 @@ export function LocalAuthGate({ children }: { children: (session: LocalSession, 
 
 function LocalLoginScreen({ hasUser, username, onLoggedIn, onAuthChanged }: { hasUser: boolean; username: string; onLoggedIn: () => void; onAuthChanged: () => void }) {
   const [mode, setMode] = useState<"login" | "setup" | "admin">(hasUser ? "login" : "setup");
+
+  useEffect(() => {
+    setMode((currentMode) => {
+      if (currentMode === "admin") return currentMode;
+      return hasUser ? "login" : "setup";
+    });
+  }, [hasUser]);
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8">
@@ -106,7 +114,7 @@ function LoginForm({ username, onDone }: { username: string; onDone: () => void 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (await verifyLocalUser(enteredUsername, password)) {
-      localStorage.setItem("haudy.localSession", JSON.stringify({ username: enteredUsername.trim(), role: "user", loggedInAt: new Date().toISOString() }));
+      saveLocalSession({ username: enteredUsername.trim(), role: "user", loggedInAt: new Date().toISOString() });
       onDone();
       return;
     }
