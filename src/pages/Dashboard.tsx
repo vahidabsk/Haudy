@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, Share, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
+import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
@@ -11,6 +11,7 @@ import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { openAuditTracker } from "../lib/desktop-bridge";
 import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
+import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
@@ -44,11 +45,14 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
   const [activeJobTab, setActiveJobTab] = useState<HomeJobStatus>("pool");
+  const [poolSearch, setPoolSearch] = useState("");
   const [focusAscKey, setFocusAscKey] = useState("");
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
   const jobTabs = homeJobTabs(jobCards);
-  const visibleJobCards = jobCards.filter((item) => item.status.id === activeJobTab);
+  const visibleJobCards = jobCards
+    .filter((item) => item.status.id === activeJobTab)
+    .filter((item) => activeJobTab !== "pool" || groupMatchesPoolSearch(item.group, poolSearch));
 
   useEffect(() => {
     function refresh() {
@@ -287,22 +291,37 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       <section className="grid gap-4">
         {groups.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">Import the audit tracker to create ASC assignment cards.</div> : null}
         {groups.length ? (
-          <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
-            {jobTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeJobTab === tab.id ? "border-navy bg-white text-navy ring-2 ring-navy/15" : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
-                onClick={() => setActiveJobTab(tab.id)}
-              >
-                {tab.label}
-                <span className={`rounded-full px-2 py-0.5 text-xs ${activeJobTab === tab.id ? "bg-navy text-white" : "bg-white text-slate-600"}`}>{tab.count}</span>
-              </button>
-            ))}
+          <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            <div className="flex flex-wrap gap-2">
+              {jobTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeJobTab === tab.id ? "border-navy bg-white text-navy ring-2 ring-navy/15" : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                  onClick={() => setActiveJobTab(tab.id)}
+                >
+                  {tab.label}
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${activeJobTab === tab.id ? "bg-navy text-white" : "bg-white text-slate-600"}`}>{tab.count}</span>
+                </button>
+              ))}
+            </div>
+            {activeJobTab === "pool" ? (
+              <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 focus-within:border-sky-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100">
+                <Search size={17} />
+                <input
+                  className="min-w-0 flex-1 bg-transparent py-2 font-medium text-slate-800 outline-none placeholder:text-slate-400"
+                  value={poolSearch}
+                  onChange={(event) => setPoolSearch(event.target.value)}
+                  placeholder="Search Pool of Jobs by ASC name or PSN"
+                />
+              </label>
+            ) : null}
           </div>
         ) : null}
         {groups.length && visibleJobCards.length === 0 ? (
-          <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No ASC cards in this status.</div>
+          <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">
+            {activeJobTab === "pool" && poolSearch.trim() ? "No Pool of Jobs ASC matches that ASC name or PSN." : "No ASC cards in this status."}
+          </div>
         ) : null}
         {visibleJobCards.map(({ group, status }) => {
           const trackerDefaults = assignmentProfileDefaults(group);
@@ -811,6 +830,8 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const { ascKey = "" } = useParams();
   const [deleteAudit, setDeleteAudit] = useState<Audit | null>(null);
+  const [iHaudyMessage, setIHaudyMessage] = useState("");
+  const iHaudyImportRef = useRef<HTMLInputElement | null>(null);
   const assignments = loadAuditAssignments();
   const group = groupAssignmentsAndAudits(assignments, audits.audits).find((item) => item.key === decodeURIComponent(ascKey));
 
@@ -834,6 +855,49 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
             <h1 className="text-2xl font-bold text-navy">{group.ascName}</h1>
             <p className="mt-1 flex items-center gap-1 text-sm text-slate-600"><MapPin size={14} />{group.location || "City and state not detected"}</p>
             <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-navy">PSN:</span> {group.psn || "not detected"}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-900 hover:bg-sky-100"
+                onClick={async () => {
+                  try {
+                    setIHaudyMessage("Preparing iHaudy field notes file...");
+                    setIHaudyMessage(await exportFieldNotesForIHaudy(group));
+                  } catch (error) {
+                    setIHaudyMessage(error instanceof Error ? error.message : "Could not export field notes for iHaudy.");
+                  }
+                }}
+              >
+                <Download size={16} /> Export Field Notes for iHaudy
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+                onClick={() => iHaudyImportRef.current?.click()}
+              >
+                <UploadCloud size={16} /> Import Field Notes from iHaudy
+              </button>
+              <input
+                ref={iHaudyImportRef}
+                className="hidden"
+                type="file"
+                accept={IHAUDY_FIELD_NOTES_ACCEPT}
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  try {
+                    setIHaudyMessage("Importing iHaudy field notes...");
+                    const result = await importFieldNotesFromIHaudy(file, group);
+                    audits.setAudits(result.audits);
+                    setIHaudyMessage(`Imported field notes for ${result.imported} propert${result.imported === 1 ? "y" : "ies"} from iHaudy.`);
+                  } catch (error) {
+                    setIHaudyMessage(error instanceof Error ? error.message : "Could not import field notes from iHaudy.");
+                  }
+                }}
+              />
+            </div>
+            {iHaudyMessage ? <p className="mt-2 text-sm font-medium text-slate-600">{iHaudyMessage}</p> : null}
           </div>
           <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
             {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"}
@@ -951,6 +1015,17 @@ function auditIdentityAscKey(audit: { ascName: string; ascCity: string; ascState
 
 function ascCardDomId(key: string) {
   return `asc-card-${key.replace(/[^a-z0-9_-]/gi, "-")}`;
+}
+
+function groupMatchesPoolSearch(group: AssignmentGroup, search: string) {
+  const query = search.trim().toLowerCase();
+  if (!query) return true;
+  return [
+    group.ascName,
+    group.psn,
+    group.ascCity,
+    group.ascState,
+  ].some((value) => value.toLowerCase().includes(query));
 }
 
 type HomeJobStatus = "pool" | "scheduled" | "reportDue" | "reportCreated" | "clearance" | "done";
