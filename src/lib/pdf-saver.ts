@@ -23,9 +23,22 @@ export async function savePrintablePagesAsPdf(fileName: string, folders: string[
   const pages = Array.from(document.querySelectorAll<HTMLElement>(".print-page"));
   if (!pages.length) throw new Error("No printable pages were found.");
 
-  const images = await Promise.all(pages.map(renderPageToJpeg));
-  const pdf = buildImagePdf(images);
+  let pdf: Uint8Array;
+  try {
+    const images = await renderPagesToJpegs(pages);
+    pdf = buildImagePdf(images);
+  } catch {
+    pdf = buildTextPdfFromPages(pages);
+  }
   await saveDesktopBinaryFile(folders, `${safeName(fileName)}.pdf`, pdf);
+}
+
+async function renderPagesToJpegs(pages: HTMLElement[]) {
+  const images: PdfImagePage[] = [];
+  for (const page of pages) {
+    images.push(await renderPageToJpeg(page));
+  }
+  return images;
 }
 
 async function renderPageToJpeg(page: HTMLElement): Promise<PdfImagePage> {
@@ -46,7 +59,13 @@ async function renderPageToJpeg(page: HTMLElement): Promise<PdfImagePage> {
       ${clone.outerHTML}
     </div>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%">${html}</foreignObject></svg>`;
-  const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+  const svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+  let image: HTMLImageElement;
+  try {
+    image = await loadImage(svgUrl);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
   const canvas = document.createElement("canvas");
   canvas.width = width * RENDER_SCALE;
   canvas.height = height * RENDER_SCALE;
@@ -61,6 +80,56 @@ async function renderPageToJpeg(page: HTMLElement): Promise<PdfImagePage> {
     width: canvas.width,
     height: canvas.height,
   };
+}
+
+function buildTextPdfFromPages(pages: HTMLElement[]) {
+  const objects: string[] = [];
+  const pageObjectNumbers: number[] = [];
+
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = "";
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+
+  let nextObject = 5;
+  for (const page of pages) {
+    const pageNumber = nextObject++;
+    const contentNumber = nextObject++;
+    pageObjectNumbers.push(pageNumber);
+    const content = textPageContent(page);
+    objects[pageNumber] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${LETTER_WIDTH_PT} ${LETTER_HEIGHT_PT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`;
+    objects[contentNumber] = `<< /Length ${byteLength(content)} >>\nstream\n${content}endstream`;
+  }
+
+  objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>`;
+  return buildPdfObjects(objects, []);
+}
+
+function textPageContent(page: HTMLElement) {
+  const lines = printableTextLines(page);
+  let y = 744;
+  const commands = ["BT", "/F1 10 Tf", "12 TL"];
+  for (const line of lines.slice(0, 58)) {
+    if (!line) {
+      y -= 8;
+      continue;
+    }
+    const bold = /^(SN:|CCN:|Finding:|Required Action:|Audit Comments|Service Center Comments|Protected Property Comments|\d+\.)/.test(line);
+    commands.push(`${bold ? "/F2" : "/F1"} 10 Tf`);
+    commands.push(`72 ${y} Td (${escapePdfText(line.slice(0, 120))}) Tj`);
+    commands.push(`-72 ${-y} Td`);
+    y -= 12;
+  }
+  commands.push("ET\n");
+  return commands.join("\n");
+}
+
+function printableTextLines(page: HTMLElement) {
+  return (page.innerText || "")
+    .replace(/\u00a0/g, " ")
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
 }
 
 function buildImagePdf(images: PdfImagePage[]) {
@@ -86,6 +155,10 @@ function buildImagePdf(images: PdfImagePage[]) {
 
   objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>`;
 
+  return buildPdfObjects(objects, binaries);
+}
+
+function buildPdfObjects(objects: string[], binaries: Uint8Array[]) {
   const chunks: Uint8Array[] = [textBytes("%PDF-1.4\n")];
   const offsets = [0];
   for (let index = 1; index < objects.length; index += 1) {
@@ -182,4 +255,8 @@ function byteLength(value: string) {
 
 function safeName(value: string) {
   return value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Haudy Document";
+}
+
+function escapePdfText(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
