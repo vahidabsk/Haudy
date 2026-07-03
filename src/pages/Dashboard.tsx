@@ -43,6 +43,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
   const [activeJobTab, setActiveJobTab] = useState<HomeJobStatus>("pool");
+  const [focusAscKey, setFocusAscKey] = useState("");
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
   const jobTabs = homeJobTabs(jobCards);
@@ -86,6 +87,22 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const next = jobTabs.find((tab) => tab.count > 0);
     if (next) setActiveJobTab(next.id);
   }, [activeJobTab, ascDocuments, assignments.length, audits.audits.length, groups.length]);
+
+  useEffect(() => {
+    const key = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    if (!key || !groups.length) return;
+    const card = jobCards.find((item) => item.group.key === key);
+    if (!card) return;
+    setFocusAscKey(key);
+    setActiveJobTab(card.status.id);
+  }, [ascDocuments, assignments.length, audits.audits.length, groups.length]);
+
+  useEffect(() => {
+    if (!focusAscKey) return;
+    const element = document.getElementById(ascCardDomId(focusAscKey));
+    if (!element) return;
+    window.setTimeout(() => element.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+  }, [activeJobTab, focusAscKey, visibleJobCards.length]);
 
   async function importTracker() {
     try {
@@ -150,6 +167,17 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       psn: profile?.psn || defaults.psn || "",
       updatedAt: profile?.updatedAt || "",
     };
+  }
+
+  function setClearanceResponseReceived(group: AssignmentGroup, received: boolean) {
+    const existingReport = loadAscDocuments()[group.key]?.report;
+    if (!existingReport) return;
+    const next = updateAscDocumentDraft(group.key, "report", {
+      ...existingReport,
+      clearanceResponseReceived: received,
+      clearanceResponseAt: received ? new Date().toISOString() : "",
+    });
+    setAscDocuments(next);
   }
 
   return (
@@ -280,13 +308,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const reportSaved = documents?.report?.saved;
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
-          <section key={group.key} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
+          <section id={ascCardDomId(group.key)} key={group.key} className={`grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Link className="text-xl font-bold text-navy hover:text-sky-700" to={`/asc/${encodeURIComponent(group.key)}`}>{group.ascName}</Link>
+                    <h2 className="text-xl font-bold text-navy">{group.ascName}</h2>
                   </div>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
                     <MapPin size={14} />
@@ -300,6 +328,17 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     {status.label}
                     {status.detail ? <span className="ml-2 font-medium opacity-80">{status.detail}</span> : null}
                   </div>
+                  {shouldShowClearanceToggle(group, documents) ? (
+                    <label className="mt-3 flex w-fit items-center gap-3 rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 accent-emerald-600"
+                        checked={Boolean(documents?.report?.clearanceResponseReceived)}
+                        onChange={(event) => setClearanceResponseReceived(group, event.target.checked)}
+                      />
+                      Response to deficiencies received
+                    </label>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -329,6 +368,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <div className="flex flex-wrap gap-2">
                   <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setProfileGroup(group)}>
                     <FilePenLine size={16} /> Edit Info
+                  </button>
+                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
+                    <Building2 size={16} /> Field Notes
                   </button>
                   <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
                     if (confirmationSaved && documents?.confirmation) {
@@ -366,6 +408,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <span>To create confirmation letter and report, add POC, SCN, and PSN.</span>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100" onClick={() => setProfileGroup(group)}>
                   <FilePenLine size={16} /> Add Info
+                </button>
+                <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
+                  <Building2 size={16} /> Field Notes
                 </button>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteAscGroup(group)}>
                   <Trash2 size={16} /> Delete ASC
@@ -717,7 +762,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
 
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
-      <Link className="inline-flex w-fit items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm font-medium text-navy" to="/"><ArrowLeft size={16} /> Back to ASCs</Link>
+      <Link className="inline-flex w-fit items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm font-medium text-navy" to={`/#${encodeURIComponent(group.key)}`}><ArrowLeft size={16} /> Back to ASCs</Link>
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -839,6 +884,10 @@ function auditIdentityAscKey(audit: { ascName: string; ascCity: string; ascState
   return [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
 }
 
+function ascCardDomId(key: string) {
+  return `asc-card-${key.replace(/[^a-z0-9_-]/gi, "-")}`;
+}
+
 type HomeJobStatus = "pool" | "scheduled" | "reportDue" | "clearance" | "done";
 
 interface HomeJobStatusDetails {
@@ -846,6 +895,7 @@ interface HomeJobStatusDetails {
   label: string;
   detail: string;
   className: string;
+  cardClassName: string;
 }
 
 function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
@@ -879,23 +929,40 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
         label: "Audit done",
         detail: "Report sent, no clearance needed",
         className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        cardClassName: "border-emerald-200 bg-emerald-50/45",
+      };
+    }
+    if (report.clearanceResponseReceived) {
+      return {
+        id: "done",
+        label: "Deficiency response received",
+        detail: report.clearanceResponseAt ? `Received ${relativeTime(report.clearanceResponseAt)}` : "Ready for closeout",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        cardClassName: "border-emerald-300 bg-emerald-50/70",
       };
     }
     const clearanceDeadline = addDays(sentDate, 30);
     const remaining = daysBetween(today, clearanceDeadline);
     if (remaining < 0) {
       return {
-        id: "done",
-        label: "Audit done",
-        detail: "30-day clearance window completed",
-        className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+        id: "clearance",
+        label: "Open late clearance project",
+        detail: `${Math.abs(remaining)} day${Math.abs(remaining) === 1 ? "" : "s"} past client response window`,
+        className: "border-red-300 bg-red-50 text-red-800",
+        cardClassName: "border-red-300 bg-red-50/70",
       };
     }
+    const urgencyClass = remaining <= 5
+      ? "border-orange-300 bg-orange-50/70"
+      : remaining <= 10
+        ? "border-amber-300 bg-amber-50/70"
+        : "border-violet-200 bg-violet-50/45";
     return {
       id: "clearance",
       label: "Waiting for clearance",
       detail: remaining === 0 ? "Clearance due today" : `${remaining} day${remaining === 1 ? "" : "s"} left for client response`,
-      className: "border-violet-200 bg-violet-50 text-violet-800",
+      className: remaining <= 5 ? "border-orange-300 bg-orange-50 text-orange-900" : remaining <= 10 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-violet-200 bg-violet-50 text-violet-800",
+      cardClassName: urgencyClass,
     };
   }
 
@@ -905,6 +972,7 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
       label: "Pool of jobs",
       detail: "Schedule audit date",
       className: "border-slate-200 bg-slate-50 text-slate-700",
+      cardClassName: "border-slate-200 bg-white hover:border-sky-300",
     };
   }
 
@@ -915,6 +983,7 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
       label: "Scheduled",
       detail: remaining <= 0 ? "Audit in progress / today" : `${remaining} day${remaining === 1 ? "" : "s"} until audit`,
       className: "border-sky-200 bg-sky-50 text-sky-800",
+      cardClassName: "border-sky-200 bg-sky-50/40",
     };
   }
 
@@ -929,7 +998,12 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
         ? "Report due today"
         : `${reportDaysRemaining} day${reportDaysRemaining === 1 ? "" : "s"} left to send report`,
     className: reportDaysRemaining < 0 ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900",
+    cardClassName: reportDaysRemaining < 0 ? "border-red-300 bg-red-50/70" : reportDaysRemaining <= 3 ? "border-orange-300 bg-orange-50/60" : "border-amber-200 bg-amber-50/40",
   };
+}
+
+function shouldShowClearanceToggle(group: AssignmentGroup, documents?: AscDocumentState) {
+  return Boolean(documents?.report?.sentToClient && groupDeficiencyCount(group, documents) > 0);
 }
 
 function groupDeficiencyCount(group: AssignmentGroup, documents?: AscDocumentState) {

@@ -18,6 +18,8 @@ export interface SavedDocumentStatus {
   serviceCenterReportRequiredAction?: string;
   sentToClient?: boolean;
   reportSentAt?: string;
+  clearanceResponseReceived?: boolean;
+  clearanceResponseAt?: string;
   updatedAt: string;
 }
 
