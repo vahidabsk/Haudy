@@ -79,7 +79,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     setSavedSnapshot(currentSnapshot);
     try {
       await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
-      setFolderMessage("Saved to Haudy Storage.");
+      setFolderMessage("Saved to Haudy Database.");
     } catch (error) {
       setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
     }

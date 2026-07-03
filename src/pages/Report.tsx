@@ -120,7 +120,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
     try {
       const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
       await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
-      setFolderMessage("Saved to Haudy Storage.");
+      setFolderMessage("Saved to Haudy Database.");
     } catch (error) {
       setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
     }

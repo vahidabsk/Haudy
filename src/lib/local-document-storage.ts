@@ -8,6 +8,7 @@ type DirectoryHandle = FileSystemDirectoryHandle & {
 const DB_NAME = "haudy-file-storage";
 const STORE_NAME = "handles";
 const ROOT_KEY = "root";
+const DATABASE_FOLDER = "Haudy Database";
 
 export type DocumentFolder = "Confirmation" | "Report" | "Field Notes";
 
@@ -16,6 +17,8 @@ export interface StorageDocumentDetails {
   ascName: string;
   cityState: string;
   psn: string;
+  propertyName?: string;
+  certificateNumber?: string;
   folder: DocumentFolder;
   fileName: string;
 }
@@ -45,11 +48,25 @@ export async function chooseStorageRoot() {
 
 export async function prepareStorageFolders(details: Array<Omit<StorageDocumentDetails, "folder" | "fileName">>) {
   const root = await chooseStorageRoot();
-  for (const detail of details) {
-    for (const folder of ["Confirmation", "Report", "Field Notes"] as DocumentFolder[]) {
-      await documentFolder(root, { ...detail, folder, fileName: folder });
+  const seen = new Set<string>();
+  for (const detail of details.length ? details : [{ year: new Date().getFullYear().toString(), ascName: "ASC", cityState: "", psn: "" }]) {
+    const ascKey = `${detail.year}|${detail.ascName}`;
+    if (!seen.has(`${ascKey}|Confirmation`)) {
+      await documentFolder(root, { ...detail, folder: "Confirmation", fileName: "Confirmation" });
+      seen.add(`${ascKey}|Confirmation`);
+    }
+    if (!seen.has(`${ascKey}|Report`)) {
+      await documentFolder(root, { ...detail, folder: "Report", fileName: "Report" });
+      seen.add(`${ascKey}|Report`);
+    }
+    if (detail.propertyName || detail.certificateNumber) {
+      await documentFolder(root, { ...detail, folder: "Field Notes", fileName: "Field Notes" });
     }
   }
+}
+
+export async function hasStorageRoot() {
+  return Boolean(await getRootHandle());
 }
 
 export function storageDetailsFromAudit(audit: Audit, folder: DocumentFolder, fileName: string): StorageDocumentDetails {
@@ -58,6 +75,8 @@ export function storageDetailsFromAudit(audit: Audit, folder: DocumentFolder, fi
     ascName: audit.ascName || "ASC",
     cityState: [audit.ascCity, audit.ascState].filter(Boolean).join(" "),
     psn: audit.certificateNumber || "PSN",
+    propertyName: audit.protectedProperty || "Property",
+    certificateNumber: audit.certificateNumber || audit.id,
     folder,
     fileName,
   };
@@ -74,10 +93,14 @@ async function getOrChooseRootDirectory() {
 }
 
 async function documentFolder(root: DirectoryHandle, details: StorageDocumentDetails) {
-  const main = await root.getDirectoryHandle("Haudy Storage", { create: true });
-  const year = await main.getDirectoryHandle(safeName(details.year || new Date().getFullYear().toString()), { create: true });
-  const ascFolderName = safeName([details.ascName, details.cityState, `PSN ${details.psn || "not-set"}`].filter(Boolean).join(" - "));
-  const asc = await year.getDirectoryHandle(ascFolderName, { create: true });
+  const main = await root.getDirectoryHandle(DATABASE_FOLDER, { create: true });
+  const ascFolderName = safeName([details.year || new Date().getFullYear().toString(), details.ascName || "ASC"].filter(Boolean).join(" - "));
+  const asc = await main.getDirectoryHandle(ascFolderName, { create: true });
+  if (details.folder === "Field Notes") {
+    const propertyFolderName = safeName([details.propertyName || "Property", details.certificateNumber || details.psn || "Certificate"].filter(Boolean).join(" - "));
+    const property = await asc.getDirectoryHandle(propertyFolderName, { create: true });
+    return property.getDirectoryHandle(details.folder, { create: true });
+  }
   return asc.getDirectoryHandle(details.folder, { create: true });
 }
 

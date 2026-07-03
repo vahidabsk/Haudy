@@ -8,7 +8,7 @@ import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loa
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
-import { prepareStorageFolders } from "../lib/local-document-storage";
+import { hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
@@ -30,6 +30,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [profileGroup, setProfileGroup] = useState<AscGroup | null>(null);
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
+  const [storageReady, setStorageReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
@@ -56,6 +57,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       window.removeEventListener("haudy:offline-ready", refresh);
       window.removeEventListener("focus", refreshDocuments);
     };
+  }, []);
+
+  useEffect(() => {
+    hasStorageRoot().then(setStorageReady);
   }, []);
 
   useEffect(() => {
@@ -92,19 +97,23 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               onClick={async () => {
                 try {
                   const year = new Date().getFullYear().toString();
-                  await prepareStorageFolders(groups.map((group) => ({
-                    year,
-                    ascName: group.ascName,
-                    cityState: group.location,
-                    psn: ascProfiles[group.key]?.psn || "not-set",
-                  })));
-                  setStorageMessage("Storage location saved.");
+                  await prepareStorageFolders(groups.flatMap((group) => [
+                    {
+                      year,
+                      ascName: group.ascName,
+                      cityState: group.location,
+                      psn: ascProfiles[group.key]?.psn || "not-set",
+                    },
+                    ...group.audits.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")),
+                  ]));
+                  setStorageReady(true);
+                  setStorageMessage("Haudy Database location saved.");
                 } catch (error) {
                   setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
                 }
               }}
             >
-              Choose Storage
+              Choose Haudy Database
             </button>
             <button
               type="button"
@@ -149,6 +158,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-2 text-sm text-slate-600">
             {storageMessage ? <span>{storageMessage}</span> : null}
             {transferMessage ? <span>{transferMessage}</span> : null}
+          </div>
+        ) : null}
+        {!storageReady ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            Choose a Haudy Database location once, then Haudy will save reports, confirmations, and field notes into the right folders automatically.
           </div>
         ) : null}
       </section>

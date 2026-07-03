@@ -66,7 +66,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
             onClick={async () => {
               try {
                 await saveCurrentDocumentSnapshot(storageDetailsFromAudit(audit, "Field Notes", exportFileName));
-                setFolderMessage("Saved to Haudy Storage.");
+                setFolderMessage("Saved to Haudy Database.");
               } catch (error) {
                 setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
               }
