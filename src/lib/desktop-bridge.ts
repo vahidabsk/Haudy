@@ -82,12 +82,18 @@ export async function saveDesktopBinaryFileWithDialog(folders: string[], fileNam
   const invoke = getTauriInvoke();
   const basePath = storedHaudyDatabaseRoot();
   if (!invoke || !basePath) throw new Error("Choose the Haudy Database location first.");
-  return invoke<string | null>("save_haudy_binary_file_with_dialog", {
-    basePath,
-    folders,
-    fileName,
-    contents: Array.from(contents),
-  });
+  try {
+    return await invoke<string | null>("save_haudy_binary_file_with_dialog", {
+      basePath,
+      folders,
+      fileName,
+      contents: Array.from(contents),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.toLowerCase().includes("save_haudy_binary_file_with_dialog")) throw error;
+    return saveDesktopBinaryFile(folders, fileName, contents);
+  }
 }
 
 export async function createDesktopFolders(folderSets: string[][]) {
