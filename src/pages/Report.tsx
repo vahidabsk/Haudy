@@ -202,7 +202,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
                   const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
                   const message = await savePrintablePagesAsPdf(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName })));
                   setFolderMessage(message);
-                  if (message === "PDF saved.") markReportCreated();
+                  if (message !== "PDF save canceled.") markReportCreated();
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
                 }
