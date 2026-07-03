@@ -16,6 +16,8 @@ export interface SavedDocumentStatus {
   serviceCenterComments?: ServiceCenterComment[];
   serviceCenterReportFinding?: string;
   serviceCenterReportRequiredAction?: string;
+  sentToClient?: boolean;
+  reportSentAt?: string;
   updatedAt: string;
 }
 

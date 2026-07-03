@@ -131,6 +131,22 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
     }
   }
 
+  function markReportSentToClient() {
+    const next = saveAscDocument(ascKey, "report", {
+      pocName,
+      scn,
+      psn,
+      letterDate: reportLetterDate,
+      serviceCenterHasComment,
+      serviceCenterDone,
+      serviceCenterComments,
+      sentToClient: true,
+      reportSentAt: new Date().toISOString(),
+    });
+    setSavedAt(next[ascKey]?.report?.updatedAt || "");
+    setSavedSnapshot(currentSnapshot);
+  }
+
   function requestNavigation(path: string) {
     if (hasUnsavedChanges) {
       setPendingNavigation(path);
@@ -177,8 +193,10 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
                   return;
                 }
                 try {
+                  await saveReport();
                   const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
                   setFolderMessage(await savePrintablePagesAsPdf(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }))));
+                  if (window.confirm("Was this report sent to the client?")) markReportSentToClient();
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
                 }

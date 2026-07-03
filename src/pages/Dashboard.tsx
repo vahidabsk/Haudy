@@ -5,6 +5,7 @@ import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
 import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, updateAscDocumentDraft } from "../lib/asc-documents";
+import type { AscDocumentState } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
@@ -41,7 +42,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
+  const [activeJobTab, setActiveJobTab] = useState<HomeJobStatus>("pool");
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
+  const jobTabs = homeJobTabs(jobCards);
+  const visibleJobCards = jobCards.filter((item) => item.status.id === activeJobTab);
 
   useEffect(() => {
     function refresh() {
@@ -73,6 +78,14 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     setAscProfiles(clearAscProfiles());
     setAscDocuments(clearAscDocuments());
   }, [audits.audits.length, assignments.length]);
+
+  useEffect(() => {
+    if (!groups.length) return;
+    const active = jobTabs.find((tab) => tab.id === activeJobTab);
+    if (active && active.count > 0) return;
+    const next = jobTabs.find((tab) => tab.count > 0);
+    if (next) setActiveJobTab(next.id);
+  }, [activeJobTab, ascDocuments, assignments.length, audits.audits.length, groups.length]);
 
   async function importTracker() {
     try {
@@ -240,14 +253,31 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       ) : null}
       <section className="grid gap-4">
         {groups.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">Import the audit tracker to create ASC assignment cards.</div> : null}
-        {groups.map((group) => {
+        {groups.length ? (
+          <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+            {jobTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeJobTab === tab.id ? "border-navy bg-white text-navy ring-2 ring-navy/15" : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                onClick={() => setActiveJobTab(tab.id)}
+              >
+                {tab.label}
+                <span className={`rounded-full px-2 py-0.5 text-xs ${activeJobTab === tab.id ? "bg-navy text-white" : "bg-white text-slate-600"}`}>{tab.count}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {groups.length && visibleJobCards.length === 0 ? (
+          <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No ASC cards in this status.</div>
+        ) : null}
+        {visibleJobCards.map(({ group, status }) => {
           const trackerDefaults = assignmentProfileDefaults(group);
           const profile = ascProfiles[group.key] || { pocName: "", scn: trackerDefaults.scn || "", psn: trackerDefaults.psn || "", updatedAt: "" };
           const readyForDocuments = completeAscProfile(profile);
           const documents = ascDocuments[group.key];
           const confirmationSaved = documents?.confirmation?.saved;
           const reportSaved = documents?.report?.saved;
-          const trackerRows = group.assignments.length;
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
           <section key={group.key} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
@@ -266,17 +296,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <span className="font-semibold text-navy">PSN:</span> {group.psn || profile.psn || "not detected"}
                     {trackerFileSummary ? <span className="ml-3 text-xs text-slate-500">{trackerFileSummary}{group.assignments.length > 4 ? " ..." : ""}</span> : null}
                   </p>
+                  <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${status.className}`}>
+                    {status.label}
+                    {status.detail ? <span className="ml-2 font-medium opacity-80">{status.detail}</span> : null}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
                   {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"} uploaded
                 </span>
-                {trackerRows ? (
-                  <span className="hidden rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-800 sm:inline-flex">
-                    {trackerRows} tracker row{trackerRows === 1 ? "" : "s"}
-                  </span>
-                ) : null}
                 <div className="min-w-[128px]">
                   <UploadDialog compact compactLabel="Add Certificate" onParsed={(certificates) => addCertificatesToGroup(group, certificates)} />
                 </div>
@@ -808,6 +837,142 @@ function groupPropertiesByCategory(audits: Audit[]) {
 
 function auditIdentityAscKey(audit: { ascName: string; ascCity: string; ascState: string }) {
   return [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
+}
+
+type HomeJobStatus = "pool" | "scheduled" | "reportDue" | "clearance" | "done";
+
+interface HomeJobStatusDetails {
+  id: HomeJobStatus;
+  label: string;
+  detail: string;
+  className: string;
+}
+
+function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
+  const labels: Record<HomeJobStatus, string> = {
+    pool: "Pool of Jobs",
+    scheduled: "Scheduled",
+    reportDue: "Report Due",
+    clearance: "Waiting for Clearance",
+    done: "Done",
+  };
+  const counts = cards.reduce<Record<HomeJobStatus, number>>((totals, card) => {
+    totals[card.status.id] += 1;
+    return totals;
+  }, { pool: 0, scheduled: 0, reportDue: 0, clearance: 0, done: 0 });
+  return (Object.keys(labels) as HomeJobStatus[]).map((id) => ({ id, label: labels[id], count: counts[id] }));
+}
+
+function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): HomeJobStatusDetails {
+  const confirmation = documents?.confirmation;
+  const report = documents?.report;
+  const deficiencyCount = groupDeficiencyCount(group, documents);
+  const today = startOfLocalDay(new Date());
+  const auditStart = parseLocalDate(confirmation?.startDate);
+  const auditEnd = parseLocalDate(confirmation?.endDate || confirmation?.startDate);
+  const sentDate = parseLocalDate(report?.reportSentAt?.slice(0, 10) || "");
+
+  if (report?.sentToClient && sentDate) {
+    if (deficiencyCount === 0) {
+      return {
+        id: "done",
+        label: "Audit done",
+        detail: "Report sent, no clearance needed",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      };
+    }
+    const clearanceDeadline = addDays(sentDate, 30);
+    const remaining = daysBetween(today, clearanceDeadline);
+    if (remaining < 0) {
+      return {
+        id: "done",
+        label: "Audit done",
+        detail: "30-day clearance window completed",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      };
+    }
+    return {
+      id: "clearance",
+      label: "Waiting for clearance",
+      detail: remaining === 0 ? "Clearance due today" : `${remaining} day${remaining === 1 ? "" : "s"} left for client response`,
+      className: "border-violet-200 bg-violet-50 text-violet-800",
+    };
+  }
+
+  if (!auditStart || !auditEnd) {
+    return {
+      id: "pool",
+      label: "Pool of jobs",
+      detail: "Schedule audit date",
+      className: "border-slate-200 bg-slate-50 text-slate-700",
+    };
+  }
+
+  if (today <= auditEnd) {
+    const remaining = daysBetween(today, auditStart);
+    return {
+      id: "scheduled",
+      label: "Scheduled",
+      detail: remaining <= 0 ? "Audit in progress / today" : `${remaining} day${remaining === 1 ? "" : "s"} until audit`,
+      className: "border-sky-200 bg-sky-50 text-sky-800",
+    };
+  }
+
+  const reportDeadline = addDays(auditEnd, 14);
+  const reportDaysRemaining = daysBetween(today, reportDeadline);
+  return {
+    id: "reportDue",
+    label: reportDaysRemaining < 0 ? "Report overdue" : "Report due",
+    detail: reportDaysRemaining < 0
+      ? `${Math.abs(reportDaysRemaining)} day${Math.abs(reportDaysRemaining) === 1 ? "" : "s"} overdue`
+      : reportDaysRemaining === 0
+        ? "Report due today"
+        : `${reportDaysRemaining} day${reportDaysRemaining === 1 ? "" : "s"} left to send report`,
+    className: reportDaysRemaining < 0 ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900",
+  };
+}
+
+function groupDeficiencyCount(group: AssignmentGroup, documents?: AscDocumentState) {
+  const serviceCenterComments = documents?.report?.serviceCenterHasComment ? documents.report.serviceCenterComments || [] : [];
+  const serviceCenterCount = serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()).length;
+  return serviceCenterCount + group.audits.reduce((total, audit) => total + auditDeficiencyCount(audit), 0);
+}
+
+function auditDeficiencyCount(audit: Audit) {
+  let count = 0;
+  if (!audit.signalProcessingReviewed) count += 1;
+  if (!audit.documentationReviewed) count += 1;
+  if (!audit.installationReviewed) count += 1;
+  if (!audit.deviceTestingReviewed) count += 1;
+  if (audit.matchesCertificateStatus === "VAR") count += 1;
+  if (audit.certificateDisplayedStatus === "VAR") count += 1;
+  count += audit.signalLog.filter((row) => row.handlingStatus === "VAR").length;
+  count += audit.documentation.filter((row) => row.status === "VAR").length;
+  count += audit.installation.filter((row) => row.status === "VAR").length;
+  count += audit.deviceTests.filter((row) => row.result === "VAR").length;
+  count += Object.values(audit.reportExtraFindings || {}).reduce((total, entries) => total + entries.filter((entry) => entry.finding.trim() || entry.requiredAction.trim()).length, 0);
+  return count;
+}
+
+function parseLocalDate(value: string | undefined) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function daysBetween(start: Date, end: Date) {
+  return Math.ceil((startOfLocalDay(end).getTime() - startOfLocalDay(start).getTime()) / 86400000);
 }
 
 function StatusChip({ label, value }: { label: string; value: string | number }) {
