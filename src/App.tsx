@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AuditorGate } from "./components/AuditorGate";
+import { LocalAuthGate } from "./components/LocalAuthGate";
 import { OperatingHelp } from "./components/OperatingHelp";
 import { UlHeader } from "./components/UlHeader";
 import { useAuditor } from "./hooks/use-auditor";
@@ -53,25 +54,29 @@ export default function App() {
   }, [navigate]);
 
   return (
-    <AuditorGate
-      auditor={auditor.auditor}
-      editing={editingAuditor}
-      onSave={(profile) => {
-        auditor.saveAuditor(profile);
-        setEditingAuditor(false);
-      }}
-      onCancel={() => setEditingAuditor(false)}
-    >
-      <UlHeader auditor={auditor.auditor} onChange={() => setEditingAuditor(true)} onHelp={() => setShowHelp(true)} />
-      <Routes>
-        <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
-        <Route path="/asc/:ascKey/report" element={<ReportPage auditor={auditor.auditor} />} />
-        <Route path="/asc/:ascKey/confirmation" element={<ConfirmationPage auditor={auditor.auditor} />} />
-        <Route path="/asc/:ascKey" element={<AscPropertiesPage auditorName={auditor.auditor?.name || ""} />} />
-        <Route path="/audit/:auditId" element={<AuditPage auditorName={auditor.auditor?.name || ""} />} />
-        <Route path="/audit/:auditId/export" element={<ExportPage auditorName={auditor.auditor?.name || ""} />} />
-      </Routes>
-      {showHelp ? <OperatingHelp onClose={() => setShowHelp(false)} /> : null}
-    </AuditorGate>
+    <LocalAuthGate>
+      {(session, logout) => (
+        <AuditorGate
+          auditor={auditor.auditor}
+          editing={editingAuditor}
+          onSave={(profile) => {
+            auditor.saveAuditor(profile);
+            setEditingAuditor(false);
+          }}
+          onCancel={() => setEditingAuditor(false)}
+        >
+          <UlHeader auditor={auditor.auditor} localUsername={session.username} onChange={() => setEditingAuditor(true)} onHelp={() => setShowHelp(true)} onLogout={logout} />
+          <Routes>
+            <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
+            <Route path="/asc/:ascKey/report" element={<ReportPage auditor={auditor.auditor} />} />
+            <Route path="/asc/:ascKey/confirmation" element={<ConfirmationPage auditor={auditor.auditor} />} />
+            <Route path="/asc/:ascKey" element={<AscPropertiesPage auditorName={auditor.auditor?.name || ""} />} />
+            <Route path="/audit/:auditId" element={<AuditPage auditorName={auditor.auditor?.name || ""} />} />
+            <Route path="/audit/:auditId/export" element={<ExportPage auditorName={auditor.auditor?.name || ""} />} />
+          </Routes>
+          {showHelp ? <OperatingHelp onClose={() => setShowHelp(false)} /> : null}
+        </AuditorGate>
+      )}
+    </LocalAuthGate>
   );
 }
