@@ -1,15 +1,6 @@
 import { Audit } from "./types";
 import { isDesktopApp } from "./desktop-runtime";
-
-type DirectoryHandle = FileSystemDirectoryHandle & {
-  queryPermission?: (descriptor: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
-  requestPermission?: (descriptor: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
-};
-
-const DB_NAME = "haudy-file-storage";
-const STORE_NAME = "handles";
-const ROOT_KEY = "root";
-const DATABASE_FOLDER = "Haudy Database";
+import { chooseHaudyDatabaseRoot, createDesktopFolders, hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 
 export type DocumentFolder = "Confirmation" | "Report" | "Field Notes";
 
@@ -25,53 +16,41 @@ export interface StorageDocumentDetails {
 }
 
 export function canSaveDocumentsToFolder() {
-  return isDesktopApp() && "showDirectoryPicker" in window;
+  return isDesktopApp() && hasDesktopBridge();
 }
 
 export async function saveCurrentDocumentSnapshot(details: StorageDocumentDetails) {
   if (!canSaveDocumentsToFolder()) {
     throw new Error("Folder saving is available in the Windows desktop app.");
   }
-  const root = await getOrChooseRootDirectory();
-  const folder = await documentFolder(root, details);
-  const file = await folder.getFileHandle(`${safeName(details.fileName)}.html`, { create: true });
-  const writable = await file.createWritable();
-  await writable.write(await printableHtmlSnapshot(details.fileName));
-  await writable.close();
+  if (!storedHaudyDatabaseRoot()) await chooseStorageRoot();
+  await saveDesktopTextFile(storageFoldersForDetails(details), `${safeName(details.fileName)}.html`, await printableHtmlSnapshot(details.fileName));
 }
 
 export async function chooseStorageRoot() {
   if (!canSaveDocumentsToFolder()) {
     throw new Error("Folder saving is available in the Windows desktop app.");
   }
-  const picker = window.showDirectoryPicker;
-  if (!picker) throw new Error("Folder saving is available in the Windows desktop app.");
-  const root = await picker({ mode: "readwrite" }) as DirectoryHandle;
-  await setRootHandle(root);
-  return root;
+  return chooseHaudyDatabaseRoot();
 }
 
 export async function prepareStorageFolders(details: Array<Omit<StorageDocumentDetails, "folder" | "fileName">>) {
-  const root = await chooseStorageRoot();
-  const seen = new Set<string>();
-  for (const detail of details.length ? details : [{ year: new Date().getFullYear().toString(), ascName: "ASC", cityState: "", psn: "" }]) {
-    const ascKey = `${detail.year}|${detail.ascName}`;
-    if (!seen.has(`${ascKey}|Confirmation`)) {
-      await documentFolder(root, { ...detail, folder: "Confirmation", fileName: "Confirmation" });
-      seen.add(`${ascKey}|Confirmation`);
-    }
-    if (!seen.has(`${ascKey}|Report`)) {
-      await documentFolder(root, { ...detail, folder: "Report", fileName: "Report" });
-      seen.add(`${ascKey}|Report`);
-    }
+  if (!storedHaudyDatabaseRoot()) await chooseStorageRoot();
+  const folderSets = new Set<string>();
+  for (const detail of details) {
+    const base = safeName([detail.year || new Date().getFullYear().toString(), detail.ascName || "ASC"].filter(Boolean).join(" - "));
+    folderSets.add(JSON.stringify([base, "Confirmation"]));
+    folderSets.add(JSON.stringify([base, "Report"]));
     if (detail.propertyName || detail.certificateNumber) {
-      await documentFolder(root, { ...detail, folder: "Field Notes", fileName: "Field Notes" });
+      const property = safeName([detail.propertyName || "Property", detail.certificateNumber || detail.psn || "Certificate"].filter(Boolean).join(" - "));
+      folderSets.add(JSON.stringify([base, property, "Field Notes"]));
     }
   }
+  await createDesktopFolders(Array.from(folderSets, (folders) => JSON.parse(folders) as string[]));
 }
 
 export async function hasStorageRoot() {
-  return Boolean(await getRootHandle());
+  return Boolean(storedHaudyDatabaseRoot());
 }
 
 export function storageDetailsFromAudit(audit: Audit, folder: DocumentFolder, fileName: string): StorageDocumentDetails {
@@ -91,22 +70,13 @@ export function storageDetailsFromAsc({ year, ascName, cityState, psn, folder, f
   return { year, ascName, cityState, psn, folder, fileName };
 }
 
-async function getOrChooseRootDirectory() {
-  const existing = await getRootHandle();
-  if (existing && await verifyPermission(existing)) return existing;
-  return chooseStorageRoot();
-}
-
-async function documentFolder(root: DirectoryHandle, details: StorageDocumentDetails) {
-  const main = await root.getDirectoryHandle(DATABASE_FOLDER, { create: true });
+export function storageFoldersForDetails(details: StorageDocumentDetails) {
   const ascFolderName = safeName([details.year || new Date().getFullYear().toString(), details.ascName || "ASC"].filter(Boolean).join(" - "));
-  const asc = await main.getDirectoryHandle(ascFolderName, { create: true });
   if (details.folder === "Field Notes") {
     const propertyFolderName = safeName([details.propertyName || "Property", details.certificateNumber || details.psn || "Certificate"].filter(Boolean).join(" - "));
-    const property = await asc.getDirectoryHandle(propertyFolderName, { create: true });
-    return property.getDirectoryHandle(details.folder, { create: true });
+    return [ascFolderName, propertyFolderName, details.folder];
   }
-  return asc.getDirectoryHandle(details.folder, { create: true });
+  return [ascFolderName, details.folder];
 }
 
 async function printableHtmlSnapshot(title: string) {
@@ -158,52 +128,10 @@ function blobToDataUrl(blob: Blob) {
   });
 }
 
-async function verifyPermission(handle: DirectoryHandle) {
-  const descriptor = { mode: "readwrite" as const };
-  if (!handle.queryPermission || !handle.requestPermission) return true;
-  if (await handle.queryPermission(descriptor) === "granted") return true;
-  return await handle.requestPermission(descriptor) === "granted";
-}
-
-async function getRootHandle() {
-  const db = await openDb();
-  return new Promise<DirectoryHandle | null>((resolve) => {
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const request = tx.objectStore(STORE_NAME).get(ROOT_KEY);
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () => resolve(null);
-  });
-}
-
-async function setRootHandle(handle: DirectoryHandle) {
-  const db = await openDb();
-  return new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(handle, ROOT_KEY);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function openDb() {
-  return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
 function safeName(value: string) {
   return value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Haudy Document";
 }
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-declare global {
-  interface Window {
-    showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<DirectoryHandle>;
-  }
 }

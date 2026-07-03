@@ -1,4 +1,5 @@
 export function isDesktopApp() {
+  if (Boolean((window as Window & { __TAURI__?: unknown }).__TAURI__)) return true;
   return Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__)
     || navigator.userAgent.toLowerCase().includes("tauri")
     || window.location.protocol === "tauri:"

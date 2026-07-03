@@ -1,4 +1,5 @@
 import { isDesktopApp } from "./desktop-runtime";
+import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopBinaryFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -11,27 +12,20 @@ interface PdfImagePage {
 }
 
 export function canSavePdfDirectly() {
-  return isDesktopApp() && "showSaveFilePicker" in window;
+  return isDesktopApp() && hasDesktopBridge();
 }
 
-export async function savePrintablePagesAsPdf(fileName: string) {
+export async function savePrintablePagesAsPdf(fileName: string, folders: string[]) {
   if (!canSavePdfDirectly()) {
     throw new Error("Save as PDF is available in the Windows desktop app.");
   }
+  if (!storedHaudyDatabaseRoot()) await chooseHaudyDatabaseRoot();
   const pages = Array.from(document.querySelectorAll<HTMLElement>(".print-page"));
   if (!pages.length) throw new Error("No printable pages were found.");
 
   const images = await Promise.all(pages.map(renderPageToJpeg));
   const pdf = buildImagePdf(images);
-  const picker = window.showSaveFilePicker;
-  if (!picker) throw new Error("Save dialog is not available.");
-  const handle = await picker({
-    suggestedName: `${safeName(fileName)}.pdf`,
-    types: [{ description: "PDF document", accept: { "application/pdf": [".pdf"] } }],
-  });
-  const writable = await handle.createWritable();
-  await writable.write(new Blob([pdf], { type: "application/pdf" }));
-  await writable.close();
+  await saveDesktopBinaryFile(folders, `${safeName(fileName)}.pdf`, pdf);
 }
 
 async function renderPageToJpeg(page: HTMLElement): Promise<PdfImagePage> {
@@ -188,13 +182,4 @@ function byteLength(value: string) {
 
 function safeName(value: string) {
   return value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Haudy Document";
-}
-
-declare global {
-  interface Window {
-    showSaveFilePicker?: (options?: {
-      suggestedName?: string;
-      types?: Array<{ description?: string; accept: Record<string, string[]> }>;
-    }) => Promise<FileSystemFileHandle>;
-  }
 }

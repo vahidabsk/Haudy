@@ -5,7 +5,7 @@ import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments, saveAscDocument, ServiceCenterComment } from "../lib/asc-documents";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
-import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
 import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
@@ -175,7 +175,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
                   return;
                 }
                 try {
-                  await savePrintablePagesAsPdf(reportName);
+                  const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+                  await savePrintablePagesAsPdf(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName })));
                   setFolderMessage("PDF saved.");
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");

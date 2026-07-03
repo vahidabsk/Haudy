@@ -8,7 +8,7 @@ import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loa
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
-import { canSaveDocumentsToFolder, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
@@ -75,7 +75,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <UploadDialog compact onParsed={(certificate) => {
+            <UploadDialog compact onParsed={async (certificate) => {
               if (audits.audits.length === 0) {
                 setAscProfiles(clearAscProfiles());
                 setAscDocuments(clearAscDocuments());
@@ -89,7 +89,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 setDuplicateUpload({ certificates: certificate, duplicates, hasProgress });
                 return null;
               }
-              audits.createManyFromCertificates(certificate);
+              const created = audits.createManyFromCertificates(certificate);
+              if (desktopStorageAvailable) {
+                try {
+                  await prepareStorageFolders(created.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")));
+                  setStorageReady(true);
+                  setStorageMessage("Haudy Database folders updated.");
+                } catch (error) {
+                  setStorageMessage(error instanceof Error ? error.message : "Could not update Haudy Database folders.");
+                }
+              }
               return undefined;
             }} />
             {desktopStorageAvailable ? (
@@ -98,16 +107,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={async () => {
                   try {
-                    const year = new Date().getFullYear().toString();
-                    await prepareStorageFolders(groups.flatMap((group) => [
-                      {
-                        year,
-                        ascName: group.ascName,
-                        cityState: group.location,
-                        psn: ascProfiles[group.key]?.psn || "not-set",
-                      },
-                      ...group.audits.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")),
-                    ]));
+                    await chooseStorageRoot();
                     setStorageReady(true);
                     setStorageMessage("Haudy Database location saved.");
                   } catch (error) {
@@ -312,7 +312,15 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           review={duplicateUpload}
           onCancel={() => setDuplicateUpload(null)}
           onReplace={() => {
-            audits.replaceManyFromCertificates(duplicateUpload.certificates);
+            const created = audits.replaceManyFromCertificates(duplicateUpload.certificates);
+            if (desktopStorageAvailable) {
+              prepareStorageFolders(created.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")))
+                .then(() => {
+                  setStorageReady(true);
+                  setStorageMessage("Haudy Database folders updated.");
+                })
+                .catch((error) => setStorageMessage(error instanceof Error ? error.message : "Could not update Haudy Database folders."));
+            }
             duplicateUpload.duplicates.forEach(({ audit }) => deleteAscDocuments(auditIdentityAscKey(audit)));
             setAscDocuments(loadAscDocuments());
             setDuplicateUpload(null);

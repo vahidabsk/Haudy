@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
-import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAudit } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAudit, storageFoldersForDetails } from "../lib/local-document-storage";
 import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { loadAscProfiles } from "../lib/asc-profile";
@@ -69,7 +69,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
                 return;
               }
               try {
-                await savePrintablePagesAsPdf(exportFileName);
+                await savePrintablePagesAsPdf(exportFileName, storageFoldersForDetails(storageDetailsFromAudit(audit, "Field Notes", exportFileName)));
                 setFolderMessage("PDF saved.");
               } catch (error) {
                 setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
