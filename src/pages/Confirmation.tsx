@@ -142,8 +142,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
                   return;
                 }
                 try {
-                  await savePrintablePagesAsPdf(confirmationFileName, storageFoldersForDetails(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName })));
-                  setFolderMessage("PDF saved.");
+                  setFolderMessage(await savePrintablePagesAsPdf(confirmationFileName, storageFoldersForDetails(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }))));
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
                 }

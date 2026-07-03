@@ -69,8 +69,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
                 return;
               }
               try {
-                await savePrintablePagesAsPdf(exportFileName, storageFoldersForDetails(storageDetailsFromAudit(audit, "Field Notes", exportFileName)));
-                setFolderMessage("PDF saved.");
+                setFolderMessage(await savePrintablePagesAsPdf(exportFileName, storageFoldersForDetails(storageDetailsFromAudit(audit, "Field Notes", exportFileName))));
               } catch (error) {
                 setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
               }

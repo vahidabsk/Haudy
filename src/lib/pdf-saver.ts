@@ -23,14 +23,15 @@ export async function savePrintablePagesAsPdf(fileName: string, folders: string[
   const pages = Array.from(document.querySelectorAll<HTMLElement>(".print-page"));
   if (!pages.length) throw new Error("No printable pages were found.");
 
-  let pdf: Uint8Array;
   try {
     const images = await renderPagesToJpegs(pages);
-    pdf = buildImagePdf(images);
+    const pdf = buildImagePdf(images);
+    await saveDesktopBinaryFile(folders, `${safeName(fileName)}.pdf`, pdf);
+    return "PDF saved.";
   } catch {
-    pdf = buildTextPdfFromPages(pages);
+    window.print();
+    return "Windows PDF save opened. Choose Save as PDF or Microsoft Print to PDF.";
   }
-  await saveDesktopBinaryFile(folders, `${safeName(fileName)}.pdf`, pdf);
 }
 
 async function renderPagesToJpegs(pages: HTMLElement[]) {
@@ -80,56 +81,6 @@ async function renderPageToJpeg(page: HTMLElement): Promise<PdfImagePage> {
     width: canvas.width,
     height: canvas.height,
   };
-}
-
-function buildTextPdfFromPages(pages: HTMLElement[]) {
-  const objects: string[] = [];
-  const pageObjectNumbers: number[] = [];
-
-  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-  objects[2] = "";
-  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
-  objects[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
-
-  let nextObject = 5;
-  for (const page of pages) {
-    const pageNumber = nextObject++;
-    const contentNumber = nextObject++;
-    pageObjectNumbers.push(pageNumber);
-    const content = textPageContent(page);
-    objects[pageNumber] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${LETTER_WIDTH_PT} ${LETTER_HEIGHT_PT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`;
-    objects[contentNumber] = `<< /Length ${byteLength(content)} >>\nstream\n${content}endstream`;
-  }
-
-  objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>`;
-  return buildPdfObjects(objects, []);
-}
-
-function textPageContent(page: HTMLElement) {
-  const lines = printableTextLines(page);
-  let y = 744;
-  const commands = ["BT", "/F1 10 Tf", "12 TL"];
-  for (const line of lines.slice(0, 58)) {
-    if (!line) {
-      y -= 8;
-      continue;
-    }
-    const bold = /^(SN:|CCN:|Finding:|Required Action:|Audit Comments|Service Center Comments|Protected Property Comments|\d+\.)/.test(line);
-    commands.push(`${bold ? "/F2" : "/F1"} 10 Tf`);
-    commands.push(`72 ${y} Td (${escapePdfText(line.slice(0, 120))}) Tj`);
-    commands.push(`-72 ${-y} Td`);
-    y -= 12;
-  }
-  commands.push("ET\n");
-  return commands.join("\n");
-}
-
-function printableTextLines(page: HTMLElement) {
-  return (page.innerText || "")
-    .replace(/\u00a0/g, " ")
-    .split(/\n+/)
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
 }
 
 function buildImagePdf(images: PdfImagePage[]) {
@@ -255,8 +206,4 @@ function byteLength(value: string) {
 
 function safeName(value: string) {
   return value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Haudy Document";
-}
-
-function escapePdfText(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
