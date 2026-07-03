@@ -6,6 +6,11 @@ interface TauriGlobal {
 
 const STORAGE_ROOT_KEY = "haudy-desktop-database-root";
 
+export interface DesktopCertificateFile {
+  fileName: string;
+  text: string;
+}
+
 export function hasDesktopBridge() {
   return Boolean(getTauriInvoke());
 }
@@ -21,6 +26,12 @@ export async function chooseHaudyDatabaseRoot() {
   if (!selected) return "";
   localStorage.setItem(STORAGE_ROOT_KEY, selected);
   return selected;
+}
+
+export async function openCertificatePdfs() {
+  const invoke = getTauriInvoke();
+  if (!invoke) throw new Error("PDF upload is available in the Windows desktop app.");
+  return invoke<DesktopCertificateFile[]>("open_certificate_pdfs");
 }
 
 export async function saveDesktopTextFile(folders: string[], fileName: string, contents: string) {

@@ -19,12 +19,12 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
           <div className="grid gap-4 text-sm leading-6 text-slate-700">
             <HelpSection title="1. Start Here">
               <p>Haudy is used to manage fire alarm certificate audits. The normal order is: upload certificates, confirm ASC information, create the confirmation letter, complete field notes, prepare the report, save or print the documents, then export Haudy data for backup.</p>
-              <HelpList items={["Use DOCX certificate files for upload.", "Save before leaving field notes, confirmation, or report pages.", "Use Export Data regularly if you work on more than one device.", "Do not delete a property unless you are ready to remove its saved audit work."]} />
+              <HelpList items={["Use readable PDF certificate files for upload in the Windows desktop app.", "Save before leaving field notes, confirmation, or report pages.", "Use Export Data regularly if you work on more than one device.", "Do not delete a property unless you are ready to remove its saved audit work."]} />
             </HelpSection>
 
             <HelpSection title="2. Home Screen">
               <p>The home screen shows Alarm Service Companies as ASC cards. Each card groups related certificates and properties under that company branch.</p>
-              <HelpList items={["Upload Certificate adds one or more DOCX certificates.", "Choose Storage tells Haudy where to save generated files when the browser supports folder access.", "Export Data - No Photos creates a smaller backup or transfer file.", "Export Data - With Photos includes captured deficiency photos.", "Import Data restores a Haudy export file on another device."]} />
+              <HelpList items={["Upload Certificate adds one or more PDF certificates.", "Choose Storage tells Haudy where the desktop app should create the Haudy Database folder.", "Export Data - No Photos creates a smaller backup or transfer file.", "Export Data - With Photos includes captured deficiency photos.", "Import Data restores a Haudy export file on another device."]} />
             </HelpSection>
 
             <HelpSection title="3. ASC Cards">
@@ -33,7 +33,7 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
             </HelpSection>
 
             <HelpSection title="4. Uploading Certificates">
-              <p>Upload one or multiple DOCX certificates in the same session. Haudy extracts the ASC, property, certificate number, file number, category, standard, and other available details.</p>
+              <p>Upload one or multiple PDF certificates in the same session. Haudy extracts the ASC, property, certificate number, file number, category, standard, and other available details.</p>
               <HelpList items={["If Haudy detects a duplicate certificate/property, review the warning carefully.", "Replacing a duplicate may remove existing audit notes for that property.", "If city or state is not detected, confirm the certificate text is readable and not image-only."]} />
             </HelpSection>
 
@@ -108,7 +108,7 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
             </HelpSection>
 
             <HelpSection title="19. Common Problems">
-              <HelpList items={["Upload did not read the certificate: confirm it is a DOCX file and the text is selectable/readable.", "Save did not keep changes: confirm the status changes to Saved before leaving.", "Import failed: try the no-photo export file or confirm the file is a Haudy export file.", "Storage folder did not save: the browser may not support folder access; use browser print/save as PDF instead.", "Offline did not work: open Haudy online first and confirm offline ready."]} />
+              <HelpList items={["Upload did not read the certificate: confirm it is a PDF file with selectable/readable text, not a scanned image.", "Save did not keep changes: confirm the status changes to Saved before leaving.", "Import failed: try the no-photo export file or confirm the file is a Haudy export file.", "Storage folder did not save: choose the Haudy Database location again from the home screen.", "Offline did not work: open Haudy online first and confirm offline ready."]} />
             </HelpSection>
           </div>
         </div>

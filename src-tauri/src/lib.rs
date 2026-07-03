@@ -1,6 +1,13 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CertificatePdfText {
+    file_name: String,
+    text: String,
+}
+
 #[tauri::command]
 fn choose_haudy_database_location() -> Result<Option<String>, String> {
     let Some(folder) = rfd::FileDialog::new()
@@ -12,6 +19,36 @@ fn choose_haudy_database_location() -> Result<Option<String>, String> {
     let database = folder.join("Haudy Database");
     fs::create_dir_all(&database).map_err(|error| error.to_string())?;
     Ok(Some(folder.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn open_certificate_pdfs() -> Result<Vec<CertificatePdfText>, String> {
+    let Some(files) = rfd::FileDialog::new()
+        .set_title("Choose PDF certificate files")
+        .add_filter("PDF certificate files", &["pdf"])
+        .pick_files()
+    else {
+        return Ok(Vec::new());
+    };
+
+    let mut certificates = Vec::new();
+    for path in files {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Certificate.pdf")
+            .to_string();
+        let text = pdf_extract::extract_text(&path)
+            .map_err(|error| format!("Could not read {file_name}: {error}"))?;
+        if text.trim().is_empty() {
+            return Err(format!(
+                "{file_name} does not contain selectable PDF text. Use the official certificate PDF, not a scanned image."
+            ));
+        }
+        certificates.push(CertificatePdfText { file_name, text });
+    }
+
+    Ok(certificates)
 }
 
 #[tauri::command]
@@ -83,6 +120,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             choose_haudy_database_location,
             create_haudy_folders,
+            open_certificate_pdfs,
             save_haudy_binary_file,
             save_haudy_text_file,
         ])
