@@ -4,6 +4,7 @@ import { nowIso, uid } from "./utils";
 
 const AUDITOR_KEY = "haudy.auditor";
 const AUDITS_KEY = "haudy.audits";
+const PROFILE_DEFAULTS_MIGRATED_KEY = "haudy.profileDefaultsMigrated";
 const LEGACY_PROFILE_DEFAULTS = {
   title: "Alarm System Auditor",
   department: "Fire and Security Service Solutions",
@@ -45,7 +46,14 @@ export const installationElements = [
 
 export function loadAuditor(): Auditor | null {
   const auditor = readJson<Auditor | null>(AUDITOR_KEY, null);
-  return auditor ? normalizeAuditor(auditor) : null;
+  if (!auditor) return null;
+  if (!localStorage.getItem(PROFILE_DEFAULTS_MIGRATED_KEY)) {
+    const migratedAuditor = normalizeAuditor(clearLegacyProfileDefaults(auditor));
+    localStorage.setItem(AUDITOR_KEY, JSON.stringify(migratedAuditor));
+    localStorage.setItem(PROFILE_DEFAULTS_MIGRATED_KEY, new Date().toISOString());
+    return migratedAuditor;
+  }
+  return normalizeAuditor(auditor);
 }
 
 export function saveAuditor(profile: Omit<Auditor, "since" | "updatedAt"> & { since?: string }): Auditor {
@@ -57,17 +65,27 @@ export function saveAuditor(profile: Omit<Auditor, "since" | "updatedAt"> & { si
 
 function normalizeAuditor(auditor: Partial<Auditor> & { name: string }): Auditor {
   return {
-    name: auditor.name || "",
-    title: cleanLegacyProfileValue(auditor.title, LEGACY_PROFILE_DEFAULTS.title),
-    department: cleanLegacyProfileValue(auditor.department, LEGACY_PROFILE_DEFAULTS.department),
-    phone: cleanLegacyProfileValue(auditor.phone, LEGACY_PROFILE_DEFAULTS.phone),
-    email: cleanLegacyProfileValue(auditor.email, LEGACY_PROFILE_DEFAULTS.email),
+    name: auditor.name?.trim() || "",
+    title: auditor.title?.trim() || "",
+    department: auditor.department?.trim() || "",
+    phone: auditor.phone?.trim() || "",
+    email: auditor.email?.trim() || "",
     since: auditor.since || nowIso(),
     updatedAt: auditor.updatedAt || auditor.since || nowIso(),
   };
 }
 
-function cleanLegacyProfileValue(value: string | undefined, legacyDefault: string) {
+function clearLegacyProfileDefaults(auditor: Auditor): Auditor {
+  return {
+    ...auditor,
+    title: clearLegacyProfileValue(auditor.title, LEGACY_PROFILE_DEFAULTS.title),
+    department: clearLegacyProfileValue(auditor.department, LEGACY_PROFILE_DEFAULTS.department),
+    phone: clearLegacyProfileValue(auditor.phone, LEGACY_PROFILE_DEFAULTS.phone),
+    email: clearLegacyProfileValue(auditor.email, LEGACY_PROFILE_DEFAULTS.email),
+  };
+}
+
+function clearLegacyProfileValue(value: string | undefined, legacyDefault: string) {
   const normalizedValue = value?.trim() || "";
   return normalizedValue === legacyDefault ? "" : normalizedValue;
 }
