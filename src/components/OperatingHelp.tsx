@@ -79,7 +79,7 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
 
             <HelpSection title="13. Confirmation Letter">
               <p>Create the confirmation from the ASC card. Haudy uses POC, SCN, PSN, audit dates, optional start time, optional meeting location, conversation date, and letter date.</p>
-              <HelpList items={["Audit start/end dates become available as field audit dates in field notes.", "The optional start time and meeting location appear in the confirmation wording.", "Use Save Confirmation to store the letter settings and save to the selected storage folder when available.", "Use Print PDF to create the PDF through the browser print dialog."]} />
+              <HelpList items={["Audit start/end dates become available as field audit dates in field notes.", "The optional start time and meeting location appear in the confirmation wording.", "Use Save Confirmation to store the letter settings and save to the selected desktop storage folder when available.", "In the Windows desktop app, use Save as PDF to choose a location and write the PDF file directly."]} />
             </HelpSection>
 
             <HelpSection title="14. Report Writing">

@@ -8,7 +8,7 @@ import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loa
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
-import { hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
@@ -23,6 +23,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const navigate = useNavigate();
   const groups = groupByAsc(audits.audits);
+  const desktopStorageAvailable = canSaveDocumentsToFolder();
   const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
   const [showInstallHelp, setShowInstallHelp] = useState(() => shouldShowIosInstallHelp());
@@ -91,30 +92,32 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               audits.createManyFromCertificates(certificate);
               return undefined;
             }} />
-            <button
-              type="button"
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={async () => {
-                try {
-                  const year = new Date().getFullYear().toString();
-                  await prepareStorageFolders(groups.flatMap((group) => [
-                    {
-                      year,
-                      ascName: group.ascName,
-                      cityState: group.location,
-                      psn: ascProfiles[group.key]?.psn || "not-set",
-                    },
-                    ...group.audits.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")),
-                  ]));
-                  setStorageReady(true);
-                  setStorageMessage("Haudy Database location saved.");
-                } catch (error) {
-                  setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
-                }
-              }}
-            >
-              Choose Haudy Database
-            </button>
+            {desktopStorageAvailable ? (
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={async () => {
+                  try {
+                    const year = new Date().getFullYear().toString();
+                    await prepareStorageFolders(groups.flatMap((group) => [
+                      {
+                        year,
+                        ascName: group.ascName,
+                        cityState: group.location,
+                        psn: ascProfiles[group.key]?.psn || "not-set",
+                      },
+                      ...group.audits.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")),
+                    ]));
+                    setStorageReady(true);
+                    setStorageMessage("Haudy Database location saved.");
+                  } catch (error) {
+                    setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
+                  }
+                }}
+              >
+                Choose Haudy Database
+              </button>
+            ) : null}
             <button
               type="button"
               className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -160,7 +163,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             {transferMessage ? <span>{transferMessage}</span> : null}
           </div>
         ) : null}
-        {!storageReady ? (
+        {desktopStorageAvailable && !storageReady ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
             Choose a Haudy Database location once, then Haudy will save reports, confirmations, and field notes into the right folders automatically.
           </div>

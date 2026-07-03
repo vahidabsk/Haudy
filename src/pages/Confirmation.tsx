@@ -4,7 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments, saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
-import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
+import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
 
 export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
@@ -77,11 +78,13 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
     const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
     setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
-    try {
-      await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
-      setFolderMessage("Saved to Haudy Database.");
-    } catch (error) {
-      setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+    if (canSaveDocumentsToFolder()) {
+      try {
+        await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
+        setFolderMessage("Saved to Haudy Database.");
+      } catch (error) {
+        setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+      }
     }
   }
 
@@ -130,7 +133,24 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           </div>
           <div className="flex flex-wrap gap-2">
             <span className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-semibold ${hasUnsavedChanges ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
-            <button type="button" className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+            <button
+              type="button"
+              className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
+              onClick={async () => {
+                if (!canSavePdfDirectly()) {
+                  window.print();
+                  return;
+                }
+                try {
+                  await savePrintablePagesAsPdf(confirmationFileName);
+                  setFolderMessage("PDF saved.");
+                } catch (error) {
+                  setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
+                }
+              }}
+            >
+              {canSavePdfDirectly() ? "Save as PDF" : "Print PDF"}
+            </button>
             <button
               type="button"
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"

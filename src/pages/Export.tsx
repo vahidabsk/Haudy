@@ -3,7 +3,8 @@ import { ReactNode, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { auditToCsv } from "../lib/export-csv";
-import { saveCurrentDocumentSnapshot, storageDetailsFromAudit } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAudit } from "../lib/local-document-storage";
+import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { loadAscProfiles } from "../lib/asc-profile";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow, StatusCode } from "../lib/types";
@@ -60,20 +61,38 @@ function ExportDocument({ audit }: { audit: Audit }) {
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <button className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={csv}>Download CSV</button>
-          <button className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
           <button
-            className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
             onClick={async () => {
+              if (!canSavePdfDirectly()) {
+                window.print();
+                return;
+              }
               try {
-                await saveCurrentDocumentSnapshot(storageDetailsFromAudit(audit, "Field Notes", exportFileName));
-                setFolderMessage("Saved to Haudy Database.");
+                await savePrintablePagesAsPdf(exportFileName);
+                setFolderMessage("PDF saved.");
               } catch (error) {
-                setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+                setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
               }
             }}
           >
-            Save Field Note
+            {canSavePdfDirectly() ? "Save as PDF" : "Print PDF"}
           </button>
+          {canSaveDocumentsToFolder() ? (
+            <button
+              className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={async () => {
+                try {
+                  await saveCurrentDocumentSnapshot(storageDetailsFromAudit(audit, "Field Notes", exportFileName));
+                  setFolderMessage("Saved to Haudy Database.");
+                } catch (error) {
+                  setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+                }
+              }}
+            >
+              Save Field Note
+            </button>
+          ) : null}
         </div>
       </div>
       {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}

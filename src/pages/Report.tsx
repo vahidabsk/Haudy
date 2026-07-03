@@ -5,7 +5,8 @@ import { useAudits } from "../hooks/use-audits";
 import { loadAscDocuments, saveAscDocument, ServiceCenterComment } from "../lib/asc-documents";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
-import { saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc } from "../lib/local-document-storage";
+import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
@@ -117,12 +118,14 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
     const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
     setSavedAt(next[ascKey]?.report?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
-    try {
-      const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
-      await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
-      setFolderMessage("Saved to Haudy Database.");
-    } catch (error) {
-      setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+    if (canSaveDocumentsToFolder()) {
+      try {
+        const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
+        await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
+        setFolderMessage("Saved to Haudy Database.");
+      } catch (error) {
+        setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+      }
     }
   }
 
@@ -163,7 +166,24 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
           </div>
           <div className="flex flex-wrap gap-2">
             <span className={`inline-flex min-h-10 items-center rounded-full border px-3 py-1 text-xs font-semibold ${hasUnsavedChanges ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{hasUnsavedChanges ? "Unsaved changes" : "Saved"}</span>
-            <button type="button" className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100" onClick={() => window.print()}>Print PDF</button>
+            <button
+              type="button"
+              className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
+              onClick={async () => {
+                if (!canSavePdfDirectly()) {
+                  window.print();
+                  return;
+                }
+                try {
+                  await savePrintablePagesAsPdf(reportName);
+                  setFolderMessage("PDF saved.");
+                } catch (error) {
+                  setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
+                }
+              }}
+            >
+              {canSavePdfDirectly() ? "Save as PDF" : "Print PDF"}
+            </button>
             <button
               type="button"
               className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"

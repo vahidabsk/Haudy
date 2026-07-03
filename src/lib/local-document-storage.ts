@@ -1,4 +1,5 @@
 import { Audit } from "./types";
+import { isDesktopApp } from "./desktop-runtime";
 
 type DirectoryHandle = FileSystemDirectoryHandle & {
   queryPermission?: (descriptor: { mode: "read" | "readwrite" }) => Promise<PermissionState>;
@@ -23,9 +24,13 @@ export interface StorageDocumentDetails {
   fileName: string;
 }
 
+export function canSaveDocumentsToFolder() {
+  return isDesktopApp() && "showDirectoryPicker" in window;
+}
+
 export async function saveCurrentDocumentSnapshot(details: StorageDocumentDetails) {
-  if (!("showDirectoryPicker" in window)) {
-    throw new Error("Folder saving is supported in Chrome or Edge on desktop. Safari and iPad do not allow web apps to choose a local folder.");
+  if (!canSaveDocumentsToFolder()) {
+    throw new Error("Folder saving is available in the Windows desktop app.");
   }
   const root = await getOrChooseRootDirectory();
   const folder = await documentFolder(root, details);
@@ -36,11 +41,11 @@ export async function saveCurrentDocumentSnapshot(details: StorageDocumentDetail
 }
 
 export async function chooseStorageRoot() {
-  if (!("showDirectoryPicker" in window)) {
-    throw new Error("Folder saving is supported in Chrome or Edge on desktop. Safari and iPad do not allow web apps to choose a local folder.");
+  if (!canSaveDocumentsToFolder()) {
+    throw new Error("Folder saving is available in the Windows desktop app.");
   }
   const picker = window.showDirectoryPicker;
-  if (!picker) throw new Error("Folder saving is supported in Chrome or Edge on desktop. Safari and iPad do not allow web apps to choose a local folder.");
+  if (!picker) throw new Error("Folder saving is available in the Windows desktop app.");
   const root = await picker({ mode: "readwrite" }) as DirectoryHandle;
   await setRootHandle(root);
   return root;
