@@ -22,10 +22,11 @@ export function UploadDialog({ onParsed, compact = false }: { onParsed: (certifi
         const text = await extractDocxText(file);
         return parseCertificateText(text, file.name);
       }));
+      validateParsedCertificates(certificates);
       const nextMessage = await onParsed(certificates);
       setMessage(nextMessage === null ? "" : nextMessage || `${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
-    } catch {
-      setMessage("One of the files could not be read. Please upload DOCX certificate files only.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "One of the files could not be read. Please upload DOCX certificate files only.");
     } finally {
       setBusy(false);
     }
@@ -38,6 +39,7 @@ export function UploadDialog({ onParsed, compact = false }: { onParsed: (certifi
       const files = await openCertificatePdfs();
       if (!files.length) return;
       const certificates = files.map((file) => parseCertificateText(file.text, file.fileName));
+      validateParsedCertificates(certificates);
       const nextMessage = await onParsed(certificates);
       setMessage(nextMessage === null ? "" : nextMessage || `${certificates.length} certificate${certificates.length === 1 ? "" : "s"} uploaded.`);
     } catch (error) {
@@ -91,4 +93,20 @@ export function UploadDialog({ onParsed, compact = false }: { onParsed: (certifi
       ) : null}
     </div>
   );
+}
+
+function validateParsedCertificates(certificates: ParsedCertificate[]) {
+  const unreadable = certificates.find((certificate) => {
+    const detectedFields = [
+      certificate.ascName,
+      certificate.propertyName,
+      certificate.certificateNumber,
+      certificate.fileNo,
+      certificate.standardReferenced,
+    ].filter(Boolean).length;
+    return detectedFields < 2;
+  });
+  if (unreadable) {
+    throw new Error(`${unreadable.fileName} was read, but Haudy could not detect the certificate fields. Use the official text PDF, not a scanned copy.`);
+  }
 }

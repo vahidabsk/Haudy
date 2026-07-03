@@ -21,23 +21,31 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
   const text = normalizeText(stripDisclaimer(rawText));
   const lines = text.split(/\n+/).map(clean).filter(Boolean);
   const joined = lines.join("\n");
+  const flat = clean(lines.join(" "));
 
-  const protectedBlock = standaloneBlock(lines, "Protected Property");
-  const ascBlock = standaloneBlock(lines, "Alarm Service Company");
-  const monitoringBlock = monitoringLocationBlock(lines);
+  const standalonePropertyBlock = standaloneBlock(lines, "Protected Property");
+  const standaloneAscBlock = standaloneBlock(lines, "Alarm Service Company");
+  const standaloneMonitoringBlock = monitoringLocationBlock(lines);
+  const protectedBlock = standalonePropertyBlock.length
+    ? standalonePropertyBlock
+    : inlineBlock(flat, "Protected Property", ["Alarm Service Company", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]);
+  const ascBlock = standaloneAscBlock.length
+    ? standaloneAscBlock
+    : inlineBlock(flat, "Alarm Service Company", ["Monitoring Location", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]);
+  const monitoringBlock = standaloneMonitoringBlock.length ? standaloneMonitoringBlock : inlineMonitoringLocationBlock(flat);
   const property = splitPropertyBlock(protectedBlock);
   const asc = splitAscBlock(ascBlock);
   const ascLocation = cityStateFromAddress(asc.address);
   const monitoring = splitMonitoringBlock(monitoringBlock);
 
-  const fileLine = firstLineMatching(lines, /^File No:/i) || "";
-  const issuedLine = firstLineMatching(lines, /^Issued:/i) || "";
-  const standardMatch = joined.match(/accordance\s+with\s+standard\s+(NFPA\s*72-\d{4})/i);
-  const coverageMatch = joined.match(/Coverage\s+is\s+([^\n]+)/i);
+  const fileLine = firstLineMatching(lines, /^File No:/i) || flat.match(/\bFile No:\s*[^]+?(?=\b(?:Issued|Revised|Monitoring Location|SN|File No)\b|$)/i)?.[0] || "";
+  const issuedLine = firstLineMatching(lines, /^Issued:/i) || flat.match(/\bIssued:\s*[0-9/]+(?:\s+Revised:\s*[0-9/]+)?/i)?.[0] || "";
+  const standardMatch = flat.match(/accordance\s+with\s+standard\s+(NFPA\s*72\s*[- ]\s*\d{4})/i);
+  const coverageMatch = joined.match(/Coverage\s+is\s+([^\n]+)/i) || flat.match(/Coverage\s+is\s+([^]+?)(?=\b(?:Issued|Revised|Monitoring Location|SN|File No|Protected Property|Alarm Service Company)\b|$)/i);
 
   return {
     fileName,
-    certificateNumber: firstValue(lines, /^SN:\s*(.+)$/i),
+    certificateNumber: firstValue(lines, /^SN:\s*(.+)$/i) || flat.match(/\bSN:\s*([A-Z0-9.-]+)/i)?.[1],
     certificateType: firstLineMatching(lines, /FIRE ALARM SYSTEM CERTIFICATE/i),
     categoryCode: firstCategoryCode(joined),
     fileNo: fileLine.match(/File No:\s*([A-Z0-9.-]+)/i)?.[1],
@@ -53,7 +61,7 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     areaCovered: labelValue(joined, "Area Covered"),
     ahj: labelValue(joined, "Authority Having Jurisdiction"),
     respondingFD: labelValue(joined, "Responding Fire Department"),
-    standardReferenced: standardMatch?.[1]?.replace(/\s+/g, " "),
+    standardReferenced: standardMatch?.[1]?.replace(/\s+/g, " ").replace(/\s+-\s+/, "-"),
     coverageType: coverageMatch?.[1]?.trim(),
     systemDeviations: systemDeviations(lines),
     controlUnitMfr: labelValue(joined, "Control Unit Manufacturer"),
@@ -95,6 +103,18 @@ function standaloneBlock(lines: string[], label: string) {
     if (block.length >= 5) break;
   }
   return block;
+}
+
+function inlineBlock(text: string, label: string, stopLabels: string[]) {
+  const labelSource = flexibleLabelSource(label);
+  const stopSource = stopLabels.map(flexibleLabelSource).join("|");
+  const match = text.match(new RegExp(`(?:^|\\b)${labelSource}\\s*:?\\s*([\\s\\S]*?)(?=\\b(?:${stopSource})\\s*:?|$)`, "i"));
+  const value = clean(match?.[1] || "");
+  return value ? [value] : [];
+}
+
+function flexibleLabelSource(label: string) {
+  return escapeRegExp(label).replace(/\\ /g, "\\s+");
 }
 
 function splitPropertyBlock(block: string[]) {
@@ -166,6 +186,11 @@ function monitoringLocationBlock(lines: string[]) {
     if (block.length >= 3) break;
   }
   return block;
+}
+
+function inlineMonitoringLocationBlock(text: string) {
+  const value = inlineBlock(text, "Monitoring Location", ["SN", "File No", "Issued", "Protected Property", "Alarm Service Company"])[0] || "";
+  return value ? [value] : [];
 }
 
 function splitMonitoringBlock(block: string[]) {
