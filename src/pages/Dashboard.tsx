@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
+import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, Share, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, updateAscDocumentDraft } from "../lib/asc-documents";
@@ -25,6 +25,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const groups = groupByAsc(audits.audits);
   const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [showInstallHelp, setShowInstallHelp] = useState(() => shouldShowIosInstallHelp());
   const [confirmationGroup, setConfirmationGroup] = useState<AscGroup | null>(null);
   const [profileGroup, setProfileGroup] = useState<AscGroup | null>(null);
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
@@ -48,6 +49,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     window.addEventListener("offline", refresh);
     window.addEventListener("haudy:offline-ready", refresh);
     window.addEventListener("focus", refreshDocuments);
+    window.addEventListener("appinstalled", () => setShowInstallHelp(false));
     return () => {
       window.removeEventListener("online", refresh);
       window.removeEventListener("offline", refresh);
@@ -150,6 +152,23 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           </div>
         ) : null}
       </section>
+      {showInstallHelp ? (
+        <section className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white text-sky-800">
+                <Share size={20} />
+              </div>
+              <div>
+                <h2 className="font-bold text-navy">Install Haudy on this iPad</h2>
+                <p className="mt-1">For best offline use, open Haudy in Safari, tap Share, choose Add to Home Screen, then open Haudy from the new Home Screen icon while online one time.</p>
+                <p className="mt-1 font-semibold">{offlineReady ? "Offline files are ready on this device." : "Keep Haudy open online until the offline status says ready."}</p>
+              </div>
+            </div>
+            <button type="button" className="rounded-md border border-sky-300 bg-white px-3 py-1.5 font-semibold text-sky-900 hover:bg-sky-100" onClick={() => setShowInstallHelp(false)}>Hide</button>
+          </div>
+        </section>
+      ) : null}
       <section className="grid gap-4">
         {audits.audits.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No certificates yet.</div> : null}
         {groups.map((group) => {
@@ -318,6 +337,15 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       ) : null}
     </main>
   );
+}
+
+function shouldShowIosInstallHelp() {
+  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+  const userAgent = navigator.userAgent || "";
+  const isiPadOSDesktopMode = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  const isiOS = /iPad|iPhone|iPod/.test(userAgent) || isiPadOSDesktopMode;
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigatorWithStandalone.standalone === true;
+  return isiOS && !isStandalone;
 }
 
 function DeleteAscDialog({ group, onCancel, onDelete }: { group: AscGroup; onCancel: () => void; onDelete: () => void }) {

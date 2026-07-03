@@ -1,8 +1,11 @@
-const CACHE_NAME = "haudy-offline-v2";
+const CACHE_NAME = "haudy-offline-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
+  "/sw.js",
+  "/confirmation-logo.png",
+  "/confirmation-safety.png",
   "/icons/icon-180.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png"
@@ -21,7 +24,7 @@ async function cacheAppShell() {
   const html = await indexResponse.text();
   const assetUrls = Array.from(html.matchAll(/(?:src|href)="([^"]+)"/g))
     .map((match) => match[1])
-    .filter((url) => url.startsWith("/assets/"));
+    .filter((url) => url.startsWith("/assets/") || url.startsWith("/icons/"));
 
   await Promise.all([...new Set(assetUrls)].map((url) => cache.add(url).catch(() => undefined)));
 }
@@ -69,6 +72,19 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match("/index.html").then((cached) => cached || caches.match("/")))
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/icons/")) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      }).catch(() => cached))
     );
     return;
   }

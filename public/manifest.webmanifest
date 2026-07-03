@@ -1,13 +1,16 @@
 {
+  "id": "/",
   "name": "Haudy Audit Suite",
   "short_name": "Haudy",
   "description": "Fire alarm certificate audits, field notes, confirmations, and reports in one workspace.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen", "browser"],
   "background_color": "#f8fafc",
   "theme_color": "#143a63",
-  "orientation": "portrait",
+  "orientation": "any",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/icon-180.png",
