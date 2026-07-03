@@ -4,6 +4,12 @@ import { nowIso, uid } from "./utils";
 
 const AUDITOR_KEY = "haudy.auditor";
 const AUDITS_KEY = "haudy.audits";
+const LEGACY_PROFILE_DEFAULTS = {
+  title: "Alarm System Auditor",
+  department: "Fire and Security Service Solutions",
+  phone: "+1.510.358.6443",
+  email: "Vahid.Abbasikoohenjani@ul.com",
+};
 
 export const documentationElements = [
   "Record Drawings (As Builts)",
@@ -52,13 +58,18 @@ export function saveAuditor(profile: Omit<Auditor, "since" | "updatedAt"> & { si
 function normalizeAuditor(auditor: Partial<Auditor> & { name: string }): Auditor {
   return {
     name: auditor.name || "",
-    title: auditor.title || "Alarm System Auditor",
-    department: auditor.department || "Fire and Security Service Solutions",
-    phone: auditor.phone || "+1.510.358.6443",
-    email: auditor.email || "Vahid.Abbasikoohenjani@ul.com",
+    title: cleanLegacyProfileValue(auditor.title, LEGACY_PROFILE_DEFAULTS.title),
+    department: cleanLegacyProfileValue(auditor.department, LEGACY_PROFILE_DEFAULTS.department),
+    phone: cleanLegacyProfileValue(auditor.phone, LEGACY_PROFILE_DEFAULTS.phone),
+    email: cleanLegacyProfileValue(auditor.email, LEGACY_PROFILE_DEFAULTS.email),
     since: auditor.since || nowIso(),
     updatedAt: auditor.updatedAt || auditor.since || nowIso(),
   };
+}
+
+function cleanLegacyProfileValue(value: string | undefined, legacyDefault: string) {
+  const normalizedValue = value?.trim() || "";
+  return normalizedValue === legacyDefault ? "" : normalizedValue;
 }
 
 export function loadAudits(): Audit[] {

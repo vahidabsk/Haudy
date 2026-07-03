@@ -21,6 +21,8 @@ git tag desktop-v0.1.0
 git push origin desktop-v0.1.0
 ```
 
+Tagged desktop builds also publish a GitHub Release. Haudy's Patch button opens the latest release page so users can download and install the newest package.
+
 ## Build on a Mac
 
 Local desktop builds require Rust and Tauri dependencies:

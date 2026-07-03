@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import { Flame, HelpCircle, UserRound } from "lucide-react";
+import { DownloadCloud, Flame, HelpCircle, UserRound } from "lucide-react";
 import { Auditor } from "../lib/types";
 
-export function UlHeader({ auditor, localUsername, onChange, onHelp, onLogout }: { auditor: Auditor | null; localUsername: string; onChange: () => void; onHelp: () => void; onLogout: () => void }) {
+export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, onLogout }: { auditor: Auditor | null; localUsername: string; onChange: () => void; onHelp: () => void; onPatch: () => void; onLogout: () => void }) {
   return (
     <header className="no-print">
       <div className="h-1 bg-signal" />
@@ -22,6 +22,10 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onLogout }:
             <button className="inline-flex min-h-11 items-center gap-2 rounded-md border border-white/30 px-3 font-medium hover:bg-white/10" onClick={onHelp} title="Open Haudy operating help">
               <HelpCircle size={17} />
               <span className="hidden sm:inline">Help</span>
+            </button>
+            <button className="inline-flex min-h-11 items-center gap-2 rounded-md border border-white/30 px-3 font-medium hover:bg-white/10" onClick={onPatch} title="Check for the latest Haudy patch">
+              <DownloadCloud size={17} />
+              <span className="hidden sm:inline">Patch</span>
             </button>
             <button className="min-h-11 rounded-md border border-white/30 px-3 font-medium hover:bg-white/10" onClick={onChange}>
               Edit Profile

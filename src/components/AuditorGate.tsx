@@ -5,10 +5,10 @@ type AuditorProfileInput = Omit<Auditor, "since" | "updatedAt">;
 
 const defaultProfile: AuditorProfileInput = {
   name: "",
-  title: "Alarm System Auditor",
-  department: "Fire and Security Service Solutions",
-  phone: "+1.510.358.6443",
-  email: "Vahid.Abbasikoohenjani@ul.com",
+  title: "",
+  department: "",
+  phone: "",
+  email: "",
 };
 
 export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { auditor: Auditor | null; editing: boolean; onSave: (profile: AuditorProfileInput) => void; onCancel: () => void; children: ReactNode }) {

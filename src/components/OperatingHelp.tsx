@@ -102,7 +102,12 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
               <HelpList items={["Open Haudy while online before going offline.", "Confirm the app shows offline ready.", "Do not clear browser cache or site data.", "Private browsing is not recommended for audit work."]} />
             </HelpSection>
 
-            <HelpSection title="18. Common Problems">
+            <HelpSection title="18. Patches">
+              <p>Use Patch in the top bar when a newer Haudy desktop installer is available.</p>
+              <HelpList items={["Check Latest Patch opens the latest official Haudy release page.", "Install Patch opens the same release page so the auditor can download and run the newest installer.", "Save open work and close Haudy before installing a desktop patch.", "Patch downloads require internet access."]} />
+            </HelpSection>
+
+            <HelpSection title="19. Common Problems">
               <HelpList items={["Upload did not read the certificate: confirm it is a DOCX file and the text is selectable/readable.", "Save did not keep changes: confirm the status changes to Saved before leaving.", "Import failed: try the no-photo export file or confirm the file is a Haudy export file.", "Storage folder did not save: the browser may not support folder access; use browser print/save as PDF instead.", "Offline did not work: open Haudy online first and confirm offline ready."]} />
             </HelpSection>
           </div>

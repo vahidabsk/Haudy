@@ -6,6 +6,9 @@ on:
     tags:
       - "desktop-v*"
 
+permissions:
+  contents: write
+
 jobs:
   build-desktop:
     name: ${{ matrix.name }}
@@ -55,3 +58,15 @@ jobs:
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
           if-no-files-found: error
+
+      - name: Publish patch release
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Haudy Patch ${{ github.ref_name }}"
+          body: "Haudy desktop patch build. Download the Windows installer package, close Haudy, and run the installer to update."
+          files: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app.tar.gz
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe

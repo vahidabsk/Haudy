@@ -3,6 +3,7 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AuditorGate } from "./components/AuditorGate";
 import { LocalAuthGate } from "./components/LocalAuthGate";
 import { OperatingHelp } from "./components/OperatingHelp";
+import { PatchUpdateDialog } from "./components/PatchUpdateDialog";
 import { UlHeader } from "./components/UlHeader";
 import { useAuditor } from "./hooks/use-auditor";
 import { AscPropertiesPage, Dashboard } from "./pages/Dashboard";
@@ -15,6 +16,7 @@ export default function App() {
   const auditor = useAuditor();
   const [editingAuditor, setEditingAuditor] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showPatchCenter, setShowPatchCenter] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const hiddenAt = useRef<number | null>(null);
@@ -65,7 +67,7 @@ export default function App() {
           }}
           onCancel={() => setEditingAuditor(false)}
         >
-          <UlHeader auditor={auditor.auditor} localUsername={session.username} onChange={() => setEditingAuditor(true)} onHelp={() => setShowHelp(true)} onLogout={logout} />
+          <UlHeader auditor={auditor.auditor} localUsername={session.username} onChange={() => setEditingAuditor(true)} onHelp={() => setShowHelp(true)} onPatch={() => setShowPatchCenter(true)} onLogout={logout} />
           <Routes>
             <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
             <Route path="/asc/:ascKey/report" element={<ReportPage auditor={auditor.auditor} />} />
@@ -75,6 +77,7 @@ export default function App() {
             <Route path="/audit/:auditId/export" element={<ExportPage auditorName={auditor.auditor?.name || ""} />} />
           </Routes>
           {showHelp ? <OperatingHelp onClose={() => setShowHelp(false)} /> : null}
+          {showPatchCenter ? <PatchUpdateDialog onClose={() => setShowPatchCenter(false)} /> : null}
         </AuditorGate>
       )}
     </LocalAuthGate>
