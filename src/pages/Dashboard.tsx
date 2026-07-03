@@ -385,7 +385,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     Confirmation: {confirmationSaved ? `saved ${relativeTime(documents.confirmation?.updatedAt || "")}` : "not saved yet"}
                     <span className="mx-2 text-slate-300">|</span>
                     Report: {reportSaved ? `saved ${relativeTime(documents.report?.updatedAt || "")}` : "not saved yet"}
-                    {documents.report?.reportCreated ? <span className="ml-2 font-semibold text-sky-700">PDF created</span> : null}
+                    {documents?.report?.reportCreated ? <span className="ml-2 font-semibold text-sky-700">PDF created</span> : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
