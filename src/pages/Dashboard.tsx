@@ -34,6 +34,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [showInstallHelp, setShowInstallHelp] = useState(() => shouldShowIosInstallHelp());
   const [confirmationGroup, setConfirmationGroup] = useState<AssignmentGroup | null>(null);
   const [profileGroup, setProfileGroup] = useState<AssignmentGroup | null>(null);
+  const [reportSentGroup, setReportSentGroup] = useState<AssignmentGroup | null>(null);
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
   const [storageReady, setStorageReady] = useState(false);
@@ -180,6 +181,21 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     setAscDocuments(next);
   }
 
+  function markReportSent(group: AssignmentGroup, clearanceStartDate: string) {
+    const existingReport = loadAscDocuments()[group.key]?.report;
+    if (!existingReport) return;
+    const next = updateAscDocumentDraft(group.key, "report", {
+      ...existingReport,
+      sentToClient: true,
+      reportSentAt: new Date().toISOString(),
+      clearanceStartDate,
+      clearanceResponseReceived: false,
+      clearanceResponseAt: "",
+    });
+    setAscDocuments(next);
+    setReportSentGroup(null);
+  }
+
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
@@ -245,9 +261,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <StatusChip label="ASCs" value={groups.length} />
             <StatusChip label="Certificates" value={audits.audits.length} />
-            <span className={`inline-flex min-h-9 items-center rounded-full border px-3 font-semibold ${offlineReady ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-              {offlineReady ? "Offline ready" : online ? "Preparing offline" : "Offline not ready"}
-            </span>
           </div>
         </div>
         {storageMessage || transferMessage ? (
@@ -339,6 +352,15 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                       Response to deficiencies received
                     </label>
                   ) : null}
+                  {shouldShowReportSentToggle(documents) ? (
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex min-h-10 w-fit items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-50"
+                      onClick={() => setReportSentGroup(group)}
+                    >
+                      Report sent to customer
+                    </button>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -363,6 +385,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     Confirmation: {confirmationSaved ? `saved ${relativeTime(documents.confirmation?.updatedAt || "")}` : "not saved yet"}
                     <span className="mx-2 text-slate-300">|</span>
                     Report: {reportSaved ? `saved ${relativeTime(documents.report?.updatedAt || "")}` : "not saved yet"}
+                    {documents.report?.reportCreated ? <span className="ml-2 font-semibold text-sky-700">PDF created</span> : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -446,6 +469,14 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             const params = new URLSearchParams({ ...details, poc: profile.pocName, scn: profile.scn, psn: profile.psn });
             navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
           }}
+        />
+      ) : null}
+      {reportSentGroup ? (
+        <ReportSentDialog
+          group={reportSentGroup}
+          report={ascDocuments[reportSentGroup.key]?.report}
+          onCancel={() => setReportSentGroup(null)}
+          onConfirm={(date) => markReportSent(reportSentGroup, date)}
         />
       ) : null}
       {duplicateUpload ? (
@@ -580,6 +611,48 @@ function ImportDataDialog({ file, onCancel, onImport }: { file: File; onCancel: 
           <button className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" onClick={onImport}>Import and Reload</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReportSentDialog({ group, report, onCancel, onConfirm }: { group: AssignmentGroup; report?: AscDocumentState["report"]; onCancel: () => void; onConfirm: (clearanceStartDate: string) => void }) {
+  const [clearanceStartDate, setClearanceStartDate] = useState(report?.clearanceStartDate || report?.letterDate || todayInputValue());
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <form
+        className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (clearanceStartDate) onConfirm(clearanceStartDate);
+        }}
+      >
+        <div>
+          <h2 className="text-xl font-bold text-navy">Report Sent to Customer?</h2>
+          <p className="mt-1 text-sm text-slate-600">{group.ascName}</p>
+        </div>
+        <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+          Confirm the date Haudy should use to count the customer clearance window. This does not change the date printed on the report PDF.
+        </div>
+        <label className="grid gap-1 text-sm font-semibold text-slate-700">
+          Clearance counting date
+          <input
+            className="min-h-11 rounded-md border border-slate-300 px-3 text-base"
+            type="date"
+            value={clearanceStartDate}
+            onChange={(event) => setClearanceStartDate(event.target.value)}
+            autoFocus
+          />
+        </label>
+        {report?.letterDate ? (
+          <p className="text-xs text-slate-500">Report PDF date: {formatDisplayDate(report.letterDate)}</p>
+        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="submit" className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" disabled={!clearanceStartDate}>
+            Confirm Sent
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -888,7 +961,7 @@ function ascCardDomId(key: string) {
   return `asc-card-${key.replace(/[^a-z0-9_-]/gi, "-")}`;
 }
 
-type HomeJobStatus = "pool" | "scheduled" | "reportDue" | "clearance" | "done";
+type HomeJobStatus = "pool" | "scheduled" | "reportDue" | "reportCreated" | "clearance" | "done";
 
 interface HomeJobStatusDetails {
   id: HomeJobStatus;
@@ -903,13 +976,14 @@ function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
     pool: "Pool of Jobs",
     scheduled: "Scheduled",
     reportDue: "Report Due",
+    reportCreated: "Report Created",
     clearance: "Waiting for Clearance",
     done: "Done",
   };
   const counts = cards.reduce<Record<HomeJobStatus, number>>((totals, card) => {
     totals[card.status.id] += 1;
     return totals;
-  }, { pool: 0, scheduled: 0, reportDue: 0, clearance: 0, done: 0 });
+  }, { pool: 0, scheduled: 0, reportDue: 0, reportCreated: 0, clearance: 0, done: 0 });
   return (Object.keys(labels) as HomeJobStatus[]).map((id) => ({ id, label: labels[id], count: counts[id] }));
 }
 
@@ -920,9 +994,9 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
   const today = startOfLocalDay(new Date());
   const auditStart = parseLocalDate(confirmation?.startDate);
   const auditEnd = parseLocalDate(confirmation?.endDate || confirmation?.startDate);
-  const sentDate = parseLocalDate(report?.reportSentAt?.slice(0, 10) || "");
+  const clearanceStartDate = parseLocalDate(report?.clearanceStartDate || report?.letterDate || report?.reportSentAt?.slice(0, 10) || "");
 
-  if (report?.sentToClient && sentDate) {
+  if (report?.sentToClient && clearanceStartDate) {
     if (deficiencyCount === 0) {
       return {
         id: "done",
@@ -941,7 +1015,7 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
         cardClassName: "border-emerald-300 bg-emerald-50/70",
       };
     }
-    const clearanceDeadline = addDays(sentDate, 30);
+    const clearanceDeadline = addDays(clearanceStartDate, 30);
     const remaining = daysBetween(today, clearanceDeadline);
     if (remaining < 0) {
       return {
@@ -963,6 +1037,16 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
       detail: remaining === 0 ? "Clearance due today" : `${remaining} day${remaining === 1 ? "" : "s"} left for client response`,
       className: remaining <= 5 ? "border-orange-300 bg-orange-50 text-orange-900" : remaining <= 10 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-violet-200 bg-violet-50 text-violet-800",
       cardClassName: urgencyClass,
+    };
+  }
+
+  if (report?.reportCreated && !report?.sentToClient) {
+    return {
+      id: "reportCreated",
+      label: "Report created",
+      detail: "Mark report sent to customer",
+      className: "border-sky-200 bg-sky-50 text-sky-800",
+      cardClassName: "border-sky-200 bg-sky-50/40",
     };
   }
 
@@ -1006,6 +1090,10 @@ function shouldShowClearanceToggle(group: AssignmentGroup, documents?: AscDocume
   return Boolean(documents?.report?.sentToClient && groupDeficiencyCount(group, documents) > 0);
 }
 
+function shouldShowReportSentToggle(documents?: AscDocumentState) {
+  return Boolean(documents?.report?.reportCreated && !documents.report.sentToClient);
+}
+
 function groupDeficiencyCount(group: AssignmentGroup, documents?: AscDocumentState) {
   const serviceCenterComments = documents?.report?.serviceCenterHasComment ? documents.report.serviceCenterComments || [] : [];
   const serviceCenterCount = serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()).length;
@@ -1033,6 +1121,12 @@ function parseLocalDate(value: string | undefined) {
   const [year, month, day] = value.split("-").map(Number);
   if (!year || !month || !day) return null;
   return new Date(year, month - 1, day);
+}
+
+function formatDisplayDate(value: string) {
+  const date = parseLocalDate(value);
+  if (!date) return value;
+  return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function startOfLocalDay(date: Date) {

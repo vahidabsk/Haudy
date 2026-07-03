@@ -131,7 +131,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
     }
   }
 
-  function markReportSentToClient() {
+  function markReportCreated() {
     const next = saveAscDocument(ascKey, "report", {
       pocName,
       scn,
@@ -140,8 +140,13 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
       serviceCenterHasComment,
       serviceCenterDone,
       serviceCenterComments,
-      sentToClient: true,
-      reportSentAt: new Date().toISOString(),
+      reportCreated: true,
+      reportCreatedAt: new Date().toISOString(),
+      sentToClient: savedReportDraft?.sentToClient,
+      reportSentAt: savedReportDraft?.reportSentAt,
+      clearanceStartDate: savedReportDraft?.clearanceStartDate,
+      clearanceResponseReceived: savedReportDraft?.clearanceResponseReceived,
+      clearanceResponseAt: savedReportDraft?.clearanceResponseAt,
     });
     setSavedAt(next[ascKey]?.report?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
@@ -175,7 +180,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
       <div className="no-print mb-4 grid gap-3 rounded-lg border bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation("/")}>
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation(`/#${encodeURIComponent(group.key)}`)}>
               <ArrowLeft size={16} /> Back to ASCs
             </button>
             <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => requestNavigation(`/asc/${encodeURIComponent(group.key)}`)}>
@@ -196,7 +201,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
                   await saveReport();
                   const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
                   setFolderMessage(await savePrintablePagesAsPdf(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }))));
-                  if (window.confirm("Was this report sent to the client?")) markReportSentToClient();
+                  markReportCreated();
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
                 }

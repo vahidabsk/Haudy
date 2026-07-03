@@ -16,8 +16,11 @@ export interface SavedDocumentStatus {
   serviceCenterComments?: ServiceCenterComment[];
   serviceCenterReportFinding?: string;
   serviceCenterReportRequiredAction?: string;
+  reportCreated?: boolean;
+  reportCreatedAt?: string;
   sentToClient?: boolean;
   reportSentAt?: string;
+  clearanceStartDate?: string;
   clearanceResponseReceived?: boolean;
   clearanceResponseAt?: string;
   updatedAt: string;
