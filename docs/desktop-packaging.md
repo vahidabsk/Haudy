@@ -30,6 +30,8 @@ pnpm install
 pnpm tauri:build
 ```
 
+The Tauri command is downloaded only when you run a desktop build, so the normal Render web deployment stays separate from desktop packaging.
+
 The macOS package will be created under:
 
 ```text
