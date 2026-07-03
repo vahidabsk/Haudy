@@ -82,14 +82,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }, [audits.audits.length, assignments.length]);
 
   useEffect(() => {
-    if (!groups.length) return;
-    const active = jobTabs.find((tab) => tab.id === activeJobTab);
-    if (active && active.count > 0) return;
-    const next = jobTabs.find((tab) => tab.count > 0);
-    if (next) setActiveJobTab(next.id);
-  }, [activeJobTab, ascDocuments, assignments.length, audits.audits.length, groups.length]);
-
-  useEffect(() => {
     const key = decodeURIComponent(window.location.hash.replace(/^#/, ""));
     if (!key || !groups.length) return;
     const card = jobCards.find((item) => item.group.key === key);

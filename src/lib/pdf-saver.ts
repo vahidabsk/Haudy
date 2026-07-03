@@ -1,5 +1,5 @@
 import { isDesktopApp } from "./desktop-runtime";
-import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopBinaryFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
+import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopBinaryFileWithDialog, storedHaudyDatabaseRoot } from "./desktop-bridge";
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -26,8 +26,8 @@ export async function savePrintablePagesAsPdf(fileName: string, folders: string[
   try {
     const images = await renderPagesToJpegs(pages);
     const pdf = buildImagePdf(images);
-    await saveDesktopBinaryFile(folders, `${safeName(fileName)}.pdf`, pdf);
-    return "PDF saved.";
+    const savedPath = await saveDesktopBinaryFileWithDialog(folders, `${safeName(fileName)}.pdf`, pdf);
+    return savedPath ? "PDF saved." : "PDF save canceled.";
   } catch {
     window.print();
     return "Windows PDF save opened. Choose Save as PDF or Microsoft Print to PDF.";

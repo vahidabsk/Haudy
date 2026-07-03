@@ -176,6 +176,28 @@ fn save_haudy_binary_file(base_path: String, folders: Vec<String>, file_name: St
 }
 
 #[tauri::command]
+fn save_haudy_binary_file_with_dialog(base_path: String, folders: Vec<String>, file_name: String, contents: Vec<u8>) -> Result<Option<String>, String> {
+    let base = PathBuf::from(base_path);
+    let mut directory = base.join("Haudy Database");
+    for folder in folders {
+        directory.push(safe_path_part(&folder));
+    }
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let safe_file_name = safe_file_name(&file_name);
+    let Some(path) = rfd::FileDialog::new()
+        .set_title("Save Haudy PDF")
+        .set_directory(&directory)
+        .set_file_name(&safe_file_name)
+        .add_filter("PDF document", &["pdf"])
+        .save_file()
+    else {
+        return Ok(None);
+    };
+    fs::write(&path, contents).map_err(|error| error.to_string())?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
 fn create_haudy_folders(base_path: String, folder_sets: Vec<Vec<String>>) -> Result<(), String> {
     let base = PathBuf::from(base_path);
     for folders in folder_sets {
@@ -221,6 +243,7 @@ pub fn run() {
             open_audit_tracker,
             open_certificate_pdfs,
             save_haudy_binary_file,
+            save_haudy_binary_file_with_dialog,
             save_haudy_text_file,
         ])
         .run(tauri::generate_context!())
