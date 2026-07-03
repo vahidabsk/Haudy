@@ -1,11 +1,29 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use calamine::{open_workbook_auto, DataType, Reader};
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CertificatePdfText {
     file_name: String,
     text: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrackerAssignment {
+    auditor_name: String,
+    asc_name: String,
+    city: String,
+    state: String,
+    ccn: String,
+    file_no: String,
+    scn: String,
+    cert_count: String,
+    psn: String,
+    auditor_notes: String,
+    asc_status: String,
 }
 
 #[tauri::command]
@@ -49,6 +67,83 @@ fn open_certificate_pdfs() -> Result<Vec<CertificatePdfText>, String> {
     }
 
     Ok(certificates)
+}
+
+#[tauri::command]
+fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
+    let Some(path) = rfd::FileDialog::new()
+        .set_title("Choose audit tracker workbook")
+        .add_filter("Excel workbook", &["xlsx", "xlsm", "xls"])
+        .pick_file()
+    else {
+        return Ok(Vec::new());
+    };
+
+    let mut workbook = open_workbook_auto(&path).map_err(|error| format!("Could not open tracker: {error}"))?;
+    let range = workbook
+        .worksheet_range("2026 US Assignments")
+        .ok_or_else(|| "Could not find the 2026 US Assignments sheet.".to_string())?
+        .map_err(|error| format!("Could not read tracker rows: {error}"))?;
+
+    let mut rows = range.rows();
+    let Some(header_row) = rows.next() else {
+        return Ok(Vec::new());
+    };
+    let headers = header_row.iter().map(cell_text).collect::<Vec<_>>();
+    let index = |name: &str| -> Option<usize> {
+        headers.iter().position(|header| header.trim().eq_ignore_ascii_case(name.trim()))
+    };
+
+    let auditor_index = index("Assigned Auditor").ok_or_else(|| "Tracker is missing Assigned Auditor column.".to_string())?;
+    let asc_index = index("Company/ Service Center Name").ok_or_else(|| "Tracker is missing Company/ Service Center Name column.".to_string())?;
+    let city_index = index("City").ok_or_else(|| "Tracker is missing City column.".to_string())?;
+    let state_index = index("State").ok_or_else(|| "Tracker is missing State column.".to_string())?;
+    let ccn_index = index("CCN").ok_or_else(|| "Tracker is missing CCN column.".to_string())?;
+    let file_index = index("File").ok_or_else(|| "Tracker is missing File column.".to_string())?;
+    let scn_index = index("SCN").ok_or_else(|| "Tracker is missing SCN column.".to_string())?;
+    let cert_count_index = index("Cert Count").ok_or_else(|| "Tracker is missing Cert Count column.".to_string())?;
+    let psn_index = index("PSN").ok_or_else(|| "Tracker is missing PSN column.".to_string())?;
+    let notes_index = index("Auditor Notes");
+    let status_index = index("ASC Status");
+
+    let mut assignments = Vec::new();
+    for row in rows {
+        let assignment = TrackerAssignment {
+            auditor_name: cell_text(row.get(auditor_index).unwrap_or(&DataType::Empty)),
+            asc_name: cell_text(row.get(asc_index).unwrap_or(&DataType::Empty)),
+            city: cell_text(row.get(city_index).unwrap_or(&DataType::Empty)),
+            state: cell_text(row.get(state_index).unwrap_or(&DataType::Empty)),
+            ccn: cell_text(row.get(ccn_index).unwrap_or(&DataType::Empty)),
+            file_no: cell_text(row.get(file_index).unwrap_or(&DataType::Empty)),
+            scn: cell_text(row.get(scn_index).unwrap_or(&DataType::Empty)),
+            cert_count: cell_text(row.get(cert_count_index).unwrap_or(&DataType::Empty)),
+            psn: cell_text(row.get(psn_index).unwrap_or(&DataType::Empty)),
+            auditor_notes: notes_index.map(|column| cell_text(row.get(column).unwrap_or(&DataType::Empty))).unwrap_or_default(),
+            asc_status: status_index.map(|column| cell_text(row.get(column).unwrap_or(&DataType::Empty))).unwrap_or_default(),
+        };
+        if !assignment.auditor_name.is_empty() && !assignment.asc_name.is_empty() {
+            assignments.push(assignment);
+        }
+    }
+
+    Ok(assignments)
+}
+
+fn cell_text(cell: &DataType) -> String {
+    match cell {
+        DataType::Empty => String::new(),
+        DataType::String(value) => value.trim().to_string(),
+        DataType::Float(value) => {
+            if value.fract() == 0.0 {
+                format!("{value:.0}")
+            } else {
+                value.to_string()
+            }
+        }
+        DataType::Int(value) => value.to_string(),
+        DataType::Bool(value) => value.to_string(),
+        _ => cell.to_string().trim().to_string(),
+    }
 }
 
 #[tauri::command]
@@ -120,6 +215,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             choose_haudy_database_location,
             create_haudy_folders,
+            open_audit_tracker,
             open_certificate_pdfs,
             save_haudy_binary_file,
             save_haudy_text_file,

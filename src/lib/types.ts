@@ -50,6 +50,23 @@ export interface ParsedCertificate {
   };
 }
 
+export interface AuditAssignment {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  auditorName: string;
+  ascName: string;
+  ascCity: string;
+  ascState: string;
+  psn: string;
+  scn: string;
+  ccn: string;
+  fileNo: string;
+  certCount: string;
+  auditorNotes: string;
+  ascStatus: string;
+}
+
 export interface AuditRow {
   id: string;
   element: string;

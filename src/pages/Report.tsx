@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
+import { groupAssignmentsAndAudits, loadAuditAssignments } from "../lib/audit-assignments";
 import { loadAscDocuments, saveAscDocument, ServiceCenterComment } from "../lib/asc-documents";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
@@ -48,7 +49,8 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
   const [searchParams] = useSearchParams();
   const auditorName = auditor?.name || "";
   const store = useAudits(auditorName);
-  const group = groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
+  const assignmentGroups = groupAssignmentsAndAudits(loadAuditAssignments(), store.audits);
+  const group = assignmentGroups.find((item) => item.key === decodeURIComponent(ascKey)) || groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
   if (!group) return <main className="p-6">ASC not found.</main>;
 
   return (

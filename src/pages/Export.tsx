@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { ReactNode, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
+import { assignmentKeyForAudit } from "../lib/audit-assignments";
 import { auditToCsv } from "../lib/export-csv";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAudit, storageFoldersForDetails } from "../lib/local-document-storage";
 import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
@@ -178,7 +179,7 @@ function primaryCertificate(audit: Audit) {
 }
 
 function ascKey(audit: Audit) {
-  return [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|");
+  return assignmentKeyForAudit(audit);
 }
 
 function formatFileScn(audit: Audit, profileScn?: string) {

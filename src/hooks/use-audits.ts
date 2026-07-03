@@ -34,6 +34,15 @@ export function useAudits(auditorName = "") {
         });
         return newAudits;
       },
+      createManyFromCertificatesWithOverrides(certificates: ParsedCertificate[], overrides: Partial<ParsedCertificate>) {
+        const newAudits = certificates.map((certificate) => createAuditFromCertificate({ ...certificate, ...overrides }, auditorName));
+        setAudits((current) => {
+          const next = [...newAudits, ...current];
+          saveAudits(next);
+          return next;
+        });
+        return newAudits;
+      },
       replaceManyFromCertificates(certificates: ParsedCertificate[]) {
         const replacementKeys = new Set(certificates.map(certificateIdentity));
         const newAudits = certificates.map((certificate) => createAuditFromCertificate(certificate, auditorName));

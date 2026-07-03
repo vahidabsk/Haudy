@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
+import { groupAssignmentsAndAudits, loadAuditAssignments } from "../lib/audit-assignments";
 import { loadAscDocuments, saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
@@ -13,7 +14,8 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
   const [searchParams] = useSearchParams();
   const auditorName = auditor?.name || "";
   const store = useAudits(auditorName);
-  const group = groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
+  const assignmentGroups = groupAssignmentsAndAudits(loadAuditAssignments(), store.audits);
+  const group = assignmentGroups.find((item) => item.key === decodeURIComponent(ascKey)) || groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
   const savedConfirmation = loadAscDocuments()[decodeURIComponent(ascKey)]?.confirmation;
   const pocName = searchParams.get("poc") || "";
   const startDate = searchParams.get("start") || searchParams.get("date") || savedConfirmation?.startDate || "";

@@ -5,7 +5,7 @@ import { hasDesktopBridge, openCertificatePdfs } from "../lib/desktop-bridge";
 import { extractDocxText } from "../lib/docx-extract";
 import { ParsedCertificate } from "../lib/types";
 
-export function UploadDialog({ onParsed, compact = false }: { onParsed: (certificates: ParsedCertificate[]) => string | null | void | Promise<string | null | void>; compact?: boolean }) {
+export function UploadDialog({ onParsed, compact = false, compactLabel = "Upload PDF", fullLabel = "Upload Certificate PDF" }: { onParsed: (certificates: ParsedCertificate[]) => string | null | void | Promise<string | null | void>; compact?: boolean; compactLabel?: string; fullLabel?: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const desktopPdfUpload = hasDesktopBridge();
@@ -52,7 +52,7 @@ export function UploadDialog({ onParsed, compact = false }: { onParsed: (certifi
   const compactButton = desktopPdfUpload ? (
     <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70" onClick={uploadDesktopPdfs} disabled={busy}>
       <UploadCloud size={16} />
-      <span>{busy ? "Reading..." : "Upload PDF"}</span>
+      <span>{busy ? "Reading..." : compactLabel}</span>
     </button>
   ) : (
     <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100">
@@ -65,7 +65,7 @@ export function UploadDialog({ onParsed, compact = false }: { onParsed: (certifi
   const fullButton = desktopPdfUpload ? (
     <button type="button" className="flex min-h-24 w-full flex-col items-center justify-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 text-center font-semibold text-navy transition hover:border-sky-400 hover:bg-sky-50 disabled:cursor-wait disabled:opacity-70" onClick={uploadDesktopPdfs} disabled={busy}>
       <span className="grid h-11 w-11 place-items-center rounded-md bg-navy text-white"><UploadCloud size={23} /></span>
-      <span>{busy ? "Reading PDF certificates..." : "Upload Certificate PDF"}</span>
+      <span>{busy ? "Reading PDF certificates..." : fullLabel}</span>
     </button>
   ) : (
     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 text-center font-semibold text-navy transition hover:border-sky-400 hover:bg-sky-50">

@@ -3,10 +3,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, Share, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
+import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
 import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, updateAscDocumentDraft } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
+import { openAuditTracker } from "../lib/desktop-bridge";
 import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
@@ -17,18 +19,20 @@ interface DuplicateUploadReview {
   certificates: ParsedCertificate[];
   duplicates: Array<{ certificate: ParsedCertificate; audit: Audit }>;
   hasProgress: boolean;
+  group?: AssignmentGroup;
 }
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const navigate = useNavigate();
-  const groups = groupByAsc(audits.audits);
+  const [assignments, setAssignments] = useState(() => loadAuditAssignments());
+  const groups = groupAssignmentsAndAudits(assignments, audits.audits);
   const desktopStorageAvailable = canSaveDocumentsToFolder();
   const [offlineReady, setOfflineReady] = useState(() => localStorage.getItem(OFFLINE_READY_KEY) === "true");
   const [online, setOnline] = useState(() => navigator.onLine);
   const [showInstallHelp, setShowInstallHelp] = useState(() => shouldShowIosInstallHelp());
-  const [confirmationGroup, setConfirmationGroup] = useState<AscGroup | null>(null);
-  const [profileGroup, setProfileGroup] = useState<AscGroup | null>(null);
+  const [confirmationGroup, setConfirmationGroup] = useState<AssignmentGroup | null>(null);
+  const [profileGroup, setProfileGroup] = useState<AssignmentGroup | null>(null);
   const [ascProfiles, setAscProfiles] = useState(() => loadAscProfiles());
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
   const [storageReady, setStorageReady] = useState(false);
@@ -36,7 +40,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
-  const [deleteAscGroup, setDeleteAscGroup] = useState<AscGroup | null>(null);
+  const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -65,42 +69,90 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }, []);
 
   useEffect(() => {
-    if (audits.audits.length > 0) return;
+    if (audits.audits.length > 0 || assignments.length > 0) return;
     setAscProfiles(clearAscProfiles());
     setAscDocuments(clearAscDocuments());
-  }, [audits.audits.length]);
+  }, [audits.audits.length, assignments.length]);
+
+  async function importTracker() {
+    try {
+      setTransferMessage("Reading audit tracker...");
+      const rows = await openAuditTracker();
+      if (!rows.length) {
+        setTransferMessage("");
+        return;
+      }
+      const result = importTrackerAssignments(rows, auditorName);
+      setAssignments(result.assignments);
+      const nextProfiles = { ...loadAscProfiles() };
+      for (const group of groupAssignmentsAndAudits(result.assignments, audits.audits)) {
+        const defaults = assignmentProfileDefaults(group);
+        if (!defaults.psn && !defaults.scn) continue;
+        nextProfiles[group.key] = {
+          pocName: nextProfiles[group.key]?.pocName || "",
+          scn: nextProfiles[group.key]?.scn || defaults.scn || "",
+          psn: nextProfiles[group.key]?.psn || defaults.psn || "",
+          updatedAt: nextProfiles[group.key]?.updatedAt || new Date().toISOString(),
+        };
+      }
+      setAscProfiles(nextProfiles);
+      saveAscProfiles(nextProfiles);
+      setTransferMessage(`${result.imported} tracker row${result.imported === 1 ? "" : "s"} matched ${auditorName}.`);
+    } catch (error) {
+      setTransferMessage(error instanceof Error ? error.message : "Could not import the audit tracker.");
+    }
+  }
+
+  async function addCertificatesToGroup(group: AssignmentGroup, certificates: ParsedCertificate[]) {
+    const adjustedCertificates = certificates.map((certificate) => ({ ...certificate, ...assignmentCertificateOverrides(group) }));
+    const existingByKey = new Map(audits.audits.map((audit) => [auditIdentity(audit), audit]));
+    const duplicates = adjustedCertificates
+      .map((item) => ({ certificate: item, audit: existingByKey.get(certificateIdentity(item)) }))
+      .filter((item): item is { certificate: ParsedCertificate; audit: Audit } => Boolean(item.audit));
+    if (duplicates.length) {
+      const hasProgress = duplicates.some(({ audit }) => audit && auditHasProgress(audit));
+      setDuplicateUpload({ certificates: adjustedCertificates, duplicates, hasProgress, group });
+      return null;
+    }
+    const created = audits.createManyFromCertificatesWithOverrides(adjustedCertificates, assignmentCertificateOverrides(group));
+    if (desktopStorageAvailable) {
+      try {
+        await prepareStorageFolders(created.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")));
+        setStorageReady(true);
+        setStorageMessage("Haudy Database folders updated.");
+      } catch (error) {
+        setStorageMessage(error instanceof Error ? error.message : "Could not update Haudy Database folders.");
+      }
+    }
+    return undefined;
+  }
+
+  function profileForGroup(group: AssignmentGroup): AscProfile | undefined {
+    const defaults = assignmentProfileDefaults(group);
+    const profile = ascProfiles[group.key];
+    if (!profile && !defaults.scn && !defaults.psn) return undefined;
+    return {
+      pocName: profile?.pocName || "",
+      scn: profile?.scn || defaults.scn || "",
+      psn: profile?.psn || defaults.psn || "",
+      updatedAt: profile?.updatedAt || "",
+    };
+  }
 
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <UploadDialog compact onParsed={async (certificate) => {
-              if (audits.audits.length === 0) {
-                setAscProfiles(clearAscProfiles());
-                setAscDocuments(clearAscDocuments());
-              }
-              const existingByKey = new Map(audits.audits.map((audit) => [auditIdentity(audit), audit]));
-              const duplicates = certificate
-                .map((item) => ({ certificate: item, audit: existingByKey.get(certificateIdentity(item)) }))
-                .filter((item): item is { certificate: ParsedCertificate; audit: Audit } => Boolean(item.audit));
-              if (duplicates.length) {
-                const hasProgress = duplicates.some(({ audit }) => audit && auditHasProgress(audit));
-                setDuplicateUpload({ certificates: certificate, duplicates, hasProgress });
-                return null;
-              }
-              const created = audits.createManyFromCertificates(certificate);
-              if (desktopStorageAvailable) {
-                try {
-                  await prepareStorageFolders(created.map((audit) => storageDetailsFromAudit(audit, "Field Notes", "Field Notes")));
-                  setStorageReady(true);
-                  setStorageMessage("Haudy Database folders updated.");
-                } catch (error) {
-                  setStorageMessage(error instanceof Error ? error.message : "Could not update Haudy Database folders.");
-                }
-              }
-              return undefined;
-            }} />
+            {desktopStorageAvailable ? (
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100"
+                onClick={importTracker}
+              >
+                <UploadCloud size={16} /> Import Audit Tracker
+              </button>
+            ) : null}
             {desktopStorageAvailable ? (
               <button
                 type="button"
@@ -165,7 +217,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         ) : null}
         {desktopStorageAvailable && !storageReady ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            Choose a Haudy Database location once, then Haudy will save reports, confirmations, and field notes into the right folders automatically.
+            Choose a Haudy Database location once. Then import the audit tracker, and add certificate PDFs from the correct ASC card.
           </div>
         ) : null}
       </section>
@@ -187,13 +239,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         </section>
       ) : null}
       <section className="grid gap-4">
-        {audits.audits.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No certificates yet.</div> : null}
+        {groups.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">Import the audit tracker to create ASC assignment cards.</div> : null}
         {groups.map((group) => {
-          const profile = ascProfiles[group.key];
+          const trackerDefaults = assignmentProfileDefaults(group);
+          const profile = ascProfiles[group.key] || { pocName: "", scn: trackerDefaults.scn || "", psn: trackerDefaults.psn || "", updatedAt: "" };
           const readyForDocuments = completeAscProfile(profile);
           const documents = ascDocuments[group.key];
           const confirmationSaved = documents?.confirmation?.saved;
           const reportSaved = documents?.report?.saved;
+          const trackerRows = group.assignments.length;
+          const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
           <section key={group.key} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
             <div className="flex items-center justify-between gap-3">
@@ -207,12 +262,24 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <MapPin size={14} />
                     {group.location || "City and state not detected"}
                   </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    <span className="font-semibold text-navy">PSN:</span> {group.psn || profile.psn || "not detected"}
+                    {trackerFileSummary ? <span className="ml-3 text-xs text-slate-500">{trackerFileSummary}{group.assignments.length > 4 ? " ..." : ""}</span> : null}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
-                  {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"}
+                  {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"} uploaded
                 </span>
+                {trackerRows ? (
+                  <span className="hidden rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-800 sm:inline-flex">
+                    {trackerRows} tracker row{trackerRows === 1 ? "" : "s"}
+                  </span>
+                ) : null}
+                <div className="min-w-[128px]">
+                  <UploadDialog compact compactLabel="Add Certificate" onParsed={(certificates) => addCertificatesToGroup(group, certificates)} />
+                </div>
                 <ShieldCheck className="hidden text-emerald-600 sm:block" size={24} />
               </div>
             </div>
@@ -283,7 +350,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       {profileGroup ? (
         <AscProfileDialog
           group={profileGroup}
-          profile={ascProfiles[profileGroup.key]}
+          profile={profileForGroup(profileGroup)}
           onClose={() => setProfileGroup(null)}
           onSave={(profile) => {
             const next = { ...ascProfiles, [profileGroup.key]: profile };
@@ -296,7 +363,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       {confirmationGroup ? (
         <ConfirmationDialog
           group={confirmationGroup}
-          profile={ascProfiles[confirmationGroup.key]}
+          profile={profileForGroup(confirmationGroup)}
           onClose={() => setConfirmationGroup(null)}
           onCreate={(details) => {
             const profile = ascProfiles[confirmationGroup.key];
@@ -354,6 +421,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             audits.deleteAudits(auditIds);
             deleteAscDocuments(deleteAscGroup.key);
             deleteAscProfile(deleteAscGroup.key);
+            const nextAssignments = assignments.filter((assignment) => [assignment.ascName || "ASC not set", assignment.ascCity || "", assignment.ascState || "", assignment.psn || ""].join("|") !== deleteAscGroup.key);
+            setAssignments(nextAssignments);
+            saveAuditAssignments(nextAssignments);
             setAscDocuments(loadAscDocuments());
             setAscProfiles(loadAscProfiles());
             setDeleteAscGroup(null);
@@ -602,7 +672,8 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const { ascKey = "" } = useParams();
   const [deleteAudit, setDeleteAudit] = useState<Audit | null>(null);
-  const group = groupByAsc(audits.audits).find((item) => item.key === decodeURIComponent(ascKey));
+  const assignments = loadAuditAssignments();
+  const group = groupAssignmentsAndAudits(assignments, audits.audits).find((item) => item.key === decodeURIComponent(ascKey));
 
   if (!group) {
     return (
@@ -623,6 +694,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
           <div>
             <h1 className="text-2xl font-bold text-navy">{group.ascName}</h1>
             <p className="mt-1 flex items-center gap-1 text-sm text-slate-600"><MapPin size={14} />{group.location || "City and state not detected"}</p>
+            <p className="mt-1 text-sm text-slate-600"><span className="font-semibold text-navy">PSN:</span> {group.psn || "not detected"}</p>
           </div>
           <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
             {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"}
@@ -630,6 +702,9 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
         </div>
       </section>
       <section className="grid gap-5">
+        {group.audits.length === 0 ? (
+          <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">No certificate PDFs have been uploaded for this ASC yet.</div>
+        ) : null}
         {propertyCategories.map(({ category, audits: categoryAudits }) => (
           <section key={category} className="grid gap-3">
             <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
@@ -679,10 +754,10 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
           audit={deleteAudit}
           onCancel={() => setDeleteAudit(null)}
           onDelete={() => {
-            const deletingLastPropertyForAsc = group.audits.length === 1;
+            const deletingLastPropertyForAsc = group.audits.length === 1 && group.assignments.length === 0;
             audits.deleteAudit(deleteAudit.id);
-            deleteAscDocuments(group.key);
             if (deletingLastPropertyForAsc) {
+              deleteAscDocuments(group.key);
               deleteAscProfile(group.key);
             }
             setDeleteAudit(null);

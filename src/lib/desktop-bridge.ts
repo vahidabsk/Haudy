@@ -11,6 +11,20 @@ export interface DesktopCertificateFile {
   text: string;
 }
 
+export interface DesktopTrackerAssignment {
+  auditorName: string;
+  ascName: string;
+  city: string;
+  state: string;
+  ccn: string;
+  fileNo: string;
+  scn: string;
+  certCount: string;
+  psn: string;
+  auditorNotes: string;
+  ascStatus: string;
+}
+
 export function hasDesktopBridge() {
   return Boolean(getTauriInvoke());
 }
@@ -32,6 +46,12 @@ export async function openCertificatePdfs() {
   const invoke = getTauriInvoke();
   if (!invoke) throw new Error("PDF upload is available in the Windows desktop app.");
   return invoke<DesktopCertificateFile[]>("open_certificate_pdfs");
+}
+
+export async function openAuditTracker() {
+  const invoke = getTauriInvoke();
+  if (!invoke) throw new Error("Audit tracker import is available in the Windows desktop app.");
+  return invoke<DesktopTrackerAssignment[]>("open_audit_tracker");
 }
 
 export async function saveDesktopTextFile(folders: string[], fileName: string, contents: string) {

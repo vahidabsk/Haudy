@@ -8,6 +8,7 @@ import { InstallationSection } from "../components/InstallationSection";
 import { SignalLogSection } from "../components/SignalLogSection";
 import { DictationNotes } from "../components/DictationNotes";
 import { useAudits } from "../hooks/use-audits";
+import { assignmentKeyForAudit } from "../lib/audit-assignments";
 import { loadAscDocuments } from "../lib/asc-documents";
 import { loadAscProfiles } from "../lib/asc-profile";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
@@ -32,7 +33,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const [pendingNavigation, setPendingNavigation] = useState("");
   const audit = draftAudit || savedAudit;
   const hasUnsavedChanges = Boolean(savedAudit && draftAudit && JSON.stringify(savedAudit) !== JSON.stringify(draftAudit));
-  const ascKey = audit ? [audit.ascName || "ASC not set", audit.ascCity || "", audit.ascState || ""].join("|") : "";
+  const ascKey = audit ? assignmentKeyForAudit(audit) : "";
   const confirmation = ascKey ? loadAscDocuments()[ascKey]?.confirmation : undefined;
   const ascProfile = ascKey ? loadAscProfiles()[ascKey] : undefined;
   const auditDateOptions = auditDateChoices(confirmation?.startDate, confirmation?.endDate);
