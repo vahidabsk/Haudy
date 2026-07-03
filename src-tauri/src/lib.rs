@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use calamine::{open_workbook_auto, DataType, Reader};
+use calamine::{open_workbook_auto, Data, Reader};
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,8 +82,7 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
     let mut workbook = open_workbook_auto(&path).map_err(|error| format!("Could not open tracker: {error}"))?;
     let range = workbook
         .worksheet_range("2026 US Assignments")
-        .ok_or_else(|| "Could not find the 2026 US Assignments sheet.".to_string())?
-        .map_err(|error| format!("Could not read tracker rows: {error}"))?;
+        .map_err(|error| format!("Could not read the 2026 US Assignments sheet: {error}"))?;
 
     let mut rows = range.rows();
     let Some(header_row) = rows.next() else {
@@ -109,17 +108,17 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
     let mut assignments = Vec::new();
     for row in rows {
         let assignment = TrackerAssignment {
-            auditor_name: cell_text(row.get(auditor_index).unwrap_or(&DataType::Empty)),
-            asc_name: cell_text(row.get(asc_index).unwrap_or(&DataType::Empty)),
-            city: cell_text(row.get(city_index).unwrap_or(&DataType::Empty)),
-            state: cell_text(row.get(state_index).unwrap_or(&DataType::Empty)),
-            ccn: cell_text(row.get(ccn_index).unwrap_or(&DataType::Empty)),
-            file_no: cell_text(row.get(file_index).unwrap_or(&DataType::Empty)),
-            scn: cell_text(row.get(scn_index).unwrap_or(&DataType::Empty)),
-            cert_count: cell_text(row.get(cert_count_index).unwrap_or(&DataType::Empty)),
-            psn: cell_text(row.get(psn_index).unwrap_or(&DataType::Empty)),
-            auditor_notes: notes_index.map(|column| cell_text(row.get(column).unwrap_or(&DataType::Empty))).unwrap_or_default(),
-            asc_status: status_index.map(|column| cell_text(row.get(column).unwrap_or(&DataType::Empty))).unwrap_or_default(),
+            auditor_name: row_cell_text(row, auditor_index),
+            asc_name: row_cell_text(row, asc_index),
+            city: row_cell_text(row, city_index),
+            state: row_cell_text(row, state_index),
+            ccn: row_cell_text(row, ccn_index),
+            file_no: row_cell_text(row, file_index),
+            scn: row_cell_text(row, scn_index),
+            cert_count: row_cell_text(row, cert_count_index),
+            psn: row_cell_text(row, psn_index),
+            auditor_notes: notes_index.map(|column| row_cell_text(row, column)).unwrap_or_default(),
+            asc_status: status_index.map(|column| row_cell_text(row, column)).unwrap_or_default(),
         };
         if !assignment.auditor_name.is_empty() && !assignment.asc_name.is_empty() {
             assignments.push(assignment);
@@ -129,19 +128,23 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
     Ok(assignments)
 }
 
-fn cell_text(cell: &DataType) -> String {
+fn row_cell_text(row: &[Data], index: usize) -> String {
+    row.get(index).map(cell_text).unwrap_or_default()
+}
+
+fn cell_text(cell: &Data) -> String {
     match cell {
-        DataType::Empty => String::new(),
-        DataType::String(value) => value.trim().to_string(),
-        DataType::Float(value) => {
+        Data::Empty => String::new(),
+        Data::String(value) => value.trim().to_string(),
+        Data::Float(value) => {
             if value.fract() == 0.0 {
                 format!("{value:.0}")
             } else {
                 value.to_string()
             }
         }
-        DataType::Int(value) => value.to_string(),
-        DataType::Bool(value) => value.to_string(),
+        Data::Int(value) => value.to_string(),
+        Data::Bool(value) => value.to_string(),
         _ => cell.to_string().trim().to_string(),
     }
 }
