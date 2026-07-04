@@ -2,6 +2,7 @@ import { AssignmentGroup } from "./audit-assignments";
 import { loadAudits, saveAudits } from "./audit-storage";
 import { hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 import { canSaveDocumentsToFolder, chooseStorageRoot } from "./local-document-storage";
+import { storePhotoDataUrl } from "./photo-store";
 import { Audit, AuditRow, DeviceTestRow, ReportFindingEntry, SignalLogRow } from "./types";
 
 const IHAUDY_APP_NAME = "iHaudy Field Notes";
@@ -140,12 +141,12 @@ function mergeSignalRows(existingRows: SignalLogRow[], incomingRows: SignalLogRo
 function mergeAuditRows(existingRows: AuditRow[], incomingRows: AuditRow[]) {
   const existingById = new Map(existingRows.map((row) => [row.id, row]));
   const existingByElement = new Map(existingRows.map((row) => [row.element, row]));
-  return incomingRows.map((row) => preserveRowReportFields(existingById.get(row.id) || existingByElement.get(row.element), row));
+  return incomingRows.map((row) => preserveRowReportFields(existingById.get(row.id) || existingByElement.get(row.element), preparePhotoRow(row)));
 }
 
 function mergeDeviceRows(existingRows: DeviceTestRow[], incomingRows: DeviceTestRow[]) {
   const existingById = new Map(existingRows.map((row) => [row.id, row]));
-  return incomingRows.map((row) => preserveRowReportFields(existingById.get(row.id), row));
+  return incomingRows.map((row) => preserveRowReportFields(existingById.get(row.id), preparePhotoRow(row)));
 }
 
 function preserveRowReportFields<T extends SignalLogRow | AuditRow | DeviceTestRow>(existing: T | undefined, incoming: T): T {
@@ -168,6 +169,18 @@ function mergeExtraFindings(existing: Audit["reportExtraFindings"], incoming: Au
     if (entries.length) merged[key] = entries;
   }
   return merged;
+}
+
+function preparePhotoRow<T extends AuditRow | DeviceTestRow>(row: T): T {
+  return {
+    ...row,
+    photos: (row.photos || []).map(importPhotoReference).filter(Boolean),
+  };
+}
+
+function importPhotoReference(photo: string) {
+  if (!photo.startsWith("data:image/")) return photo;
+  return storePhotoDataUrl(photo);
 }
 
 function certificateMatchKey(audit: Audit) {

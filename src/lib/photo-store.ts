@@ -3,16 +3,22 @@ import { Audit } from "./types";
 
 export async function storePhoto(file: File) {
   const dataUrl = await downscale(file);
+  return storePhotoDataUrl(dataUrl);
+}
+
+export function storePhotoDataUrl(dataUrl: string) {
   const id = uid("photo");
   localStorage.setItem(`haudy.photos.${id}`, dataUrl);
   return id;
 }
 
 export function loadPhoto(id: string) {
+  if (id.startsWith("data:image/")) return id;
   return localStorage.getItem(`haudy.photos.${id}`) || "";
 }
 
 export function removePhoto(id: string) {
+  if (id.startsWith("data:image/")) return;
   localStorage.removeItem(`haudy.photos.${id}`);
 }
 
