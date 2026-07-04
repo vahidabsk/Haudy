@@ -179,7 +179,7 @@ function preparePhotoRow<T extends AuditRow | DeviceTestRow>(row: T): T {
 }
 
 function importPhotoReference(photo: string) {
-  if (!photo.startsWith("data:image/")) return photo;
+  if (!photo.startsWith("data:")) return photo;
   return storePhotoDataUrl(photo);
 }
 
