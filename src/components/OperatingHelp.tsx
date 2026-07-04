@@ -18,13 +18,13 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
         <div className="overflow-y-auto px-5 py-4">
           <div className="grid gap-4 text-sm leading-6 text-slate-700">
             <HelpSection title="1. Start Here">
-              <p>Haudy is used to manage fire alarm certificate audits. The normal order is: upload certificates, confirm ASC information, create the confirmation letter, complete field notes, prepare the report, save or print the documents, then export Haudy data for backup.</p>
-              <HelpList items={["Use readable PDF certificate files for upload in the Windows desktop app.", "Save before leaving field notes, confirmation, or report pages.", "Use Export Data regularly if you work on more than one device.", "Do not delete a property unless you are ready to remove its saved audit work."]} />
+              <p>Haudy is used to manage fire alarm certificate audits. The normal order is: import the audit tracker, choose the Haudy Database location, add certificate PDFs from the correct ASC card, create the confirmation letter, complete field notes, prepare the report, then save the final documents.</p>
+              <HelpList items={["Use readable PDF certificate files for upload in the Windows desktop app.", "Save before leaving field notes, confirmation, or report pages.", "Use the iHaudy export/import tools when field notes need to move between the desktop and iPad field app.", "Do not delete a property unless you are ready to remove its saved audit work."]} />
             </HelpSection>
 
             <HelpSection title="2. Home Screen">
               <p>The home screen shows Alarm Service Companies as ASC cards. Each card groups related certificates and properties under that company branch.</p>
-              <HelpList items={["Upload Certificate adds one or more PDF certificates.", "Choose Storage tells Haudy where the desktop app should create the Haudy Database folder.", "Export Data - No Photos creates a smaller backup or transfer file.", "Export Data - With Photos includes captured deficiency photos.", "Import Data restores a Haudy export file on another device."]} />
+              <HelpList items={["Import Audit Tracker creates the ASC assignment cards for the signed-in auditor.", "Choose Haudy Database tells the desktop app where to create the local project folders.", "Add certificates from the matching ASC card so Haudy can connect each certificate to the correct company.", "Use the home tabs to follow Pool of Jobs, Scheduled, Report Due, Report Created, Waiting for Clearance, and Done work."]} />
             </HelpSection>
 
             <HelpSection title="3. ASC Cards">
@@ -92,9 +92,9 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
               <HelpList items={["CSIS Defect List helps search standard, edition, category, and keyword.", "Report DB can fill Finding, Required Action, Reference, or All fields.", "Keyword search is intended for finding-related wording.", "Auditors can still manually type the final wording."]} />
             </HelpSection>
 
-            <HelpSection title="16. Export, Import, And Backup">
-              <p>Export Haudy data to move work between devices or keep a backup.</p>
-              <HelpList items={["Use Export Data - No Photos for the smallest file.", "Use Export Data - With Photos when installation photos must move with the data.", "Import Data loads a Haudy export file into the current device.", "Keep export files secure because they may contain audit information."]} />
+            <HelpSection title="16. iHaudy Field Transfer">
+              <p>Use iHaudy transfer when field notes need to move between Haudy Suite on the desktop and iHaudy on the iPad.</p>
+              <HelpList items={["Export Field Notes for iHaudy from the ASC property page before field work.", "Import Field Notes from iHaudy after the field audit is complete.", "Captured installation photos are carried inside the iHaudy transfer file.", "Keep transfer files secure because they may contain audit information."]} />
             </HelpSection>
 
             <HelpSection title="17. Offline Use">
@@ -104,7 +104,7 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
 
             <HelpSection title="18. Patches">
               <p>Use Patch in the top bar when a newer Haudy desktop installer is available.</p>
-              <HelpList items={["Check Latest Patch opens the latest official Haudy release page.", "Install Patch opens the same release page so the auditor can download and run the newest installer.", "Save open work and close Haudy before installing a desktop patch.", "Patch downloads require internet access."]} />
+              <HelpList items={["Check Latest Patch stays inside Haudy and checks whether a desktop patch is available.", "Install Patch starts the Haudy patch flow from inside the app.", "Save open work before installing a desktop patch.", "Patch downloads require internet access."]} />
             </HelpSection>
 
             <HelpSection title="19. Common Problems">

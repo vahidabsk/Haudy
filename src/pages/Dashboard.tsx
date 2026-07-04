@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
@@ -10,7 +10,6 @@ import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loa
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { openAuditTracker } from "../lib/desktop-bridge";
-import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
@@ -42,12 +41,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [storageMessage, setStorageMessage] = useState("");
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
-  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
   const [activeJobTab, setActiveJobTab] = useState<HomeJobStatus>("pool");
   const [poolSearch, setPoolSearch] = useState("");
   const [focusAscKey, setFocusAscKey] = useState("");
-  const importInputRef = useRef<HTMLInputElement | null>(null);
   const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
   const jobTabs = homeJobTabs(jobCards);
   const visibleJobCards = jobCards
@@ -200,7 +197,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             {desktopStorageAvailable ? (
               <button
                 type="button"
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100"
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                 onClick={importTracker}
               >
                 <UploadCloud size={16} /> Import Audit Tracker
@@ -209,7 +206,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             {desktopStorageAvailable ? (
               <button
                 type="button"
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 onClick={async () => {
                   try {
                     await chooseStorageRoot();
@@ -223,36 +220,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 Choose Haudy Database
               </button>
             ) : null}
-            <button
-              type="button"
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={async () => {
-                setTransferMessage("Preparing data file...");
-                await exportHaudyBackup();
-                setTransferMessage("Data file created without photos.");
-              }}
-            >
-              <Download size={16} /> Export Data - No Photos
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={async () => {
-                setTransferMessage("Preparing data file with photos...");
-                await exportHaudyBackup({ includePhotos: true });
-                setTransferMessage("Data file with compressed photos created.");
-              }}
-            >
-              <Download size={16} /> Export Data - With Photos
-            </button>
-            <button
-              type="button"
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={() => importInputRef.current?.click()}
-            >
-              <UploadCloud size={16} /> Import
-            </button>
-            <input ref={importInputRef} className="hidden" type="file" accept=".json,.haudy-data.json,application/json" onChange={(event) => chooseHaudyImportFile(event, setPendingImportFile)} />
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <StatusChip label="ASCs" value={groups.length} />
@@ -510,24 +477,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
-      {pendingImportFile ? (
-        <ImportDataDialog
-          file={pendingImportFile}
-          onCancel={() => setPendingImportFile(null)}
-          onImport={async () => {
-            try {
-              const result = await importHaudyBackupFile(pendingImportFile);
-              const photoNote = result.skippedPhotos ? ` ${result.skippedPhotos} photo item${result.skippedPhotos === 1 ? "" : "s"} could not fit on this device.` : "";
-              setTransferMessage(`Imported ${result.imported} data item${result.imported === 1 ? "" : "s"}.${photoNote} Reloading Haudy...`);
-              setPendingImportFile(null);
-              window.setTimeout(() => window.location.reload(), 500);
-            } catch (error) {
-              setTransferMessage(error instanceof Error ? error.message : "Could not import this Haudy data file.");
-              setPendingImportFile(null);
-            }
-          }}
-        />
-      ) : null}
       {deleteAscGroup ? (
         <DeleteAscDialog
           group={deleteAscGroup}
@@ -593,33 +542,6 @@ function DeleteAscDialog({ group, onCancel, onDelete }: { group: AscGroup; onCan
           <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-300 bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={!ready} onClick={onDelete}>
             <Trash2 size={16} /> Delete ASC
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function chooseHaudyImportFile(event: ChangeEvent<HTMLInputElement>, setPendingImportFile: (file: File | null) => void) {
-  const file = event.target.files?.[0];
-  event.target.value = "";
-  if (!file) return;
-  setPendingImportFile(file);
-}
-
-function ImportDataDialog({ file, onCancel, onImport }: { file: File; onCancel: () => void; onImport: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
-      <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
-        <div>
-          <h2 className="text-xl font-bold text-navy">Import Haudy Data?</h2>
-          <p className="mt-1 text-sm text-slate-600">{file.name}</p>
-        </div>
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-950">
-          This will replace the current Haudy data on this device with the data from the selected file.
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
-          <button className="min-h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
-          <button className="min-h-10 rounded-md border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" onClick={onImport}>Import and Reload</button>
         </div>
       </div>
     </div>
