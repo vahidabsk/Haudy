@@ -46,6 +46,158 @@ textarea {
   page-break-after: auto;
 }
 
+.merc-page,
+.merc-page * {
+  box-sizing: border-box;
+}
+
+.merc-page {
+  width: 7.7in;
+  min-height: 10in;
+  margin: 0 auto 24px;
+  padding: 0;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 10.4px;
+  line-height: 1.04;
+  color: #000;
+  break-after: auto;
+  page-break-after: auto;
+  overflow: hidden;
+}
+
+.merc-title {
+  margin: 0 0 0.1in;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.merc-page .field-header {
+  gap: 0.08in;
+  margin-bottom: 0.08in;
+  font-size: 12px;
+}
+
+.merc-page .field-header-row-top {
+  grid-template-columns: 1.32in 2.05in 1.82in 1.92in;
+}
+
+.merc-page .field-header-row-bottom {
+  grid-template-columns: 2.55in 1fr;
+}
+
+.merc-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: 2px solid #000;
+  margin-bottom: 0.06in;
+}
+
+.merc-table th,
+.merc-table td {
+  border: 1px solid #000;
+  padding: 1px 3px;
+  vertical-align: top;
+}
+
+.merc-section-head {
+  height: 0.18in;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.merc-key {
+  margin-left: 0.12in;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.merc-table-head th {
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #000;
+  background: #f1f1f1;
+  font-size: 9.4px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.merc-element-col {
+  width: 1.84in;
+}
+
+.merc-status-col {
+  width: 0.28in;
+}
+
+.merc-small-row {
+  height: 0.13in;
+}
+
+.merc-small-row td {
+  height: 0.13in;
+  overflow: hidden;
+}
+
+.merc-small-row td:first-child {
+  white-space: nowrap;
+}
+
+.merc-indent-1 {
+  padding-left: 0.14in !important;
+}
+
+.merc-indent-2 {
+  padding-left: 0.28in !important;
+}
+
+.merc-device-table {
+  font-size: 9.6px;
+}
+
+.merc-device-location-col {
+  width: 2.14in;
+}
+
+.merc-device-flag-col {
+  width: 0.28in;
+}
+
+.merc-device-trip-col {
+  width: 1.07in;
+}
+
+.merc-device-received-col {
+  width: 1.18in;
+}
+
+.merc-device-result-col {
+  width: 1.06in;
+}
+
+.merc-device-row {
+  height: 0.145in;
+}
+
+.merc-device-row td {
+  height: 0.145in;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.merc-comments {
+  height: 0.95in;
+  border: 2px solid #000;
+  padding: 3px 5px;
+  white-space: pre-line;
+}
+
+.merc-comments-label {
+  margin-bottom: 0.03in;
+  font-weight: 700;
+}
+
 .field-title {
   margin: 0 0 0.43in;
   text-align: center;
@@ -696,6 +848,13 @@ textarea {
     width: 7.7in;
     height: auto;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  .merc-page {
+    margin: 0.42in auto 0;
+    width: 7.7in;
+    min-height: 10in;
     overflow: hidden;
   }
 

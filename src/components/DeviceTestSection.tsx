@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AuditProgram } from "../lib/audit-program";
 import { DeviceTestRow } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
@@ -21,20 +22,27 @@ const deviceTypes = [
   "OS & Y",
   "Manual pull station",
 ];
-type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
-const testOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
+type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble" | "lineSecurity">;
+const fireTestOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
   { key: "functional", label: "Functional", active: "border-sky-700 bg-sky-700 text-white", idle: "border-sky-200 bg-sky-50 text-sky-800" },
   { key: "alarm", label: "Alarm", active: "border-red-700 bg-red-700 text-white", idle: "border-red-200 bg-red-50 text-red-800" },
   { key: "supervisory", label: "Supervisory", active: "border-amber-700 bg-amber-600 text-white", idle: "border-amber-200 bg-amber-50 text-amber-800" },
   { key: "trouble", label: "Trouble", active: "border-purple-700 bg-purple-700 text-white", idle: "border-purple-200 bg-purple-50 text-purple-800" },
+];
+const mercantileTestOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
+  { key: "functional", label: "Functional", active: "border-sky-700 bg-sky-700 text-white", idle: "border-sky-200 bg-sky-50 text-sky-800" },
+  { key: "alarm", label: "Alarm", active: "border-red-700 bg-red-700 text-white", idle: "border-red-200 bg-red-50 text-red-800" },
+  { key: "trouble", label: "Trouble", active: "border-purple-700 bg-purple-700 text-white", idle: "border-purple-200 bg-purple-50 text-purple-800" },
+  { key: "lineSecurity", label: "Line Security", active: "border-amber-700 bg-amber-600 text-white", idle: "border-amber-200 bg-amber-50 text-amber-800" },
 ];
 const resultOptions = [
   { value: "OK" as const, label: "In Conformance", active: "border-emerald-700 bg-emerald-700 text-white", idle: "border-emerald-200 bg-emerald-50 text-emerald-800" },
   { value: "VAR" as const, label: "Variation Noted", active: "border-amber-700 bg-amber-600 text-white", idle: "border-amber-200 bg-amber-50 text-amber-800" },
 ];
 
-export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage = "Device testing review marked No. Use the general variation note above to explain why device testing was not completed.", onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; disabled?: boolean; disabledMessage?: string; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
+export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage = "Device testing review marked No. Use the general variation note above to explain why device testing was not completed.", program = "fire", onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; disabled?: boolean; disabledMessage?: string; program?: AuditProgram; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
   const [currentTime, setCurrentTime] = useState(() => timeStamp(new Date()));
+  const testOptions = program === "mercantile" ? mercantileTestOptions : fireTestOptions;
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(timeStamp(new Date())), 1000);
@@ -203,7 +211,7 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
         </div>
         );
       })}
-      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", waterflowEntryMode: "", waterflowElapsedSeconds: 0, location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", waterflowEntryMode: "", waterflowElapsedSeconds: 0, location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, lineSecurity: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
         Add Device Row
       </button>
     </section>
@@ -282,5 +290,6 @@ function toggleTestFlag(rows: DeviceTestRow[], id: string, key: DeviceTestFlag, 
     alarm: key === "alarm" ? nextSelected : false,
     supervisory: key === "supervisory" ? nextSelected : false,
     trouble: key === "trouble" ? nextSelected : false,
+    lineSecurity: key === "lineSecurity" ? nextSelected : false,
   }, onChange);
 }

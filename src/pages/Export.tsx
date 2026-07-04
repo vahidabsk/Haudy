@@ -8,6 +8,8 @@ import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFr
 import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { loadAscProfiles } from "../lib/asc-profile";
+import { isMercantileAudit } from "../lib/audit-program";
+import { mercantileDocumentationElements, mercantileInstallationElements } from "../lib/audit-storage";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow, StatusCode } from "../lib/types";
 
 const deviceRowsPage2 = 20;
@@ -96,6 +98,8 @@ function ExportDocument({ audit }: { audit: Audit }) {
         </div>
       </div>
       {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}
+      {isMercantileAudit(audit) ? <MercantileFieldNotesPage audit={audit} /> : (
+        <>
       <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>
         <SignalReview audit={audit} />
         <Checklist title="Documentation Reviewed:" rows={audit.documentation} codeEdition={audit.codeEdition} reviewed={audit.documentationReviewed} />
@@ -123,7 +127,107 @@ function ExportDocument({ audit }: { audit: Audit }) {
       {chunk(attachmentRows, 4).map((rows, index) => (
         <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={4 + index} totalPages={totalPages} />
       ))}
+        </>
+      )}
     </main>
+  );
+}
+
+function MercantileFieldNotesPage({ audit }: { audit: Audit }) {
+  const documentationRows = mercantileDisplayRows(audit.documentation, mercantileDocumentationElements);
+  const installationRows = mercantileDisplayRows(audit.installation, mercantileInstallationElements);
+  return (
+    <section className="print-page merc-page bg-white text-black shadow-sm print:shadow-none">
+      <h1 className="merc-title">Mercantile Audit Field Notes Form</h1>
+      <Header audit={audit} />
+      <MercantileChecklist title="Documentation Reviewed:" reviewed={audit.documentationReviewed} rows={documentationRows} />
+      <MercantileChecklist title="Installation Reviewed:" reviewed={audit.installationReviewed} rows={installationRows} />
+      <MercantileDeviceTable rows={padDeviceRows(audit.deviceTests, 5)} />
+      <div className="merc-comments">
+        <div className="merc-comments-label">Additional Comments</div>
+        <div>{[audit.comments, audit.deviceTestingNotes, deviceTestComments(audit.deviceTests)].filter(Boolean).join("\n")}</div>
+      </div>
+    </section>
+  );
+}
+
+function MercantileChecklist({ title, reviewed, rows }: { title: string; reviewed: boolean; rows: AuditRow[] }) {
+  return (
+    <table className="merc-table merc-checklist">
+      <colgroup>
+        <col className="merc-element-col" />
+        <col className="merc-status-col" />
+        <col className="merc-status-col" />
+        <col className="merc-status-col" />
+        <col className="merc-status-col" />
+        <col />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td colSpan={6} className="merc-section-head">
+            {title} <Check checked={reviewed} /> YES <Check checked={!reviewed} /> NO
+            <span className="merc-key">KEY: &nbsp; OK = In Conformance &nbsp;&nbsp; VAR = Variations Noted &nbsp;&nbsp; N/A = Not Applicable &nbsp;&nbsp; N/R = Not Reviewed</span>
+          </td>
+        </tr>
+        <tr className="merc-table-head">
+          <th className="text-left">Element</th>
+          <th>OK</th>
+          <th>VAR</th>
+          <th>N/A</th>
+          <th>N/R</th>
+          <th className="text-left">Comments and / or Variations Noted - Variations shall be included in report</th>
+        </tr>
+        {rows.map((row, index) => (
+          <tr key={`${row.id}-${index}`} className="merc-small-row">
+            <td className={mercIndentClass(row.element)}>{mercCleanElement(row.element)}</td>
+            <td><StatusCheck status={row.status} match="OK" /></td>
+            <td><StatusCheck status={row.status} match="VAR" /></td>
+            <td><StatusCheck status={row.status} match="NA" /></td>
+            <td><StatusCheck status={row.status} match="NR" /></td>
+            <td>{row.notes}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function MercantileDeviceTable({ rows }: { rows: DeviceTestRow[] }) {
+  return (
+    <table className="merc-table merc-device-table">
+      <colgroup>
+        <col className="merc-device-location-col" />
+        <col className="merc-device-flag-col" />
+        <col className="merc-device-flag-col" />
+        <col className="merc-device-flag-col" />
+        <col className="merc-device-flag-col" />
+        <col className="merc-device-trip-col" />
+        <col className="merc-device-received-col" />
+        <col className="merc-device-result-col" />
+      </colgroup>
+      <tbody>
+        <tr className="merc-table-head">
+          <th className="text-left">Device Type Tested / Location</th>
+          <th>F</th>
+          <th>A</th>
+          <th>T</th>
+          <th>LS</th>
+          <th colSpan={3} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; T = Trouble&nbsp;&nbsp;&nbsp; LS = Line Security</th>
+        </tr>
+        {rows.map((row, index) => (
+          <tr key={row.id || index} className="merc-device-row">
+            <td>{[row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ")}</td>
+            <td><Check checked={!!row.functional} /></td>
+            <td><Check checked={!!row.alarm} /></td>
+            <td><Check checked={!!row.trouble} /></td>
+            <td><Check checked={!!row.lineSecurity || !!row.supervisory} /></td>
+            <td>Trip Time: {row.tripTime}</td>
+            <td>Time Received: {row.timeReceived}</td>
+            <td><StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR&nbsp;&nbsp; <StatusCheck status={row.result} match="NA" /> N/A</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -315,6 +419,20 @@ function checklistRows(title: string, rows: AuditRow[]) {
   ];
 }
 
+function mercantileDisplayRows(rows: AuditRow[], elements: string[]) {
+  return elements.map((element, index) => rows[index] || rows.find((row) => row.element === element) || blankChecklistRow(element, index));
+}
+
+function mercCleanElement(element: string) {
+  return element.replace(/\s+-\s+(Control|Premise|Safe|Mercantile)\s*$/i, "");
+}
+
+function mercIndentClass(element: string) {
+  if (/^(Enclosure|Tamper|Extra Protection|Check In|Equipment|Device Type|Device Wiring|Detector Coverage|Opening Protection|Intrusion|Contact|Wiring|EOLR)/i.test(element)) return "merc-indent-1";
+  if (/^(Grounding|Power Supplies|MFG Instruction|Programming)/i.test(element)) return "merc-indent-2";
+  return "";
+}
+
 function blankChecklistRow(element: string, index = 0): AuditRow {
   return { id: `blank-checklist-${element || index}`, element, status: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "", updatedBy: "" };
 }
@@ -437,7 +555,7 @@ function hasSignalContent(row: SignalLogRow) {
 }
 
 function hasDeviceContent(row: DeviceTestRow) {
-  return Boolean(row.deviceType || row.location || row.deviceId || row.functional || row.alarm || row.supervisory || row.trouble || row.tripTime || row.timeReceived || row.result || row.notes);
+  return Boolean(row.deviceType || row.location || row.deviceId || row.functional || row.alarm || row.supervisory || row.trouble || row.lineSecurity || row.tripTime || row.timeReceived || row.result || row.notes);
 }
 
 function padSignalRows(rows: SignalLogRow[], size: number) {
@@ -445,7 +563,7 @@ function padSignalRows(rows: SignalLogRow[], size: number) {
 }
 
 function padDeviceRows(rows: DeviceTestRow[], size: number) {
-  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-device-${index}`, deviceType: "", location: "", deviceId: "", signalType: "" as const, functional: false, alarm: false, supervisory: false, trouble: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "" as const, notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "" }))].slice(0, size);
+  return [...rows, ...Array.from({ length: Math.max(0, size - rows.length) }, (_, index) => ({ id: `blank-device-${index}`, deviceType: "", location: "", deviceId: "", signalType: "" as const, functional: false, alarm: false, supervisory: false, trouble: false, lineSecurity: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "" as const, notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: "" }))].slice(0, size);
 }
 
 interface PhotoAttachment {

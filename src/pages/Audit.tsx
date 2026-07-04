@@ -12,6 +12,7 @@ import { assignmentKeyForAudit } from "../lib/audit-assignments";
 import { loadAscDocuments } from "../lib/asc-documents";
 import { loadAscProfiles } from "../lib/asc-profile";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
+import { auditProgram } from "../lib/audit-program";
 import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
@@ -60,6 +61,11 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
   }, [hasUnsavedChanges]);
 
+  useEffect(() => {
+    if (!draftAudit) return;
+    if (auditProgram(draftAudit) === "mercantile" && activeTab === "signal") setActiveTab("documentation");
+  }, [draftAudit?.id, draftAudit?.certificates, activeTab]);
+
   if (!audit) return <main className="p-6">Audit not found.</main>;
 
   function update(next: Audit) {
@@ -67,6 +73,8 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   }
 
   const currentAudit = audit;
+  const program = auditProgram(currentAudit);
+  const visibleAuditTabs = program === "mercantile" ? auditTabs.filter((tab) => tab.id !== "signal") : auditTabs;
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
@@ -141,7 +149,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
         </div>
         <CertificateSummary certificate={primary} />
         <div className="flex flex-wrap gap-2 rounded-md border bg-white p-2">
-          {auditTabs.map(({ Icon, ...tab }) => (
+          {visibleAuditTabs.map(({ Icon, ...tab }) => (
             <button
               key={tab.id}
               type="button"
@@ -155,7 +163,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
         </div>
       </section>
       <section className="grid gap-4">
-        {activeTab === "signal" ? (
+        {program === "fire" && activeTab === "signal" ? (
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
               <h2 className="text-lg font-semibold text-navy">Signal Processing Review</h2>
@@ -214,8 +222,12 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
               <h2 className="text-lg font-semibold text-navy">Installation Review Conditions</h2>
               <div className="grid gap-3 md:grid-cols-3">
                 <YesNoControl label="Installation reviewed?" value={audit.installationReviewed} defaultToYes onChange={(installationReviewed) => update({ ...audit, installationReviewed, editedFields: { ...audit.editedFields, installationReviewed: true } })} />
-                <ReviewStatusControl label="Matches certificate declarations?" value={audit.installationReviewed ? audit.matchesCertificateStatus : ""} disabled={!audit.installationReviewed} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
-                <DisplayStatusControl label="Certificate displayed?" value={audit.installationReviewed ? audit.certificateDisplayedStatus : ""} disabled={!audit.installationReviewed} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
+                {program === "fire" ? (
+                  <>
+                    <ReviewStatusControl label="Matches certificate declarations?" value={audit.installationReviewed ? audit.matchesCertificateStatus : ""} disabled={!audit.installationReviewed} onChange={(matchesCertificateStatus) => update({ ...audit, matchesCertificateStatus, matchesCertificate: matchesCertificateStatus === "OK" })} />
+                    <DisplayStatusControl label="Certificate displayed?" value={audit.installationReviewed ? audit.certificateDisplayedStatus : ""} disabled={!audit.installationReviewed} onChange={(certificateDisplayedStatus) => update({ ...audit, certificateDisplayedStatus, certificateDisplayed: certificateDisplayedStatus === "OK" })} />
+                  </>
+                ) : null}
               </div>
               {!audit.installationReviewed ? (
                 <SectionReviewNote
@@ -244,6 +256,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
             <DeviceTestSection
               rows={audit.deviceTests}
               localSystem={audit.deviceSystemLocal}
+              program={program}
               disabled={!audit.deviceTestingReviewed}
               disabledMessage="Device testing review marked No. Use the general variation note above to explain why device testing was not completed."
               onLocalSystemChange={(deviceSystemLocal) =>

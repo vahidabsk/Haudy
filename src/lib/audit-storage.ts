@@ -1,4 +1,5 @@
 import { Audit, AuditRow, Auditor, ParsedCertificate, SignalHandlingStatus, SignalType } from "./types";
+import { auditProgram, certificateProgram } from "./audit-program";
 import { cityStateFromAddress } from "./certificate-parser";
 import { nowIso, uid } from "./utils";
 
@@ -42,6 +43,47 @@ export const installationElements = [
   "Waterflow Devices (WF)",
   "Sprinkler Supervisory (SS)",
   "Notification Appliances (NAC)",
+];
+
+export const mercantileDocumentationElements = [
+  "Annual Inspection Records",
+  "Service Contracts",
+  "Service Records",
+  "Signal History",
+  "UL 681 Standard Available",
+  "Other",
+];
+
+export const mercantileInstallationElements = [
+  "Compatible / Listed Equipment",
+  "Control & Communication",
+  "Enclosure",
+  "Tamper(s)",
+  "Extra Protection",
+  "Grounding / Supervision",
+  "Power Supplies",
+  "MFG Instruction Adherence",
+  "Programming",
+  "Line Security (LS)",
+  "Check In / Polling Rate",
+  "Equipment Supervision",
+  "MFG Instruction Adherence",
+  "Sounding Device",
+  "Device Type",
+  "Device Wiring",
+  "Premise/Stockroom",
+  "Detector Coverage",
+  "Opening Protection",
+  "Intrusion Detector(s)",
+  "Contact(s)",
+  "Wiring / Workmanship",
+  "EOLR Placement",
+  "Safe / Vault",
+  "Detector Coverage",
+  "Contact(s)",
+  "Wiring",
+  "Hold Up(s)",
+  "Other:",
 ];
 
 export function loadAuditor(): Auditor | null {
@@ -100,6 +142,9 @@ export function saveAudits(audits: Audit[]) {
 
 export function createAuditFromCertificate(certificate: ParsedCertificate, auditorName: string): Audit {
   const now = nowIso();
+  const program = certificateProgram(certificate);
+  const standard = program === "mercantile" ? certificate.standardReferenced || "UL 681" : certificate.standardReferenced || "";
+  const rowSets = auditRowElementsForProgram(program);
   return {
     id: uid("audit"),
     createdAt: now,
@@ -112,14 +157,14 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     certificateNumber: certificate.certificateNumber || "",
     fileScn: [certificate.fileNo, certificate.ccn].filter(Boolean).join(" / "),
     protectedProperty: certificate.propertyName || "",
-    codeEdition: certificate.standardReferenced || "",
+    codeEdition: standard,
     signalProcessingReviewed: true,
     signalReviewStart: "",
     signalReviewEnd: "",
     signalReviewNotes: "",
     signalReviewReportFinding: "",
     signalReviewReportRequiredAction: "",
-    signalReviewReportCodeStandard: "",
+    signalReviewReportCodeStandard: program === "mercantile" ? "UL 681" : "",
     signalReviewReportCodeEdition: "",
     signalReviewReportCodeSection: "",
     autoTestsStatus: "",
@@ -127,21 +172,21 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     documentationReviewNotes: "",
     documentationReviewReportFinding: "",
     documentationReviewReportRequiredAction: "",
-    documentationReviewReportCodeStandard: "",
+    documentationReviewReportCodeStandard: program === "mercantile" ? "UL 681" : "",
     documentationReviewReportCodeEdition: "",
     documentationReviewReportCodeSection: "",
     installationReviewed: true,
     installationReviewNotes: "",
     installationReviewReportFinding: "",
     installationReviewReportRequiredAction: "",
-    installationReviewReportCodeStandard: "",
+    installationReviewReportCodeStandard: program === "mercantile" ? "UL 681" : "",
     installationReviewReportCodeEdition: "",
     installationReviewReportCodeSection: "",
     deviceTestingReviewed: true,
     deviceTestingNotes: "",
     deviceTestingReportFinding: "",
     deviceTestingReportRequiredAction: "",
-    deviceTestingReportCodeStandard: "",
+    deviceTestingReportCodeStandard: program === "mercantile" ? "UL 681" : "",
     deviceTestingReportCodeEdition: "",
     deviceTestingReportCodeSection: "",
     matchesCertificateStatus: "",
@@ -164,8 +209,8 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     reportExtraFindings: {},
     reportSectionStatus: {},
     signalLog: [signalRow(now)],
-    documentation: documentationElements.map((element) => row(element, auditorName, now)),
-    installation: installationElements.map((element) => row(element, auditorName, now)),
+    documentation: rowSets.documentation.map((element) => row(element, auditorName, now)),
+    installation: rowSets.installation.map((element) => row(element, auditorName, now)),
     deviceTests: [deviceRow(now)],
     comments: certificate.systemDeviations || "",
     editedFields: {},
@@ -220,6 +265,7 @@ function deviceRow(updatedAt: string) {
     alarm: false,
     supervisory: false,
     trouble: false,
+    lineSecurity: false,
     notApplicable: false,
     tripTime: "",
     timeReceived: "",
@@ -242,6 +288,9 @@ function normalizeAudit(audit: Audit): Audit {
   const now = nowIso();
   const primaryCertificate = audit.certificates?.[audit.primaryCertificateIndex || 0] || audit.certificates?.[0];
   const ascLocation = cityStateFromAddress(primaryCertificate?.ascAddress);
+  const program = auditProgram(audit);
+  const rowSets = auditRowElementsForProgram(program);
+  const defaultCode = program === "mercantile" ? "UL 681" : "NFPA 72";
   return {
     ...audit,
     ascCity: audit.ascCity ?? primaryCertificate?.ascCity ?? ascLocation.city,
@@ -252,7 +301,7 @@ function normalizeAudit(audit: Audit): Audit {
     signalReviewNotes: audit.signalReviewNotes ?? "",
     signalReviewReportFinding: audit.signalReviewReportFinding ?? "",
     signalReviewReportRequiredAction: audit.signalReviewReportRequiredAction ?? "",
-    signalReviewReportCodeStandard: audit.signalReviewReportCodeStandard ?? "NFPA 72",
+    signalReviewReportCodeStandard: audit.signalReviewReportCodeStandard ?? defaultCode,
     signalReviewReportCodeEdition: audit.signalReviewReportCodeEdition ?? "",
     signalReviewReportCodeSection: audit.signalReviewReportCodeSection ?? "",
     autoTestsStatus: audit.autoTestsStatus ?? "",
@@ -260,33 +309,33 @@ function normalizeAudit(audit: Audit): Audit {
     documentationReviewNotes: audit.documentationReviewNotes ?? "",
     documentationReviewReportFinding: audit.documentationReviewReportFinding ?? "",
     documentationReviewReportRequiredAction: audit.documentationReviewReportRequiredAction ?? "",
-    documentationReviewReportCodeStandard: audit.documentationReviewReportCodeStandard ?? "NFPA 72",
+    documentationReviewReportCodeStandard: audit.documentationReviewReportCodeStandard ?? defaultCode,
     documentationReviewReportCodeEdition: audit.documentationReviewReportCodeEdition ?? "",
     documentationReviewReportCodeSection: audit.documentationReviewReportCodeSection ?? "",
     installationReviewed: audit.editedFields?.installationReviewed ? Boolean(audit.installationReviewed) : true,
     installationReviewNotes: audit.installationReviewNotes ?? "",
     installationReviewReportFinding: audit.installationReviewReportFinding ?? "",
     installationReviewReportRequiredAction: audit.installationReviewReportRequiredAction ?? "",
-    installationReviewReportCodeStandard: audit.installationReviewReportCodeStandard ?? "NFPA 72",
+    installationReviewReportCodeStandard: audit.installationReviewReportCodeStandard ?? defaultCode,
     installationReviewReportCodeEdition: audit.installationReviewReportCodeEdition ?? "",
     installationReviewReportCodeSection: audit.installationReviewReportCodeSection ?? "",
     deviceTestingReviewed: audit.editedFields?.deviceTestingReviewed ? Boolean(audit.deviceTestingReviewed) : true,
     deviceTestingNotes: audit.deviceTestingNotes ?? "",
     deviceTestingReportFinding: audit.deviceTestingReportFinding ?? "",
     deviceTestingReportRequiredAction: audit.deviceTestingReportRequiredAction ?? "",
-    deviceTestingReportCodeStandard: audit.deviceTestingReportCodeStandard ?? "NFPA 72",
+    deviceTestingReportCodeStandard: audit.deviceTestingReportCodeStandard ?? defaultCode,
     deviceTestingReportCodeEdition: audit.deviceTestingReportCodeEdition ?? "",
     deviceTestingReportCodeSection: audit.deviceTestingReportCodeSection ?? "",
     matchesCertificateStatus: audit.matchesCertificateStatus ?? (audit.matchesCertificate ? "OK" : ""),
     certificateDisplayedStatus: audit.certificateDisplayedStatus ?? (audit.certificateDisplayed ? "OK" : ""),
     certificateMatchReportFinding: audit.certificateMatchReportFinding ?? "",
     certificateMatchReportRequiredAction: audit.certificateMatchReportRequiredAction ?? "",
-    certificateMatchReportCodeStandard: audit.certificateMatchReportCodeStandard ?? "NFPA 72",
+    certificateMatchReportCodeStandard: audit.certificateMatchReportCodeStandard ?? defaultCode,
     certificateMatchReportCodeEdition: audit.certificateMatchReportCodeEdition ?? "",
     certificateMatchReportCodeSection: audit.certificateMatchReportCodeSection ?? "",
     certificateDisplayedReportFinding: audit.certificateDisplayedReportFinding ?? "",
     certificateDisplayedReportRequiredAction: audit.certificateDisplayedReportRequiredAction ?? "",
-    certificateDisplayedReportCodeStandard: audit.certificateDisplayedReportCodeStandard ?? "NFPA 72",
+    certificateDisplayedReportCodeStandard: audit.certificateDisplayedReportCodeStandard ?? defaultCode,
     certificateDisplayedReportCodeEdition: audit.certificateDisplayedReportCodeEdition ?? "",
     certificateDisplayedReportCodeSection: audit.certificateDisplayedReportCodeSection ?? "",
     deviceSystemLocal: audit.deviceSystemLocal ?? false,
@@ -297,10 +346,16 @@ function normalizeAudit(audit: Audit): Audit {
       installation: Boolean(audit.reportSectionStatus?.installation),
     },
     signalLog: normalizeSignalRows(audit.signalLog, now),
-    documentation: normalizeRows(audit.documentation, documentationElements, audit.auditorName, now),
-    installation: normalizeRows(audit.installation, installationElements, audit.auditorName, now),
+    documentation: normalizeRows(audit.documentation, rowSets.documentation, audit.auditorName, now, defaultCode),
+    installation: normalizeRows(audit.installation, rowSets.installation, audit.auditorName, now, defaultCode),
     deviceTests: normalizeDeviceRows(audit.deviceTests, now),
   };
+}
+
+function auditRowElementsForProgram(program: "fire" | "mercantile") {
+  return program === "mercantile"
+    ? { documentation: mercantileDocumentationElements, installation: mercantileInstallationElements }
+    : { documentation: documentationElements, installation: installationElements };
 }
 
 function normalizeReportExtraFindings(findings: Audit["reportExtraFindings"]): Audit["reportExtraFindings"] {
@@ -336,21 +391,21 @@ function normalizeSignalRows(rows: Audit["signalLog"], updatedAt: string): Audit
   return normalized.length ? normalized : [signalRow(updatedAt)];
 }
 
-function normalizeRows(rows: AuditRow[], elements: string[], auditorName: string, updatedAt: string) {
-  const fixedRows = elements.map((element) => normalizeAuditRow(rows.find((item) => item.element === element) || row(element, auditorName, updatedAt), auditorName, updatedAt));
+function normalizeRows(rows: AuditRow[], elements: string[], auditorName: string, updatedAt: string, defaultCode = "NFPA 72") {
+  const fixedRows = elements.map((element) => normalizeAuditRow(rows.find((item) => item.element === element) || row(element, auditorName, updatedAt), auditorName, updatedAt, defaultCode));
   const customRows = rows
     .filter((item) => item.element && !elements.includes(item.element) && !item.element.startsWith("NFPA"))
-    .map((item) => normalizeAuditRow(item, auditorName, updatedAt));
+    .map((item) => normalizeAuditRow(item, auditorName, updatedAt, defaultCode));
   return [...fixedRows, ...customRows];
 }
 
-function normalizeAuditRow(item: AuditRow, auditorName: string, updatedAt: string): AuditRow {
+function normalizeAuditRow(item: AuditRow, auditorName: string, updatedAt: string, defaultCode = "NFPA 72"): AuditRow {
   return {
     ...row(item.element, auditorName, updatedAt),
     ...item,
     reportFinding: item.reportFinding || "",
     reportRequiredAction: item.reportRequiredAction || "",
-    reportCodeStandard: item.reportCodeStandard || "NFPA 72",
+    reportCodeStandard: item.reportCodeStandard || defaultCode,
     reportCodeEdition: item.reportCodeEdition || "",
     reportCodeSection: item.reportCodeSection || "",
   };
@@ -364,6 +419,7 @@ function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {
     alarm: item.alarm ?? item.signalType === "Alarm",
     supervisory: item.supervisory ?? item.signalType === "Supervisory",
     trouble: item.trouble ?? item.signalType === "Trouble",
+    lineSecurity: item.lineSecurity ?? false,
     notApplicable: item.notApplicable ?? false,
   }));
   return normalized.length ? normalized : [deviceRow(updatedAt)];

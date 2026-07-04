@@ -13,11 +13,18 @@ const headings = [
   "Alarm Notification and Annunciation Devices",
   "Control and Transmitter Unit",
   "Monitoring Location",
+  "Comments and Clarifications",
+  "Premises Extent Of Protection",
+  "Stockroom Extent Of Protection",
   "SN",
   "File No",
 ];
 
 export function parseCertificateText(rawText: string, fileName: string): ParsedCertificate {
+  const fullText = normalizeText(rawText);
+  const fullLines = fullText.split(/\n+/).map(clean).filter(Boolean);
+  const fullJoined = fullLines.join("\n");
+  const fullFlat = clean(fullLines.join(" "));
   const text = normalizeText(stripDisclaimer(rawText));
   const lines = text.split(/\n+/).map(clean).filter(Boolean);
   const joined = lines.join("\n");
@@ -26,32 +33,45 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
   const standalonePropertyBlock = standaloneBlock(lines, "Protected Property");
   const standaloneAscBlock = standaloneBlock(lines, "Alarm Service Company");
   const standaloneMonitoringBlock = monitoringLocationBlock(lines);
+  const fullPropertyBlock = standaloneBlock(fullLines, "Protected Property");
+  const fullAscBlock = standaloneBlock(fullLines, "Alarm Service Company");
+  const fullMonitoringBlock = monitoringLocationBlock(fullLines);
   const protectedBlock = standalonePropertyBlock.length
     ? standalonePropertyBlock
-    : inlineBlock(flat, "Protected Property", ["Alarm Service Company", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]);
+    : fullPropertyBlock.length
+      ? fullPropertyBlock
+      : inlineBlock(flat, "Protected Property", ["Alarm Service Company", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]).length
+        ? inlineBlock(flat, "Protected Property", ["Alarm Service Company", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"])
+        : inlineBlock(fullFlat, "Protected Property", ["Alarm Service Company", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]);
   const ascBlock = standaloneAscBlock.length
     ? standaloneAscBlock
-    : inlineBlock(flat, "Alarm Service Company", ["Monitoring Location", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]);
-  const monitoringBlock = standaloneMonitoringBlock.length ? standaloneMonitoringBlock : inlineMonitoringLocationBlock(flat);
+    : fullAscBlock.length
+      ? fullAscBlock
+      : inlineBlock(flat, "Alarm Service Company", ["Monitoring Location", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]).length
+        ? inlineBlock(flat, "Alarm Service Company", ["Monitoring Location", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"])
+        : inlineBlock(fullFlat, "Alarm Service Company", ["Monitoring Location", "Alarm System Description", "SYSTEM DEVIATIONS FROM REFERENCED NFPA STANDARDS", "SN", "File No"]);
+  const monitoringBlock = standaloneMonitoringBlock.length ? standaloneMonitoringBlock : fullMonitoringBlock.length ? fullMonitoringBlock : inlineMonitoringLocationBlock(flat).length ? inlineMonitoringLocationBlock(flat) : inlineMonitoringLocationBlock(fullFlat);
   const property = splitPropertyBlock(protectedBlock);
   const asc = splitAscBlock(ascBlock);
   const ascLocation = cityStateFromAddress(asc.address);
   const monitoring = splitMonitoringBlock(monitoringBlock);
 
-  const fileLine = firstLineMatching(lines, /^File No:/i) || flat.match(/\bFile No:\s*[^]+?(?=\b(?:Issued|Revised|Monitoring Location|SN|File No)\b|$)/i)?.[0] || "";
-  const issuedLine = firstLineMatching(lines, /^Issued:/i) || flat.match(/\bIssued:\s*[0-9/]+(?:\s+Revised:\s*[0-9/]+)?/i)?.[0] || "";
-  const standardMatch = flat.match(/accordance\s+with\s+standard\s+(NFPA\s*72\s*[- ]\s*\d{4})/i);
+  const fileNo = firstValue(fullLines, /^File No:\s*(.+)$/i) || firstValue(lines, /^File No:\s*(.+)$/i) || fullFlat.match(/\bFile No:\s*([A-Z0-9.-]+)/i)?.[1];
+  const ccn = firstValue(fullLines, /^CCN:\s*(.+)$/i) || firstValue(lines, /^CCN:\s*(.+)$/i) || fullFlat.match(/\bCCN:\s*([A-Z0-9.-]+)/i)?.[1];
+  const issuedLine = firstLineMatching(fullLines, /^Issued:/i) || fullFlat.match(/\bIssued:\s*[0-9/]+(?:\s+Revised:\s*[0-9/]+)?/i)?.[0] || "";
+  const revisedLine = firstLineMatching(fullLines, /^Revised:/i) || issuedLine;
+  const standardMatch = fullFlat.match(/accordance\s+with\s+standard\s+(NFPA\s*72\s*[- ]\s*\d{4}|UL\s*681)/i);
   const coverageMatch = joined.match(/Coverage\s+is\s+([^\n]+)/i) || flat.match(/Coverage\s+is\s+([^]+?)(?=\b(?:Issued|Revised|Monitoring Location|SN|File No|Protected Property|Alarm Service Company)\b|$)/i);
 
   return {
     fileName,
-    certificateNumber: firstValue(lines, /^SN:\s*(.+)$/i) || flat.match(/\bSN:\s*([A-Z0-9.-]+)/i)?.[1],
-    certificateType: firstLineMatching(lines, /FIRE ALARM SYSTEM CERTIFICATE/i),
-    categoryCode: firstCategoryCode(joined),
-    fileNo: fileLine.match(/File No:\s*([A-Z0-9.-]+)/i)?.[1],
-    ccn: fileLine.match(/CCN:\s*([A-Z0-9.-]+)/i)?.[1],
+    certificateNumber: firstValue(fullLines, /^SN:\s*(.+)$/i) || fullFlat.match(/\bSN:\s*([A-Z0-9.-]+)/i)?.[1],
+    certificateType: firstLineMatching(fullLines, /(FIRE ALARM SYSTEM CERTIFICATE|BURGLAR ALARM SYSTEM CERTIFICATE|MERCANTILE BURGLAR ALARM)/i),
+    categoryCode: firstCategoryCode(fullJoined) || ccn?.toUpperCase(),
+    fileNo,
+    ccn,
     issuedDate: isoDate(issuedLine.match(/Issued:\s*([0-9/]+)/i)?.[1]),
-    revisedDate: isoDate(issuedLine.match(/Revised:\s*([0-9/]+)/i)?.[1]),
+    revisedDate: isoDate(revisedLine.match(/Revised:\s*([0-9/]+)/i)?.[1]),
     propertyName: property.name,
     propertyAddress: property.address,
     ascName: asc.name,
@@ -64,6 +84,16 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     standardReferenced: standardMatch?.[1]?.replace(/\s+/g, " ").replace(/\s+-\s+/, "-"),
     coverageType: coverageMatch?.[1]?.trim(),
     systemDeviations: systemDeviations(lines),
+    commentsAndClarifications: labelValue(fullJoined, "Comments and Clarifications"),
+    premisesExtent: labelValue(fullJoined, "Premises Extent Of Protection"),
+    stockroomExtent: labelValue(fullJoined, "Stockroom Extent Of Protection"),
+    safeComplete: labelValue(fullJoined, "Safe Complete"),
+    holdUp: labelValue(fullJoined, "HoldUp") || labelValue(fullJoined, "Hold Up"),
+    partyNotified: labelValue(fullJoined, "Party Notified"),
+    lineSecurity: labelValue(fullJoined, "Line Security"),
+    alarmSoundingDeviceLocation: labelValue(fullJoined, "Alarm Sounding Device Location"),
+    secondaryTransmission: labelValue(fullJoined, "Secondary Transmission Method"),
+    controlTransmitterCombo: labelValue(fullJoined, "Control & Transmitter Combo"),
     controlUnitMfr: labelValue(joined, "Control Unit Manufacturer"),
     controlUnitModel: labelValue(joined, "Control Unit Model"),
     signalTransmitterMfr: labelValue(joined, "Signal Transmitter Manufacturer") || labelValue(joined, "Transmitter Manufacturer"),
@@ -223,7 +253,7 @@ function firstValue(lines: string[], pattern: RegExp) {
 }
 
 function firstCategoryCode(text: string) {
-  return text.match(/\b(UUFX|UUJS|UUHX|UUFM)\b/i)?.[1]?.toUpperCase();
+  return text.match(/\b(UUFX|UUJS|UUHX|UUFM|CVSG)\b/i)?.[1]?.toUpperCase();
 }
 
 function labelValue(text: string, label: string) {

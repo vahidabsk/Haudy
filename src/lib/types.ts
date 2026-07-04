@@ -27,6 +27,16 @@ export interface ParsedCertificate {
   standardReferenced?: string;
   coverageType?: string;
   systemDeviations?: string;
+  commentsAndClarifications?: string;
+  premisesExtent?: string;
+  stockroomExtent?: string;
+  safeComplete?: string;
+  holdUp?: string;
+  partyNotified?: string;
+  lineSecurity?: string;
+  alarmSoundingDeviceLocation?: string;
+  secondaryTransmission?: string;
+  controlTransmitterCombo?: string;
   controlUnitMfr?: string;
   controlUnitModel?: string;
   signalTransmitterMfr?: string;
@@ -118,6 +128,7 @@ export interface DeviceTestRow {
   alarm?: boolean;
   supervisory?: boolean;
   trouble?: boolean;
+  lineSecurity?: boolean;
   notApplicable?: boolean;
   tripTime: string;
   timeReceived: string;
