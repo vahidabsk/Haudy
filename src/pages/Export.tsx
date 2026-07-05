@@ -232,12 +232,14 @@ function ProtectedAreaChecklist({ title, reviewed, rows }: { title: string; revi
 }
 
 function ProtectedAreaGuardService({ audit }: { audit: Audit }) {
+  const test = audit.guardServiceTest;
   const serviceRows = [
-    "Test Signal Initiation Time",
-    "Verification Call Time",
-    "Investigator Arrival Time",
-    "Elapsed Time",
+    { label: "Test Signal Initiation Time", value: test?.testSignalInitiationTime || "" },
+    { label: "Verification Call Time", value: test?.verificationCallTime || "" },
+    { label: "Investigator Arrival Time", value: test?.investigatorArrivalTime || "" },
+    { label: "Elapsed Time", value: test?.elapsedSeconds ? protectedAreaElapsed(test.elapsedSeconds) : "" },
   ];
+  const signalType = test?.signalType || "";
   return (
     <table className="crzh-table crzh-guard-table">
       <colgroup>
@@ -248,15 +250,15 @@ function ProtectedAreaGuardService({ audit }: { audit: Audit }) {
       <tbody>
         <tr>
           <td colSpan={3} className="crzh-section-head">
-            Guard Service Test: <Check checked={audit.deviceTestingReviewed} /> YES <Check checked={!audit.deviceTestingReviewed} /> NO
-            <span className="crzh-key">Signal Type used: &nbsp; <Check checked={false} /> 24 hour contact alarm &nbsp;&nbsp; <Check checked={false} /> Comm. Fail &nbsp;&nbsp; <Check checked={false} /> Other</span>
+            Guard Service Test: <Check checked={test?.reviewed !== false} /> YES <Check checked={test?.reviewed === false} /> NO
+            <span className="crzh-key">Signal Type used: &nbsp; <Check checked={signalType === "24 hour contact alarm"} /> 24 hour contact alarm &nbsp;&nbsp; <Check checked={signalType === "Comm. Fail"} /> Comm. Fail &nbsp;&nbsp; <Check checked={signalType === "Other"} /> Other {signalType === "Other" && test?.otherSignalType ? `- ${test.otherSignalType}` : ""}</span>
           </td>
         </tr>
-        {serviceRows.map((label) => (
-          <tr key={label} className="crzh-small-row">
-            <td>{label}</td>
-            <td>{label === "Elapsed Time" ? "" : "Time:"}</td>
-            <td>{label === "Elapsed Time" ? <>PASS <Check checked={false} /> &nbsp;&nbsp; FAIL <Check checked={false} /></> : null}</td>
+        {serviceRows.map((row) => (
+          <tr key={row.label} className="crzh-small-row">
+            <td>{row.label}</td>
+            <td>{row.label === "Elapsed Time" ? row.value : `Time: ${row.value}`}</td>
+            <td>{row.label === "Elapsed Time" ? <>PASS <Check checked={test?.result === "PASS"} /> &nbsp;&nbsp; FAIL <Check checked={test?.result === "FAIL"} /> {test?.notes ? <span className="crzh-guard-note">{test.notes}</span> : null}</> : null}</td>
           </tr>
         ))}
       </tbody>
@@ -746,6 +748,12 @@ function protectedAreaSignalCode(value: SignalLogRow["signalType"]) {
   if (value === "Trouble") return "T";
   if (value === "Comm Fail") return "CF";
   return value;
+}
+
+function protectedAreaElapsed(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
 function blankLineSecurityExportRow(): DeviceTestRow {

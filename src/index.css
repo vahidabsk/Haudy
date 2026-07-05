@@ -310,6 +310,11 @@ textarea {
   width: 0.95in;
 }
 
+.crzh-guard-note {
+  margin-left: 0.15in;
+  font-weight: 400;
+}
+
 .crzh-device-table {
   margin-top: 0.025in;
 }

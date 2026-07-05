@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, FileText, RadioTower, Save, Wrench, Zap } from "lucide-react";
+import { ArrowLeft, FileText, RadioTower, Save, ShieldCheck, Wrench, Zap } from "lucide-react";
 import { CertificateSummary } from "../components/CertificateSummary";
 import { DeviceTestSection } from "../components/DeviceTestSection";
 import { DocumentationSection } from "../components/DocumentationSection";
@@ -13,14 +13,15 @@ import { loadAscDocuments } from "../lib/asc-documents";
 import { loadAscProfiles } from "../lib/asc-profile";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { auditProgram } from "../lib/audit-program";
-import { Audit, DisplayStatus, ReviewStatus } from "../lib/types";
+import { Audit, DisplayStatus, GuardServiceTest, ReviewStatus } from "../lib/types";
 import { nowIso } from "../lib/utils";
 
-type AuditTab = "signal" | "documentation" | "installation" | "device";
+type AuditTab = "signal" | "documentation" | "installation" | "guard" | "device";
 const auditTabs: Array<{ id: AuditTab; label: string; Icon: typeof RadioTower }> = [
   { id: "signal", label: "Signal Processing", Icon: RadioTower },
   { id: "documentation", label: "Documentation", Icon: FileText },
   { id: "installation", label: "Installation", Icon: Wrench },
+  { id: "guard", label: "Guard Service Test", Icon: ShieldCheck },
   { id: "device", label: "Device Test", Icon: Zap },
 ];
 
@@ -64,6 +65,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   useEffect(() => {
     if (!draftAudit) return;
     if (auditProgram(draftAudit) === "mercantile" && activeTab === "signal") setActiveTab("documentation");
+    if (auditProgram(draftAudit) !== "protectedArea" && activeTab === "guard") setActiveTab(auditProgram(draftAudit) === "mercantile" ? "documentation" : "signal");
   }, [draftAudit?.id, draftAudit?.certificates, activeTab]);
 
   if (!audit) return <main className="p-6">Audit not found.</main>;
@@ -74,7 +76,11 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
 
   const currentAudit = audit;
   const program = auditProgram(currentAudit);
-  const visibleAuditTabs = program === "mercantile" ? auditTabs.filter((tab) => tab.id !== "signal") : auditTabs;
+  const visibleAuditTabs = auditTabs.filter((tab) => {
+    if (program === "mercantile" && tab.id === "signal") return false;
+    if (program !== "protectedArea" && tab.id === "guard") return false;
+    return true;
+  });
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
@@ -242,6 +248,12 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
             <InstallationSection rows={audit.installation} auditorName={auditorName} disabled={!audit.installationReviewed} onChange={(installation) => update({ ...audit, installation })} />
           </div>
         ) : null}
+        {program === "protectedArea" && activeTab === "guard" ? (
+          <GuardServiceTestSection
+            value={audit.guardServiceTest || defaultGuardServiceTest()}
+            onChange={(guardServiceTest) => update({ ...audit, guardServiceTest })}
+          />
+        ) : null}
         {activeTab === "device" ? (
           <div className="grid gap-6">
             <section className="grid gap-3 rounded-lg border bg-white p-4">
@@ -288,6 +300,169 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
 function cloneAudit(audit?: Audit) {
   if (!audit) return undefined;
   return JSON.parse(JSON.stringify(audit)) as Audit;
+}
+
+function GuardServiceTestSection({ value, onChange }: { value: GuardServiceTest; onChange: (value: GuardServiceTest) => void }) {
+  const [currentTime, setCurrentTime] = useState(() => guardTimeStamp(new Date()));
+  const disabled = !value.reviewed;
+  const expectedSeconds = Math.max(1, value.expectedMinutes || 20) * 60;
+  const stoppedSeconds = value.elapsedSeconds > 0 ? value.elapsedSeconds : null;
+  const runningSeconds = value.entryMode === "automatic" && value.testSignalInitiationTime && !value.investigatorArrivalTime ? guardSecondsBetween(value.testSignalInitiationTime, currentTime) : null;
+  const elapsedSeconds = stoppedSeconds ?? runningSeconds;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(guardTimeStamp(new Date())), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  function patch(update: Partial<GuardServiceTest>) {
+    onChange({ ...value, ...update, updatedAt: nowIso() });
+  }
+
+  function resetTiming(entryMode = value.entryMode) {
+    patch({
+      entryMode,
+      testSignalInitiationTime: "",
+      verificationCallTime: "",
+      investigatorArrivalTime: "",
+      elapsedSeconds: 0,
+      result: "",
+      notes: "",
+    });
+  }
+
+  function markInvestigatorArrived(arrivalTime: string) {
+    const duration = guardSecondsBetween(value.testSignalInitiationTime, arrivalTime);
+    const passed = duration !== null && duration <= expectedSeconds;
+    patch({
+      investigatorArrivalTime: arrivalTime,
+      elapsedSeconds: duration || 0,
+      result: passed ? "PASS" : "FAIL",
+      notes: passed || duration === null ? value.notes : `Guard service response exceeded ${value.expectedMinutes || 20} minutes (${guardFormatElapsed(duration)}).`,
+    });
+  }
+
+  function markManualArrival(arrivalTime: string) {
+    const duration = guardSecondsBetween(value.testSignalInitiationTime, arrivalTime);
+    const passed = duration !== null && duration <= expectedSeconds;
+    patch({
+      investigatorArrivalTime: arrivalTime,
+      elapsedSeconds: duration || 0,
+      result: duration === null ? value.result : passed ? "PASS" : "FAIL",
+      notes: duration === null || passed ? value.notes : `Guard service response exceeded ${value.expectedMinutes || 20} minutes (${guardFormatElapsed(duration)}).`,
+    });
+  }
+
+  return (
+    <section className="grid gap-6">
+      <section className="grid gap-3 rounded-lg border bg-white p-4">
+        <h2 className="text-lg font-semibold text-navy">Guard Service Test</h2>
+        <div className="grid gap-3 md:grid-cols-4">
+          <YesNoControl label="Guard service test completed?" value={value.reviewed} defaultToYes onChange={(reviewed) => patch({ reviewed })} />
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Signal type used
+            <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : value.signalType} disabled={disabled} onChange={(event) => patch({ signalType: event.target.value as GuardServiceTest["signalType"] })}>
+              <option value="">Select signal type</option>
+              <option value="24 hour contact alarm">24 hour contact alarm</option>
+              <option value="Comm. Fail">Comm. Fail</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Response time limit
+            <div className="flex min-h-11 items-center overflow-hidden rounded-md border bg-white disabled:bg-slate-100">
+              <input className="min-h-11 w-full px-3 outline-none disabled:bg-slate-100 disabled:text-slate-400" type="number" min={1} value={disabled ? "" : value.expectedMinutes || 20} disabled={disabled} onChange={(event) => patch({ expectedMinutes: Number(event.target.value) || 20, result: "" })} />
+              <span className="border-l px-3 text-sm font-semibold text-slate-600">min</span>
+            </div>
+          </label>
+          {value.signalType === "Other" ? (
+            <label className="grid gap-1 text-sm font-medium text-slate-700">
+              Other signal
+              <input className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : value.otherSignalType} disabled={disabled} onChange={(event) => patch({ otherSignalType: event.target.value })} />
+            </label>
+          ) : null}
+        </div>
+        {disabled ? (
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">Guard service test marked No. Re-enable it if the CRZH audit includes a guard response test.</div>
+        ) : null}
+      </section>
+
+      <section className={`grid gap-4 rounded-lg border bg-white p-4 ${disabled ? "opacity-60" : ""}`}>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" className={`min-h-10 rounded-md border px-3 text-sm font-semibold ${value.entryMode === "manual" ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"}`} disabled={disabled} onClick={() => resetTiming("manual")}>
+            Manual Entry
+          </button>
+          <button type="button" className={`min-h-10 rounded-md border px-3 text-sm font-semibold ${value.entryMode === "automatic" ? "border-sky-700 bg-sky-700 text-white" : "border-sky-300 bg-white text-sky-900 hover:bg-sky-50"}`} disabled={disabled} onClick={() => resetTiming("automatic")}>
+            Automatic Stopwatch
+          </button>
+        </div>
+
+        {value.entryMode === "manual" ? (
+          <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-3">
+            <GuardTimeInput label="Test signal initiation time" value={value.testSignalInitiationTime} disabled={disabled} onChange={(testSignalInitiationTime) => patch({ testSignalInitiationTime, elapsedSeconds: 0, result: "" })} />
+            <GuardTimeInput label="Verification call time" value={value.verificationCallTime} disabled={disabled} onChange={(verificationCallTime) => patch({ verificationCallTime })} />
+            <GuardTimeInput label="Investigator arrival time" value={value.investigatorArrivalTime} disabled={disabled} onChange={markManualArrival} />
+          </div>
+        ) : null}
+
+        {value.entryMode === "automatic" ? (
+          <div className="grid gap-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+            <div className="grid gap-2 text-sm text-sky-950 md:grid-cols-4">
+              <GuardReadout label="Test signal initiation" value={value.testSignalInitiationTime || "--:--:--"} />
+              <GuardReadout label="Verification call" value={value.verificationCallTime || "--:--:--"} />
+              <GuardReadout label="Investigator arrival" value={value.investigatorArrivalTime || "--:--:--"} />
+              <div>
+                <div className="text-xs font-semibold uppercase text-sky-700">Elapsed</div>
+                <div className={`rounded-md px-2 py-1 font-mono text-lg font-bold ${guardElapsedColor(elapsedSeconds, expectedSeconds)}`}>{elapsedSeconds === null ? "--" : guardFormatElapsed(elapsedSeconds)}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="min-h-10 rounded-md border border-sky-300 bg-white px-3 text-sm font-semibold text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled} onClick={() => patch({ testSignalInitiationTime: guardTimeStamp(new Date()), verificationCallTime: "", investigatorArrivalTime: "", elapsedSeconds: 0, result: "", notes: "" })}>
+                Start Test Signal
+              </button>
+              <button type="button" className="min-h-10 rounded-md border border-amber-300 bg-amber-50 px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled || !value.testSignalInitiationTime} onClick={() => patch({ verificationCallTime: guardTimeStamp(new Date()) })}>
+                Verification Call
+              </button>
+              <button type="button" className="min-h-10 rounded-md border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled || !value.testSignalInitiationTime} onClick={() => markInvestigatorArrived(guardTimeStamp(new Date()))}>
+                Investigator Arrived
+              </button>
+              <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled} onClick={() => resetTiming("automatic")}>
+                Reset Test
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="grid gap-2 text-sm sm:grid-cols-2">
+          <button type="button" className={`min-h-11 rounded-md border px-3 font-semibold ${value.result === "PASS" ? "border-emerald-700 bg-emerald-700 text-white" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`} disabled={disabled} onClick={() => patch({ result: value.result === "PASS" ? "" : "PASS" })}>
+            Pass
+          </button>
+          <button type="button" className={`min-h-11 rounded-md border px-3 font-semibold ${value.result === "FAIL" ? "border-red-700 bg-red-700 text-white" : "border-red-200 bg-red-50 text-red-800"}`} disabled={disabled} onClick={() => patch({ result: value.result === "FAIL" ? "" : "FAIL" })}>
+            Fail
+          </button>
+        </div>
+        {disabled ? <textarea className="w-full rounded-md border border-slate-300 bg-slate-100 p-3 text-slate-400" rows={3} disabled /> : <DictationNotes rows={3} value={value.notes} onChange={(notes) => patch({ notes })} />}
+      </section>
+    </section>
+  );
+}
+
+function GuardTimeInput({ label, value, disabled, onChange }: { label: string; value: string; disabled?: boolean; onChange: (value: string) => void }) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-700">
+      {label}
+      <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" step={1} value={disabled ? "" : value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function GuardReadout({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase text-sky-700">{label}</div>
+      <div className="font-mono text-lg font-bold">{value}</div>
+    </div>
+  );
 }
 
 function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: { onSave: () => void; onDiscard: () => void; onCancel: () => void }) {
@@ -348,6 +523,56 @@ function dateToInput(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function defaultGuardServiceTest(): GuardServiceTest {
+  return {
+    reviewed: true,
+    signalType: "",
+    otherSignalType: "",
+    entryMode: "",
+    expectedMinutes: 20,
+    testSignalInitiationTime: "",
+    verificationCallTime: "",
+    investigatorArrivalTime: "",
+    elapsedSeconds: 0,
+    result: "",
+    notes: "",
+    updatedAt: nowIso(),
+  };
+}
+
+function guardTimeStamp(value: Date) {
+  return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}:${String(value.getSeconds()).padStart(2, "0")}`;
+}
+
+function guardSecondsBetween(start: string, end: string) {
+  const startSeconds = guardTimeToSeconds(start);
+  const endSeconds = guardTimeToSeconds(end);
+  if (startSeconds === null || endSeconds === null) return null;
+  return endSeconds >= startSeconds ? endSeconds - startSeconds : endSeconds + 24 * 60 * 60 - startSeconds;
+}
+
+function guardTimeToSeconds(value: string) {
+  const parts = value.split(":").map(Number);
+  if (parts.length < 2 || parts.some(Number.isNaN)) return null;
+  const [hours, minutes, seconds = 0] = parts;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function guardFormatElapsed(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function guardElapsedColor(seconds: number | null, expectedSeconds: number) {
+  if (seconds === null) return "bg-white text-slate-700";
+  const ratio = seconds / Math.max(1, expectedSeconds);
+  if (ratio >= 1) return "bg-red-700 text-white";
+  if (ratio >= 0.8) return "bg-orange-500 text-white";
+  if (ratio >= 0.6) return "bg-amber-300 text-amber-950";
+  return "bg-emerald-700 text-white";
 }
 
 function ReadonlyAuditInfo({ label, value }: { label: string; value: string }) {

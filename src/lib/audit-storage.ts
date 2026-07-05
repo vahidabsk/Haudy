@@ -1,4 +1,4 @@
-import { Audit, AuditRow, Auditor, ParsedCertificate, SignalHandlingStatus, SignalType } from "./types";
+import { Audit, AuditRow, Auditor, GuardServiceResult, GuardServiceSignalType, GuardServiceTest, ParsedCertificate, SignalHandlingStatus, SignalType } from "./types";
 import { auditProgram, certificateProgram } from "./audit-program";
 import { cityStateFromAddress } from "./certificate-parser";
 import { nowIso, uid } from "./utils";
@@ -252,6 +252,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     certificateDisplayed: false,
     reportExtraFindings: {},
     reportSectionStatus: {},
+    guardServiceTest: guardServiceTest(now),
     signalLog: [signalRow(now)],
     documentation: rowSets.documentation.map((element) => row(element, auditorName, now)),
     installation: rowSets.installation.map((element) => row(element, auditorName, now)),
@@ -329,6 +330,23 @@ function deviceRow(updatedAt: string) {
   };
 }
 
+function guardServiceTest(updatedAt: string) {
+  return {
+    reviewed: true,
+    signalType: "" as const,
+    otherSignalType: "",
+    entryMode: "" as const,
+    expectedMinutes: 20,
+    testSignalInitiationTime: "",
+    verificationCallTime: "",
+    investigatorArrivalTime: "",
+    elapsedSeconds: 0,
+    result: "" as const,
+    notes: "",
+    updatedAt,
+  };
+}
+
 function normalizeAudit(audit: Audit): Audit {
   const now = nowIso();
   const primaryCertificate = audit.certificates?.[audit.primaryCertificateIndex || 0] || audit.certificates?.[0];
@@ -390,6 +408,7 @@ function normalizeAudit(audit: Audit): Audit {
       documentation: Boolean(audit.reportSectionStatus?.documentation),
       installation: Boolean(audit.reportSectionStatus?.installation),
     },
+    guardServiceTest: normalizeGuardServiceTest(audit.guardServiceTest, now),
     signalLog: normalizeSignalRows(audit.signalLog, now),
     documentation: normalizeRows(audit.documentation, rowSets.documentation, audit.auditorName, now, defaultCode),
     installation: normalizeRows(audit.installation, rowSets.installation, audit.auditorName, now, defaultCode),
@@ -469,6 +488,25 @@ function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {
     notApplicable: item.notApplicable ?? false,
   }));
   return normalized.length ? normalized : [deviceRow(updatedAt)];
+}
+
+function normalizeGuardServiceTest(test: Audit["guardServiceTest"], updatedAt: string) {
+  return {
+    ...guardServiceTest(updatedAt),
+    ...test,
+    reviewed: test?.reviewed ?? true,
+    signalType: (test?.signalType || "") as GuardServiceSignalType | "",
+    otherSignalType: test?.otherSignalType || "",
+    entryMode: (test?.entryMode || "") as GuardServiceTest["entryMode"],
+    expectedMinutes: test?.expectedMinutes || 20,
+    testSignalInitiationTime: test?.testSignalInitiationTime || "",
+    verificationCallTime: test?.verificationCallTime || "",
+    investigatorArrivalTime: test?.investigatorArrivalTime || "",
+    elapsedSeconds: test?.elapsedSeconds || 0,
+    result: (test?.result || "") as GuardServiceResult | "",
+    notes: test?.notes || "",
+    updatedAt: test?.updatedAt || updatedAt,
+  };
 }
 
 function readJson<T>(key: string, fallback: T): T {

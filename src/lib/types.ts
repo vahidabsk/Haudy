@@ -4,6 +4,8 @@ export type DisplayStatus = "OK" | "VAR" | "NA";
 export type SignalType = "Alarm" | "Supervisory" | "Trouble" | "Opening/Closing" | "Comm Fail";
 export type SignalHandlingStatus = "OK" | "VAR";
 export type ReportSectionStatus = Partial<Record<"signal" | "documentation" | "installation", boolean>>;
+export type GuardServiceSignalType = "24 hour contact alarm" | "Comm. Fail" | "Other";
+export type GuardServiceResult = "PASS" | "FAIL";
 
 export interface ParsedCertificate {
   fileName: string;
@@ -147,6 +149,21 @@ export interface DeviceTestRow {
   updatedAt: string;
 }
 
+export interface GuardServiceTest {
+  reviewed: boolean;
+  signalType: GuardServiceSignalType | "";
+  otherSignalType: string;
+  entryMode: "manual" | "automatic" | "";
+  expectedMinutes: number;
+  testSignalInitiationTime: string;
+  verificationCallTime: string;
+  investigatorArrivalTime: string;
+  elapsedSeconds: number;
+  result: GuardServiceResult | "";
+  notes: string;
+  updatedAt: string;
+}
+
 export interface Audit {
   id: string;
   createdAt: string;
@@ -210,6 +227,7 @@ export interface Audit {
   certificateDisplayed: boolean;
   reportExtraFindings?: Record<string, ReportFindingEntry[]>;
   reportSectionStatus?: ReportSectionStatus;
+  guardServiceTest?: GuardServiceTest;
   signalLog: SignalLogRow[];
   documentation: AuditRow[];
   installation: AuditRow[];
