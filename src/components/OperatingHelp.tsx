@@ -88,8 +88,8 @@ export function OperatingHelp({ onClose }: { onClose: () => void }) {
             </HelpSection>
 
             <HelpSection title="15. Report Help Tools">
-              <p>Use CSIS Defect List and Report DB beside a deficiency to help select code references and report wording.</p>
-              <HelpList items={["CSIS Defect List helps search standard, edition, category, and keyword.", "Report DB can fill Finding, Required Action, Reference, or All fields.", "Keyword search is intended for finding-related wording.", "Auditors can still manually type the final wording."]} />
+              <p>Use CSIS Defect List and Past Reports beside a deficiency to help select code references and report wording.</p>
+              <HelpList items={["CSIS Defect List helps search standard, edition, category, and keyword.", "Past Reports can fill Finding, Required Action, Reference, or All fields.", "Keyword search is intended for finding-related wording.", "Auditors can still manually type the final wording."]} />
             </HelpSection>
 
             <HelpSection title="16. iHaudy Field Transfer">

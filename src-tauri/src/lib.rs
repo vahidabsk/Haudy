@@ -84,6 +84,36 @@ fn open_certificate_pdfs() -> Result<Vec<CertificatePdfText>, String> {
 }
 
 #[tauri::command]
+fn open_past_report_pdfs() -> Result<Vec<CertificatePdfText>, String> {
+    let Some(files) = rfd::FileDialog::new()
+        .set_title("Choose past report PDF files")
+        .add_filter("PDF report files", &["pdf"])
+        .pick_files()
+    else {
+        return Ok(Vec::new());
+    };
+
+    let mut reports = Vec::new();
+    for path in files {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("Past Report.pdf")
+            .to_string();
+        let text = pdf_extract::extract_text(&path)
+            .map_err(|error| format!("Could not read {file_name}: {error}"))?;
+        if text.trim().is_empty() {
+            return Err(format!(
+                "{file_name} does not contain selectable PDF text. Use a text-based report PDF, not a scanned image."
+            ));
+        }
+        reports.push(CertificatePdfText { file_name, text });
+    }
+
+    Ok(reports)
+}
+
+#[tauri::command]
 fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
     let Some(path) = rfd::FileDialog::new()
         .set_title("Choose audit tracker workbook")
@@ -300,6 +330,7 @@ pub fn run() {
             install_haudy_patch,
             open_audit_tracker,
             open_certificate_pdfs,
+            open_past_report_pdfs,
             save_haudy_binary_file,
             save_haudy_binary_file_with_dialog,
             save_haudy_text_file,

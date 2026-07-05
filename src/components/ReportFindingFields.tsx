@@ -13,7 +13,7 @@ export interface ReportFindingValue {
 }
 
 const editionOptions = ["2022", "2019", "2016", "2013", "2010", "2007", "2002"];
-const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70"];
+const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70", "UL 681", "UL 827", "UL 2050"];
 
 export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpStandard?: string; helpYear?: string }) {
   const standardUsed = isReferenceUsed(value.reportCodeStandard);

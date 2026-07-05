@@ -13,6 +13,7 @@ import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } 
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 import { isProtectedAreaAudit } from "../lib/audit-program";
+import { addReportFindingsToPastReports, AuditorReportFinding } from "../lib/auditor-report-findings";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
 type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests" | "sectionReview";
@@ -156,6 +157,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
     });
     setSavedAt(next[ascKey]?.[reportDocumentKey]?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
+    const added = addReportFindingsToPastReports(pastReportRowsFromCompletedReport(draftAudits, serviceCenterHasComment ? serviceCenterComments : [], reportName));
+    if (added) setFolderMessage(`${added} completed report item${added === 1 ? "" : "s"} added to Past Reports.`);
   }
 
   function requestNavigation(path: string) {
@@ -902,6 +905,59 @@ function reportItemNeedsAttention(item: ReportItem) {
 
 function serviceCenterCommentNeedsAttention(comment: ServiceCenterComment) {
   return !comment.finding.trim() || !comment.requiredAction.trim() || !isReferenceComplete(comment.codeStandard, "NFPA 72") || !isReferenceComplete(comment.codeEdition) || !isReferenceComplete(comment.codeSection);
+}
+
+function pastReportRowsFromCompletedReport(audits: Audit[], serviceComments: ServiceCenterComment[], reportName: string): AuditorReportFinding[] {
+  const rows: AuditorReportFinding[] = [];
+  serviceComments
+    .filter((comment) => !serviceCenterCommentNeedsAttention(comment))
+    .forEach((comment, index) => {
+      rows.push(pastReportRow({
+        id: `HR-SC-${Date.now().toString(36)}-${index}`,
+        standard: comment.codeStandard,
+        year: comment.codeEdition,
+        section: comment.codeSection,
+        reviewType: "Service Center Comments",
+        category: "Service Center Comments",
+        finding: comment.finding,
+        requiredAction: comment.requiredAction,
+        reportName,
+      }));
+    });
+  reportAuditsByCategory(audits).forEach((audit) => {
+    printableReportItems(audit)
+      .filter((item) => !reportItemNeedsAttention(item))
+      .forEach((item) => {
+        rows.push(pastReportRow({
+          id: `HR-${audit.id}-${item.id}`,
+          standard: item.codeStandard,
+          year: item.codeEdition,
+          section: item.codeSection,
+          reviewType: item.reviewType,
+          category: item.category,
+          finding: item.finding,
+          requiredAction: item.requiredAction,
+          reportName,
+        }));
+      });
+  });
+  return rows;
+}
+
+function pastReportRow({ id, standard, year, section, reviewType, category, finding, requiredAction, reportName }: { id: string; standard: string; year: string; section: string; reviewType: string; category: string; finding: string; requiredAction: string; reportName: string }): AuditorReportFinding {
+  return {
+    id,
+    standard: printableReferenceValue(standard, "NFPA 72"),
+    year: printableReferenceValue(year),
+    reviewType,
+    category,
+    findingType: category,
+    section: printableReferenceValue(section),
+    finding,
+    requiredAction,
+    keywords: [category, reviewType, standard, year, section, finding].join(" ").toLowerCase(),
+    examples: `Created by Haudy from ${reportName}`,
+  };
 }
 
 function reportPropertyStats(audit: Audit) {
