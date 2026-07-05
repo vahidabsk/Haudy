@@ -4,7 +4,7 @@ import { DeviceTestRow } from "../lib/types";
 import { nowIso, uid } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
 
-const deviceTypes = [
+const fireDeviceTypes = [
   "Backup battery",
   "Communication fail",
   "Ground fault",
@@ -21,6 +21,36 @@ const deviceTypes = [
   "PIV",
   "OS & Y",
   "Manual pull station",
+];
+const mercantileDeviceTypes = [
+  "Door Contact",
+  "Roll-Up Contact",
+  "Window Contact",
+  "Motion",
+  "Glass Break",
+  "Beam",
+  "Vibration",
+  "Shock",
+  "Safe Contact",
+  "Vault Contact",
+  "Hold-Up",
+  "Panic",
+  "Money Clip",
+  "Foil",
+  "Roof Hatch",
+  "Trap",
+  "Panel Tamper",
+  "Device Tamper",
+  "Bell/Siren Tamper",
+  "Power Tamper",
+  "Comm Tamper",
+  "Bell/Siren",
+  "Strobe",
+  "Communicator",
+  "Battery",
+  "AC Fail",
+  "Comm Fail",
+  "Ground Fault",
 ];
 type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
 const fireTestOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
@@ -49,6 +79,7 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
   const [currentTime, setCurrentTime] = useState(() => timeStamp(new Date()));
   const testOptions = program === "mercantile" ? mercantileTestOptions : fireTestOptions;
   const isMercantile = program === "mercantile";
+  const deviceTypes = isMercantile ? mercantileDeviceTypes : fireDeviceTypes;
   const showLineSecurityTest = isMercantile && hasLineSecurityRequirement(lineSecurityKind);
   const lineSecurityRow = rows.find((row) => row.deviceType === lineSecurityDeviceType);
   const deviceRows = isMercantile ? rows.filter((row) => row.deviceType !== lineSecurityDeviceType) : rows;
