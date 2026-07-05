@@ -127,30 +127,31 @@ export function addReportFindingsToPastReports(rows: AuditorReportFinding[]) {
 
 export function parsePastReportText(fileName: string, text: string) {
   const cleanText = normalizeReportText(text);
-  const matches = Array.from(cleanText.matchAll(/(?:^|\n)\s*(\d{1,3})\.\s+([\s\S]*?)(?=\n\s*\d{1,3}\.\s+|\n\s*SN:\s*|\n\s*-{2,}[^-\n]+-{2,}|\n\s*\*{3}END\*{3}|\s*$)/g));
+  const matches = Array.from(cleanText.matchAll(/\bFindings?\s*:\s*/gi));
   return matches
     .map((match, index) => rowFromReportEntry(fileName, cleanText, match, index))
     .filter((row): row is AuditorReportFinding => Boolean(row));
 }
 
 function rowFromReportEntry(fileName: string, fullText: string, match: RegExpMatchArray, index: number) {
-  const entryStart = match.index ?? 0;
-  const entry = match[2].trim();
-  const findingMatch = entry.match(/\bFindings?\s*:\s*/i);
-  const actionMatch = entry.match(/\bRequired\s+Action\s*:\s*/i);
-  if (!findingMatch || !actionMatch || actionMatch.index === undefined || findingMatch.index === undefined) return null;
+  const findingLabelStart = match.index ?? 0;
+  const findingStart = findingLabelStart + match[0].length;
+  const afterFinding = fullText.slice(findingStart);
+  const actionMatch = afterFinding.match(/\bRequired\s+Action\s*:\s*/i);
+  if (!actionMatch || actionMatch.index === undefined) return null;
 
-  const findingStart = findingMatch.index + findingMatch[0].length;
-  const actionStart = actionMatch.index + actionMatch[0].length;
-  if (actionMatch.index <= findingStart) return null;
+  const nextFindingStart = nextFindingIndex(fullText, findingStart);
+  const entryEnd = nextFindingStart >= 0 ? nextFindingStart : fullText.length;
+  const actionStart = findingStart + actionMatch.index + actionMatch[0].length;
+  if (actionStart <= findingStart) return null;
 
-  const codeText = entry.slice(0, findingMatch.index).trim();
-  const finding = stripCodeFragments(entry.slice(findingStart, actionMatch.index)).trim();
-  const requiredAction = stripTrailingReportNoise(entry.slice(actionStart)).trim();
+  const finding = stripCodeFragments(fullText.slice(findingStart, findingStart + actionMatch.index)).trim();
+  const requiredActionText = fullText.slice(actionStart, entryEnd);
+  const requiredAction = stripTrailingReportNoise(requiredActionText).trim();
   if (!finding || !requiredAction) return null;
 
-  const reference = parseReference(codeText);
-  const context = fullText.slice(Math.max(0, entryStart - 600), entryStart);
+  const context = fullText.slice(Math.max(0, findingLabelStart - 900), findingLabelStart);
+  const reference = parseReference(`${context}\n${requiredActionText}`);
   const reviewType = inferReviewType(context);
   const category = inferCategory(context);
   const id = `PR-${Date.now().toString(36)}-${index}-${hashText(`${fileName}|${finding}|${requiredAction}`)}`;
@@ -205,6 +206,8 @@ function inferCategory(context: string) {
 function normalizeReportText(text: string) {
   return text
     .replace(/\r/g, "\n")
+    .replace(/\bRequired\s*\n\s*Action\s*:/gi, "Required Action:")
+    .replace(/\bCode\s*\n\s*Reference\s*:/gi, "Code Reference:")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/RequiredAction/gi, "Required Action")
@@ -218,9 +221,18 @@ function stripCodeFragments(value: string) {
 
 function stripTrailingReportNoise(value: string) {
   return value
+    .replace(/\bCode\s+Reference\s*:[\s\S]*$/i, "")
     .replace(/\n\s*(Audit Comments|Protected Properties Comments|Central Station Comments)\b[\s\S]*$/i, "")
+    .replace(/\n\s*(SN:|CCN:)\b[\s\S]*$/i, "")
+    .replace(/\n\s*-{2,}[^-\n]+-{2,}[\s\S]*$/i, "")
+    .replace(/\*{3}END\*{3}[\s\S]*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function nextFindingIndex(text: string, afterIndex: number) {
+  const next = text.slice(afterIndex).search(/\bFindings?\s*:\s*/i);
+  return next >= 0 ? afterIndex + next : -1;
 }
 
 function findingFingerprint(row: AuditorReportFinding) {
