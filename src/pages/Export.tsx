@@ -40,7 +40,8 @@ function ExportDocument({ audit }: { audit: Audit }) {
   }
 
   const attachmentRows = photoAttachments(audit);
-  const totalPages = 3 + Math.ceil(attachmentRows.length / 4);
+  const basePages = isMercantileAudit(audit) ? 1 : 3;
+  const totalPages = basePages + Math.ceil(attachmentRows.length / 4);
   const exportFileName = fieldNotesName(audit);
 
   useEffect(() => {
@@ -98,7 +99,14 @@ function ExportDocument({ audit }: { audit: Audit }) {
         </div>
       </div>
       {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}
-      {isMercantileAudit(audit) ? <MercantileFieldNotesPage audit={audit} /> : (
+      {isMercantileAudit(audit) ? (
+        <>
+          <MercantileFieldNotesPage audit={audit} />
+          {chunk(attachmentRows, 4).map((rows, index) => (
+            <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={2 + index} totalPages={totalPages} />
+          ))}
+        </>
+      ) : (
         <>
       <FieldNotesPage pageNumber={1} totalPages={totalPages} audit={audit} showTitle>
         <SignalReview audit={audit} />
@@ -569,7 +577,7 @@ function AttachmentPage({ audit, rows, pageNumber, totalPages }: { audit: Audit;
       <div className="attachment-grid">
         {rows.map((row) => (
           <figure key={row.id} className="attachment-card">
-            <img src={loadPhoto(row.id)} alt="" />
+            <img src={row.dataUrl} alt="" />
             <figcaption>
               <b>{row.section}</b>
               <span>{row.label}</span>
@@ -614,6 +622,7 @@ interface PhotoAttachment {
   id: string;
   section: string;
   label: string;
+  dataUrl: string;
 }
 
 function photoAttachments(audit: Audit): PhotoAttachment[] {
@@ -621,7 +630,12 @@ function photoAttachments(audit: Audit): PhotoAttachment[] {
 }
 
 function rowPhotos(section: string, rows: AuditRow[]): PhotoAttachment[] {
-  return rows.flatMap((row) => row.photos.map((id) => ({ id, section, label: row.element || "Additional row" })));
+  return rows.flatMap((row) => (
+    row.photos
+      .map((id) => ({ id, dataUrl: loadPhoto(id) }))
+      .filter((photo) => photo.dataUrl)
+      .map((photo) => ({ id: photo.id, dataUrl: photo.dataUrl, section, label: row.element || "Additional row" }))
+  ));
 }
 
 function chunk<T>(items: T[], size: number) {
