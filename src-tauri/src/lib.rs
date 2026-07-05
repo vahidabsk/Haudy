@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use calamine::{open_workbook_auto, Data, Reader};
 
@@ -24,6 +25,19 @@ struct TrackerAssignment {
     psn: String,
     auditor_notes: String,
     asc_status: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppVersion {
+    version: String,
+}
+
+#[tauri::command]
+fn get_haudy_version() -> AppVersion {
+    AppVersion {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    }
 }
 
 #[tauri::command]
@@ -210,6 +224,48 @@ fn create_haudy_folders(base_path: String, folder_sets: Vec<Vec<String>>) -> Res
     Ok(())
 }
 
+#[tauri::command]
+fn install_haudy_patch(download_url: String, file_name: String) -> Result<String, String> {
+    if !cfg!(target_os = "windows") {
+        return Err("Patch installation is currently available in the Windows desktop app.".to_string());
+    }
+    if !is_allowed_patch_url(&download_url) {
+        return Err("Haudy refused this patch because it did not come from the approved Haudy release channel.".to_string());
+    }
+
+    let mut path = std::env::temp_dir();
+    path.push(safe_file_name(&file_name));
+    let path_text = path.to_string_lossy().to_string();
+    let command = format!(
+        "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri '{}' -OutFile '{}'",
+        powershell_quote(&download_url),
+        powershell_quote(&path_text)
+    );
+    let status = Command::new("powershell")
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command])
+        .status()
+        .map_err(|error| format!("Could not start patch download: {error}"))?;
+    if !status.success() {
+        return Err("Patch download failed. Check internet access and try again.".to_string());
+    }
+
+    Command::new("cmd")
+        .args(["/C", "start", "", &path_text])
+        .spawn()
+        .map_err(|error| format!("Patch downloaded, but Haudy could not open the installer: {error}"))?;
+    Ok("Patch installer downloaded and opened. Close Haudy, finish the installer, then restart Haudy.".to_string())
+}
+
+fn is_allowed_patch_url(value: &str) -> bool {
+    let lower = value.to_lowercase();
+    lower.starts_with("https://github.com/vahidabsk/haudy/releases/download/")
+        && (lower.ends_with(".msi") || lower.ends_with(".exe"))
+}
+
+fn powershell_quote(value: &str) -> String {
+    value.replace('\'', "''")
+}
+
 fn safe_path_part(value: &str) -> String {
     let cleaned = value
         .chars()
@@ -240,6 +296,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             choose_haudy_database_location,
             create_haudy_folders,
+            get_haudy_version,
+            install_haudy_patch,
             open_audit_tracker,
             open_certificate_pdfs,
             save_haudy_binary_file,

@@ -106,6 +106,22 @@ export async function createDesktopFolders(folderSets: string[][]) {
   });
 }
 
+export async function getDesktopAppVersion() {
+  const invoke = getTauriInvoke();
+  if (!invoke) return "";
+  const result = await invoke<{ version: string }>("get_haudy_version");
+  return result.version;
+}
+
+export async function installDesktopPatch(downloadUrl: string, fileName: string) {
+  const invoke = getTauriInvoke();
+  if (!invoke) throw new Error("Patch installation is available in the Windows desktop app.");
+  return invoke<string>("install_haudy_patch", {
+    downloadUrl,
+    fileName,
+  });
+}
+
 function getTauriInvoke() {
   return (window as Window & { __TAURI__?: TauriGlobal }).__TAURI__?.core?.invoke;
 }

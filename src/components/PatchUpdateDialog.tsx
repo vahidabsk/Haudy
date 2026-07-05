@@ -1,36 +1,66 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, CloudDownload, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import { AlertTriangle, CheckCircle2, CloudDownload, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { getDesktopAppVersion, installDesktopPatch } from "../lib/desktop-bridge";
 
-type PatchStatus = "idle" | "checking" | "available" | "installing" | "installed";
+type PatchStatus = "idle" | "checking" | "upToDate" | "available" | "installing" | "installed" | "error";
+
+interface PatchRelease {
+  currentVersion: string;
+  latestVersion: string;
+  releaseName: string;
+  assetName: string;
+  downloadUrl: string;
+}
+
+const fallbackCurrentVersion = "0.1.0";
+const latestReleaseUrl = "https://api.github.com/repos/vahidabsk/Haudy/releases/latest";
 
 export function PatchUpdateDialog({ onClose }: { onClose: () => void }) {
   const [status, setStatus] = useState<PatchStatus>("idle");
-  const [progress, setProgress] = useState(0);
+  const [release, setRelease] = useState<PatchRelease | null>(null);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (status !== "installing") return;
-    const timer = window.setInterval(() => {
-      setProgress((value) => {
-        if (value >= 100) {
-          window.clearInterval(timer);
-          window.setTimeout(() => setStatus("installed"), 250);
-          return 100;
-        }
-        return Math.min(100, value + 14);
-      });
-    }, 180);
-    return () => window.clearInterval(timer);
-  }, [status]);
-
-  function checkPatch() {
+  async function checkPatch() {
     setStatus("checking");
-    setProgress(0);
-    window.setTimeout(() => setStatus("available"), 900);
+    setMessage("");
+    try {
+      const currentVersion = (await getDesktopAppVersion()) || fallbackCurrentVersion;
+      const response = await fetch(latestReleaseUrl, { headers: { Accept: "application/vnd.github+json" } });
+      if (!response.ok) throw new Error("Could not reach the Haudy patch channel.");
+      const latest = await response.json() as GithubRelease;
+      const latestVersion = cleanReleaseVersion(latest.tag_name);
+      const asset = latest.assets?.find((item) => /\.msi$/i.test(item.name)) || latest.assets?.find((item) => /\.exe$/i.test(item.name));
+      if (!latestVersion || !asset?.browser_download_url) {
+        throw new Error("The latest Haudy release does not include a Windows installer.");
+      }
+      const nextRelease = {
+        currentVersion,
+        latestVersion,
+        releaseName: latest.name || latest.tag_name || `Haudy ${latestVersion}`,
+        assetName: asset.name,
+        downloadUrl: asset.browser_download_url,
+      };
+      setRelease(nextRelease);
+      setStatus(compareVersions(latestVersion, currentVersion) > 0 ? "available" : "upToDate");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Could not check for a Haudy patch.");
+    }
   }
 
-  function installPatch() {
+  async function installPatch() {
+    if (!release) return;
     setStatus("installing");
-    setProgress(6);
+    setMessage("Downloading the installer. Windows may ask for permission to run it.");
+    try {
+      const result = await installDesktopPatch(release.downloadUrl, release.assetName);
+      setMessage(result);
+      setStatus("installed");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Could not install the Haudy patch.");
+    }
   }
 
   const busy = status === "checking" || status === "installing";
@@ -49,13 +79,13 @@ export function PatchUpdateDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-          <PatchMessage status={status} />
+          <PatchMessage status={status} release={release} message={message} />
           {status === "installing" ? (
             <div className="mt-4">
               <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-emerald-500" />
               </div>
-              <p className="mt-2 text-sm font-semibold text-slate-700">{progress}% complete</p>
+              <p className="mt-2 text-sm font-semibold text-slate-700">Preparing Windows installer...</p>
             </div>
           ) : null}
         </div>
@@ -82,65 +112,76 @@ export function PatchUpdateDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="text-xs leading-5 text-slate-500">
-          Auditors stay inside Haudy during patch checks. The desktop update package is handled by Haudy, without showing repository or release pages.
+          Admin note: a patch appears only when the latest desktop release version is newer than this installed Haudy version.
         </p>
       </section>
     </div>
   );
 }
 
-function PatchMessage({ status }: { status: PatchStatus }) {
+function PatchMessage({ status, release, message }: { status: PatchStatus; release: PatchRelease | null; message: string }) {
   if (status === "checking") {
+    return <StatusBlock icon={<RefreshCw className="mt-0.5 animate-spin text-sky-700" size={20} />} title="Checking for the latest Haudy patch..." text="Haudy is checking the desktop patch channel." />;
+  }
+  if (status === "available" && release) {
     return (
-      <div className="flex gap-3">
-        <RefreshCw className="mt-0.5 animate-spin text-sky-700" size={20} />
-        <div>
-          <p className="font-bold text-navy">Checking for the latest Haudy patch...</p>
-          <p className="mt-1 text-sm text-slate-600">Haudy is checking the desktop patch channel.</p>
-        </div>
-      </div>
+      <StatusBlock
+        icon={<CloudDownload className="mt-0.5 text-emerald-700" size={20} />}
+        title={`Patch ${release.latestVersion} is available.`}
+        text={`Installed: ${release.currentVersion}. Package: ${release.assetName}. Save open work before installing.`}
+      />
     );
   }
-  if (status === "available") {
+  if (status === "upToDate" && release) {
     return (
-      <div className="flex gap-3">
-        <CloudDownload className="mt-0.5 text-emerald-700" size={20} />
-        <div>
-          <p className="font-bold text-navy">A Haudy desktop patch is available.</p>
-          <p className="mt-1 text-sm text-slate-600">Save open work, then choose Install Patch to apply it from inside Haudy.</p>
-        </div>
-      </div>
+      <StatusBlock
+        icon={<CheckCircle2 className="mt-0.5 text-emerald-700" size={20} />}
+        title="Haudy is up to date."
+        text={`Installed: ${release.currentVersion}. Latest available patch: ${release.latestVersion}.`}
+      />
     );
   }
   if (status === "installing") {
-    return (
-      <div className="flex gap-3">
-        <ShieldCheck className="mt-0.5 text-emerald-700" size={20} />
-        <div>
-          <p className="font-bold text-navy">Installing patch...</p>
-          <p className="mt-1 text-sm text-slate-600">Keep Haudy open while the patch is prepared.</p>
-        </div>
-      </div>
-    );
+    return <StatusBlock icon={<ShieldCheck className="mt-0.5 text-emerald-700" size={20} />} title="Installing patch..." text={message || "Keep Haudy open while the installer is prepared."} />;
   }
   if (status === "installed") {
-    return (
-      <div className="flex gap-3">
-        <CheckCircle2 className="mt-0.5 text-emerald-700" size={20} />
-        <div>
-          <p className="font-bold text-navy">Patch installation completed.</p>
-          <p className="mt-1 text-sm text-slate-600">Restart Haudy to finish applying the update.</p>
-        </div>
-      </div>
-    );
+    return <StatusBlock icon={<CheckCircle2 className="mt-0.5 text-emerald-700" size={20} />} title="Patch installer is ready." text={message || "Finish the Windows installer, then restart Haudy."} />;
   }
+  if (status === "error") {
+    return <StatusBlock icon={<AlertTriangle className="mt-0.5 text-red-700" size={20} />} title="Patch check needs attention." text={message || "Could not complete the patch operation."} />;
+  }
+  return <StatusBlock icon={<ShieldCheck className="mt-0.5 text-slate-600" size={20} />} title="No patch check has been run in this session." text="Use Check Latest Patch to see whether a newer Haudy desktop update is available." />;
+}
+
+function StatusBlock({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
   return (
     <div className="flex gap-3">
-      <ShieldCheck className="mt-0.5 text-slate-600" size={20} />
+      {icon}
       <div>
-        <p className="font-bold text-navy">No patch check has been run in this session.</p>
-        <p className="mt-1 text-sm text-slate-600">Use Check Latest Patch to see whether a Haudy desktop update is available.</p>
+        <p className="font-bold text-navy">{title}</p>
+        <p className="mt-1 text-sm text-slate-600">{text}</p>
       </div>
     </div>
   );
+}
+
+interface GithubRelease {
+  tag_name?: string;
+  name?: string;
+  assets?: Array<{ name: string; browser_download_url: string }>;
+}
+
+function cleanReleaseVersion(value?: string) {
+  return (value || "").replace(/^desktop-v/i, "").replace(/^v/i, "").trim();
+}
+
+function compareVersions(left: string, right: string) {
+  const leftParts = left.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const rightParts = right.split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const length = Math.max(leftParts.length, rightParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (leftParts[index] || 0) - (rightParts[index] || 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
 }
