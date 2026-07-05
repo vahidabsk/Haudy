@@ -258,6 +258,7 @@ function deviceRow(updatedAt: string) {
     deviceType: "",
     waterflowEntryMode: "" as const,
     waterflowElapsedSeconds: 0,
+    lineSecurityExpectedSeconds: 200,
     location: "",
     deviceId: "",
     signalType: "" as const,
@@ -420,6 +421,7 @@ function normalizeDeviceRows(rows: Audit["deviceTests"], updatedAt: string) {
     supervisory: item.supervisory ?? item.signalType === "Supervisory",
     trouble: item.trouble ?? item.signalType === "Trouble",
     lineSecurity: item.lineSecurity ?? false,
+    lineSecurityExpectedSeconds: item.lineSecurityExpectedSeconds || 200,
     notApplicable: item.notApplicable ?? false,
   }));
   return normalized.length ? normalized : [deviceRow(updatedAt)];

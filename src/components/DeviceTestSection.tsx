@@ -22,7 +22,7 @@ const deviceTypes = [
   "OS & Y",
   "Manual pull station",
 ];
-type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble" | "lineSecurity">;
+type DeviceTestFlag = keyof Pick<DeviceTestRow, "functional" | "alarm" | "supervisory" | "trouble">;
 const fireTestOptions: Array<{ key: DeviceTestFlag; label: string; active: string; idle: string }> = [
   { key: "functional", label: "Functional", active: "border-sky-700 bg-sky-700 text-white", idle: "border-sky-200 bg-sky-50 text-sky-800" },
   { key: "alarm", label: "Alarm", active: "border-red-700 bg-red-700 text-white", idle: "border-red-200 bg-red-50 text-red-800" },
@@ -33,16 +33,25 @@ const mercantileTestOptions: Array<{ key: DeviceTestFlag; label: string; active:
   { key: "functional", label: "Functional", active: "border-sky-700 bg-sky-700 text-white", idle: "border-sky-200 bg-sky-50 text-sky-800" },
   { key: "alarm", label: "Alarm", active: "border-red-700 bg-red-700 text-white", idle: "border-red-200 bg-red-50 text-red-800" },
   { key: "trouble", label: "Trouble", active: "border-purple-700 bg-purple-700 text-white", idle: "border-purple-200 bg-purple-50 text-purple-800" },
-  { key: "lineSecurity", label: "Line Security", active: "border-amber-700 bg-amber-600 text-white", idle: "border-amber-200 bg-amber-50 text-amber-800" },
+];
+const lineSecurityDeviceType = "Line security test";
+const lineSecurityIntervals = [
+  { label: "Single path - 200 seconds", value: 200 },
+  { label: "Dual primary path - 360 seconds", value: 360 },
+  { label: "Secondary path - 24 hours", value: 86400 },
 ];
 const resultOptions = [
   { value: "OK" as const, label: "In Conformance", active: "border-emerald-700 bg-emerald-700 text-white", idle: "border-emerald-200 bg-emerald-50 text-emerald-800" },
   { value: "VAR" as const, label: "Variation Noted", active: "border-amber-700 bg-amber-600 text-white", idle: "border-amber-200 bg-amber-50 text-amber-800" },
 ];
 
-export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage = "Device testing review marked No. Use the general variation note above to explain why device testing was not completed.", program = "fire", onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; disabled?: boolean; disabledMessage?: string; program?: AuditProgram; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
+export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage = "Device testing review marked No. Use the general variation note above to explain why device testing was not completed.", program = "fire", lineSecurityKind = "", onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; disabled?: boolean; disabledMessage?: string; program?: AuditProgram; lineSecurityKind?: string; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
   const [currentTime, setCurrentTime] = useState(() => timeStamp(new Date()));
   const testOptions = program === "mercantile" ? mercantileTestOptions : fireTestOptions;
+  const isMercantile = program === "mercantile";
+  const showLineSecurityTest = isMercantile && hasLineSecurityRequirement(lineSecurityKind);
+  const lineSecurityRow = rows.find((row) => row.deviceType === lineSecurityDeviceType);
+  const deviceRows = isMercantile ? rows.filter((row) => row.deviceType !== lineSecurityDeviceType) : rows;
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(timeStamp(new Date())), 1000);
@@ -56,15 +65,24 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
   return (
     <section className="grid gap-4">
       <h2 className="text-lg font-semibold text-navy">Device Testing</h2>
-      <label className="grid gap-1 rounded-lg border bg-white p-4 text-sm font-medium text-slate-700">
+      {!isMercantile ? <label className="grid gap-1 rounded-lg border bg-white p-4 text-sm font-medium text-slate-700">
         Is this a local system?
         <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={localSystem ? "YES" : "NO"} disabled={disabled} onChange={(event) => setLocalSystem(event.target.value === "YES")}>
           <option value="NO">No - signals report to monitoring station</option>
           <option value="YES">Yes - local system only</option>
         </select>
-      </label>
+      </label> : null}
       {disabled ? <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">{disabledMessage}</div> : null}
-      {rows.map((row) => {
+      {showLineSecurityTest ? (
+        <LineSecurityTestCard
+          row={lineSecurityRow || createLineSecurityRow()}
+          declaredKind={lineSecurityKind}
+          currentTime={currentTime}
+          disabled={disabled}
+          onChange={(update) => patchOrAddLineSecurityRow(rows, update, onChange)}
+        />
+      ) : null}
+      {deviceRows.map((row) => {
         const isWaterflow = row.deviceType === "Waterflow switch";
         const waterflowMode = row.waterflowEntryMode || "";
         const waterflowAutomatic = isWaterflow && waterflowMode === "automatic";
@@ -211,15 +229,169 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
         </div>
         );
       })}
-      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, { id: uid("device"), deviceType: "", waterflowEntryMode: "", waterflowElapsedSeconds: 0, location: "", deviceId: "", signalType: "", functional: false, alarm: false, supervisory: false, trouble: false, lineSecurity: false, notApplicable: false, tripTime: "", timeReceived: "", signalReceived: false, restoralReceived: false, localIndication: false, result: "", notes: "", reportFinding: "", reportRequiredAction: "", reportCodeStandard: "", reportCodeEdition: "", reportCodeSection: "", photos: [], updatedAt: nowIso() }])}>
+      <button className="min-h-11 rounded-md border bg-white px-4 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400" disabled={disabled} onClick={() => onChange([...rows, createDeviceRow()])}>
         Add Device Row
       </button>
     </section>
   );
 }
 
+function LineSecurityTestCard({ row, declaredKind, currentTime, disabled, onChange }: { row: DeviceTestRow; declaredKind: string; currentTime: string; disabled?: boolean; onChange: (update: Partial<DeviceTestRow>) => void }) {
+  const mode = row.waterflowEntryMode || "";
+  const expectedSeconds = row.lineSecurityExpectedSeconds || defaultLineSecurityInterval(declaredKind);
+  const stoppedSeconds = typeof row.waterflowElapsedSeconds === "number" && row.waterflowElapsedSeconds > 0 ? row.waterflowElapsedSeconds : null;
+  const elapsedSeconds = mode === "automatic" && row.tripTime ? stoppedSeconds ?? secondsBetween(row.tripTime, row.timeReceived || currentTime) : null;
+  const running = mode === "automatic" && row.tripTime && !row.timeReceived && stoppedSeconds === null;
+  const overdue = Boolean(running && elapsedSeconds !== null && elapsedSeconds >= expectedSeconds);
+  return (
+    <div className="grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-bold text-navy">Line Security Test</h3>
+          <p className="text-sm text-slate-700">Certificate line security: <b>{declaredKind}</b>. Record check-in supervision timing here before normal device tests.</p>
+        </div>
+        <label className="grid min-w-56 gap-1 text-sm font-semibold text-slate-700">
+          Expected check-in
+          <select className="min-h-10 rounded-md border border-amber-200 bg-white px-3" value={expectedSeconds} disabled={disabled} onChange={(event) => onChange({ lineSecurityExpectedSeconds: Number(event.target.value), result: "", notes: "" })}>
+            {lineSecurityIntervals.map((interval) => <option key={interval.value} value={interval.value}>{interval.label}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          className={`min-h-10 rounded-md border px-3 text-sm font-semibold ${mode === "manual" ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"}`}
+          disabled={disabled}
+          onClick={() => onChange({ waterflowEntryMode: "manual", waterflowElapsedSeconds: 0, tripTime: "", timeReceived: "", result: "", notes: "" })}
+        >
+          Manual Entry
+        </button>
+        <button
+          type="button"
+          className={`min-h-10 rounded-md border px-3 text-sm font-semibold ${mode === "automatic" ? "border-sky-700 bg-sky-700 text-white" : "border-sky-300 bg-white text-sky-900 hover:bg-sky-50"}`}
+          disabled={disabled}
+          onClick={() => onChange({ waterflowEntryMode: "automatic", waterflowElapsedSeconds: 0, tripTime: "", timeReceived: "", result: "", notes: "" })}
+        >
+          Automatic Stopwatch
+        </button>
+      </div>
+      {mode === "manual" ? (
+        <div className="grid gap-3 rounded-lg border border-amber-100 bg-white p-3 md:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Test started
+            <input className="min-h-11 rounded-md border px-2" type="time" step={1} value={disabled ? "" : row.tripTime} disabled={disabled} onChange={(event) => onChange({ tripTime: event.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Check-in received
+            <input className="min-h-11 rounded-md border px-2" type="time" step={1} value={disabled ? "" : row.timeReceived} disabled={disabled} onChange={(event) => applyManualLineSecurity(row, event.target.value, expectedSeconds, onChange)} />
+          </label>
+        </div>
+      ) : null}
+      {mode === "automatic" ? (
+        <div className="grid gap-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+          <div className="grid gap-2 text-sm text-sky-950 sm:grid-cols-3">
+            <TimeReadout label="Test started" value={row.tripTime || "--:--:--"} />
+            <TimeReadout label="Check-in received" value={row.timeReceived || "--:--:--"} />
+            <div>
+              <div className="text-xs font-semibold uppercase text-sky-700">Elapsed</div>
+              <div className={`rounded-md px-2 py-1 font-mono text-lg font-bold ${elapsedColorClassForLimit(elapsedSeconds, expectedSeconds)}`}>{elapsedSeconds === null ? "--" : formatElapsed(elapsedSeconds)}</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="min-h-10 rounded-md border border-sky-300 bg-white px-3 text-sm font-semibold text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled} onClick={() => onChange({ tripTime: timeStamp(new Date()), waterflowElapsedSeconds: 0, timeReceived: "", functional: true, lineSecurity: true, result: "", notes: "" })}>
+              Start Line Security Test
+            </button>
+            <button type="button" className="min-h-10 rounded-md border border-emerald-300 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled || !row.tripTime} onClick={() => completeLineSecurityTest(row, timeStamp(new Date()), expectedSeconds, onChange)}>
+              Check-In Signal Received
+            </button>
+            {overdue ? (
+              <button type="button" className="min-h-10 rounded-md border border-red-300 bg-red-50 px-3 text-sm font-semibold text-red-900 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled} onClick={() => markLineSecurityNotReceived(row, timeStamp(new Date()), expectedSeconds, onChange)}>
+                Check-In Not Received
+              </button>
+            ) : null}
+            <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={disabled} onClick={() => onChange({ tripTime: "", waterflowElapsedSeconds: 0, timeReceived: "", result: "", notes: "" })}>
+              Reset Test
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <div className="grid gap-2 text-sm sm:grid-cols-2">
+        {resultOptions.map((option) => (
+          <button key={option.value} type="button" className={`min-h-11 rounded-md border px-3 font-medium ${row.result === option.value ? option.active : option.idle}`} disabled={disabled} onClick={() => onChange({ result: row.result === option.value ? "" : option.value, functional: true, lineSecurity: true })}>
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {disabled ? <textarea className="w-full rounded-md border border-slate-300 bg-slate-100 p-3 text-slate-400" rows={3} disabled /> : <DictationNotes value={row.notes} onChange={(notes) => onChange({ notes })} />}
+    </div>
+  );
+}
+
 function patch(rows: DeviceTestRow[], id: string, update: Partial<DeviceTestRow>, onChange: (rows: DeviceTestRow[]) => void) {
   onChange(rows.map((row) => (row.id === id ? { ...row, ...update, updatedAt: nowIso() } : row)));
+}
+
+function patchOrAddLineSecurityRow(rows: DeviceTestRow[], update: Partial<DeviceTestRow>, onChange: (rows: DeviceTestRow[]) => void) {
+  const existing = rows.find((row) => row.deviceType === lineSecurityDeviceType);
+  const nextRow = {
+    ...(existing || createLineSecurityRow()),
+    ...update,
+    deviceType: lineSecurityDeviceType,
+    functional: update.functional ?? existing?.functional ?? true,
+    lineSecurity: update.lineSecurity ?? existing?.lineSecurity ?? true,
+    alarm: false,
+    supervisory: false,
+    trouble: false,
+    updatedAt: nowIso(),
+  };
+  if (existing) {
+    onChange(rows.map((row) => (row.id === existing.id ? nextRow : row)));
+    return;
+  }
+  onChange([nextRow, ...rows]);
+}
+
+function createDeviceRow(): DeviceTestRow {
+  return {
+    id: uid("device"),
+    deviceType: "",
+    waterflowEntryMode: "",
+    waterflowElapsedSeconds: 0,
+    lineSecurityExpectedSeconds: 200,
+    location: "",
+    deviceId: "",
+    signalType: "",
+    functional: false,
+    alarm: false,
+    supervisory: false,
+    trouble: false,
+    lineSecurity: false,
+    notApplicable: false,
+    tripTime: "",
+    timeReceived: "",
+    signalReceived: false,
+    restoralReceived: false,
+    localIndication: false,
+    result: "",
+    notes: "",
+    reportFinding: "",
+    reportRequiredAction: "",
+    reportCodeStandard: "",
+    reportCodeEdition: "",
+    reportCodeSection: "",
+    photos: [],
+    updatedAt: nowIso(),
+  };
+}
+
+function createLineSecurityRow(): DeviceTestRow {
+  return {
+    ...createDeviceRow(),
+    id: uid("line-security"),
+    deviceType: lineSecurityDeviceType,
+    functional: true,
+    lineSecurity: true,
+  };
 }
 
 function secondsBetween(start: string, end: string) {
@@ -240,6 +412,44 @@ function completeWaterflowTest(rows: DeviceTestRow[], id: string, receivedTime: 
     result: passed ? "OK" : "VAR",
     notes: passed ? row.notes : `Waterflow test failed; exceeded 90 seconds${duration === null ? "." : ` (${duration} seconds).`}`,
   }, onChange);
+}
+
+function applyManualLineSecurity(row: DeviceTestRow, receivedTime: string, expectedSeconds: number, onChange: (update: Partial<DeviceTestRow>) => void) {
+  const duration = secondsBetween(row.tripTime, receivedTime);
+  const passed = duration !== null && duration <= expectedSeconds;
+  onChange({
+    timeReceived: receivedTime,
+    waterflowElapsedSeconds: 0,
+    functional: true,
+    lineSecurity: true,
+    result: duration === null ? row.result : passed ? "OK" : "VAR",
+    notes: duration === null || passed ? row.notes : `Line security check-in exceeded the expected ${expectedSeconds} second interval (${duration} seconds).`,
+  });
+}
+
+function completeLineSecurityTest(row: DeviceTestRow, receivedTime: string, expectedSeconds: number, onChange: (update: Partial<DeviceTestRow>) => void) {
+  const duration = secondsBetween(row.tripTime, receivedTime);
+  const passed = duration !== null && duration <= expectedSeconds;
+  onChange({
+    timeReceived: receivedTime,
+    waterflowElapsedSeconds: 0,
+    functional: true,
+    lineSecurity: true,
+    result: passed ? "OK" : "VAR",
+    notes: passed ? row.notes : `Line security check-in exceeded the expected ${expectedSeconds} second interval${duration === null ? "." : ` (${duration} seconds).`}`,
+  });
+}
+
+function markLineSecurityNotReceived(row: DeviceTestRow, stoppedTime: string, expectedSeconds: number, onChange: (update: Partial<DeviceTestRow>) => void) {
+  const duration = secondsBetween(row.tripTime, stoppedTime);
+  onChange({
+    timeReceived: "",
+    waterflowElapsedSeconds: duration ?? expectedSeconds,
+    functional: true,
+    lineSecurity: true,
+    result: "VAR",
+    notes: `Line security check-in was not received after waiting ${duration ?? expectedSeconds} seconds.`,
+  });
 }
 
 function markWaterflowNotReceived(rows: DeviceTestRow[], id: string, stoppedTime: string, onChange: (rows: DeviceTestRow[]) => void) {
@@ -278,6 +488,34 @@ function elapsedColorClass(seconds: number | null) {
   return "bg-red-100 text-red-800";
 }
 
+function elapsedColorClassForLimit(seconds: number | null, limit: number) {
+  if (seconds === null) return "bg-slate-100 text-slate-600";
+  const ratio = seconds / limit;
+  if (ratio < 0.65) return "bg-emerald-100 text-emerald-800";
+  if (ratio < 0.8) return "bg-lime-100 text-lime-800";
+  if (ratio < 0.92) return "bg-amber-100 text-amber-900";
+  if (ratio < 1) return "bg-orange-100 text-orange-900";
+  return "bg-red-100 text-red-800";
+}
+
+function hasLineSecurityRequirement(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return Boolean(normalized && !["no", "none", "n/a", "na", "not applicable", "without line security"].includes(normalized));
+}
+
+function defaultLineSecurityInterval(value: string) {
+  return /dual/i.test(value) ? 360 : 200;
+}
+
+function TimeReadout({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase text-sky-700">{label}</div>
+      <div className="font-mono text-lg font-bold">{value}</div>
+    </div>
+  );
+}
+
 function toggleTestFlag(rows: DeviceTestRow[], id: string, key: DeviceTestFlag, onChange: (rows: DeviceTestRow[]) => void) {
   const row = rows.find((item) => item.id === id);
   if (!row) return;
@@ -290,6 +528,5 @@ function toggleTestFlag(rows: DeviceTestRow[], id: string, key: DeviceTestFlag, 
     alarm: key === "alarm" ? nextSelected : false,
     supervisory: key === "supervisory" ? nextSelected : false,
     trouble: key === "trouble" ? nextSelected : false,
-    lineSecurity: key === "lineSecurity" ? nextSelected : false,
   }, onChange);
 }
