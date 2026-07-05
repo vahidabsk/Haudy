@@ -15,6 +15,7 @@ import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareSto
 import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
+import { isProtectedAreaAudit } from "../lib/audit-program";
 
 interface DuplicateUploadReview {
   certificates: ParsedCertificate[];
@@ -164,9 +165,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }
 
   function setClearanceResponseReceived(group: AssignmentGroup, received: boolean) {
-    const existingReport = loadAscDocuments()[group.key]?.report;
+    const documentKey = dashboardReportKey(group);
+    const existingReport = loadAscDocuments()[group.key]?.[documentKey];
     if (!existingReport) return;
-    const next = updateAscDocumentDraft(group.key, "report", {
+    const next = updateAscDocumentDraft(group.key, documentKey, {
       ...existingReport,
       clearanceResponseReceived: received,
       clearanceResponseAt: received ? new Date().toISOString() : "",
@@ -175,9 +177,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }
 
   function markReportSent(group: AssignmentGroup, clearanceStartDate: string) {
-    const existingReport = loadAscDocuments()[group.key]?.report;
+    const documentKey = dashboardReportKey(group);
+    const existingReport = loadAscDocuments()[group.key]?.[documentKey];
     if (!existingReport) return;
-    const next = updateAscDocumentDraft(group.key, "report", {
+    const next = updateAscDocumentDraft(group.key, documentKey, {
       ...existingReport,
       sentToClient: true,
       reportSentAt: new Date().toISOString(),
@@ -273,13 +276,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               ))}
             </div>
             {activeJobTab === "pool" ? (
-              <label className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 focus-within:border-sky-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-sky-100">
-                <Search size={17} />
+              <label className="flex min-h-14 items-center gap-3 rounded-lg border-2 border-sky-200 bg-sky-50 px-4 text-sm text-sky-900 shadow-sm focus-within:border-navy focus-within:bg-white focus-within:ring-2 focus-within:ring-navy/15">
+                <Search size={20} />
                 <input
-                  className="min-w-0 flex-1 bg-transparent py-2 font-medium text-slate-800 outline-none placeholder:text-slate-400"
+                  className="min-w-0 flex-1 bg-transparent py-3 text-base font-semibold text-navy outline-none placeholder:text-sky-700/60"
                   value={poolSearch}
                   onChange={(event) => setPoolSearch(event.target.value)}
-                  placeholder="Search Pool of Jobs by ASC name or PSN"
+                  placeholder="Search Pool of Jobs by ASC name or PSN..."
                 />
               </label>
             ) : null}
@@ -297,6 +300,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const documents = ascDocuments[group.key];
           const confirmationSaved = documents?.confirmation?.saved;
           const reportSaved = documents?.report?.saved;
+          const crzhReportSaved = documents?.crzhReport?.saved;
+          const hasCrzhCertificates = group.audits.some(isProtectedAreaAudit);
+          const hasNonCrzhCertificates = group.audits.some((audit) => !isProtectedAreaAudit(audit));
+          const dashboardReport = documents?.[dashboardReportKey(group)];
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
           <section id={ascCardDomId(group.key)} key={group.key} className={`grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName}`}>
@@ -324,13 +331,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                       <input
                         type="checkbox"
                         className="h-5 w-5 accent-emerald-600"
-                        checked={Boolean(documents?.report?.clearanceResponseReceived)}
+                        checked={Boolean(dashboardReport?.clearanceResponseReceived)}
                         onChange={(event) => setClearanceResponseReceived(group, event.target.checked)}
                       />
                       Response to deficiencies received
                     </label>
                   ) : null}
-                  {shouldShowReportSentToggle(documents) ? (
+                  {shouldShowReportSentToggle(group, documents) ? (
                     <button
                       type="button"
                       className="mt-3 inline-flex min-h-10 w-fit items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-50"
@@ -361,9 +368,20 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   <span className="font-semibold text-navy">PSN:</span> {profile.psn}
                   <div className="mt-1 text-xs text-slate-500">
                     Confirmation: {confirmationSaved ? `saved ${relativeTime(documents.confirmation?.updatedAt || "")}` : "not saved yet"}
-                    <span className="mx-2 text-slate-300">|</span>
-                    Report: {reportSaved ? `saved ${relativeTime(documents.report?.updatedAt || "")}` : "not saved yet"}
+                    {hasNonCrzhCertificates ? (
+                      <>
+                        <span className="mx-2 text-slate-300">|</span>
+                        Report: {reportSaved ? `saved ${relativeTime(documents.report?.updatedAt || "")}` : "not saved yet"}
+                      </>
+                    ) : null}
+                    {hasCrzhCertificates ? (
+                      <>
+                        <span className="mx-2 text-slate-300">|</span>
+                        CRZH Report: {crzhReportSaved ? `saved ${relativeTime(documents.crzhReport?.updatedAt || "")}` : "not saved yet"}
+                      </>
+                    ) : null}
                     {documents?.report?.reportCreated ? <span className="ml-2 font-semibold text-sky-700">PDF created</span> : null}
+                    {documents?.crzhReport?.reportCreated ? <span className="ml-2 font-semibold text-violet-700">CRZH PDF created</span> : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -393,12 +411,22 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   }}>
                     <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : "Create Confirmation"}
                   </button>
-                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
-                    const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
-                    navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
-                  }}>
-                    <FileText size={16} /> {reportSaved ? "View / Edit Report" : "Create Report"}
-                  </button>
+                  {hasNonCrzhCertificates ? (
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
+                      const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
+                      navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
+                    }}>
+                      <FileText size={16} /> {reportSaved ? "View / Edit Report" : "Create Report"}
+                    </button>
+                  ) : null}
+                  {hasCrzhCertificates ? (
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-900 hover:bg-violet-100" onClick={() => {
+                      const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn, kind: "crzh" });
+                      navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
+                    }}>
+                      <FileText size={16} /> {crzhReportSaved ? "View / Edit CRZH Report" : "Create CRZH Report"}
+                    </button>
+                  ) : null}
                   <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteAscGroup(group)}>
                     <Trash2 size={16} /> Delete ASC
                   </button>
@@ -452,7 +480,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       {reportSentGroup ? (
         <ReportSentDialog
           group={reportSentGroup}
-          report={ascDocuments[reportSentGroup.key]?.report}
+          report={ascDocuments[reportSentGroup.key]?.[dashboardReportKey(reportSentGroup)]}
           onCancel={() => setReportSentGroup(null)}
           onConfirm={(date) => markReportSent(reportSentGroup, date)}
         />
@@ -768,6 +796,14 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
 
   const propertyCategories = groupPropertiesByCategory(group.audits);
 
+  useEffect(() => {
+    const auditId = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    if (!auditId) return;
+    const element = document.getElementById(propertyCardDomId(auditId));
+    if (!element) return;
+    window.setTimeout(() => element.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+  }, [group.key, group.audits.length]);
+
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       <Link className="inline-flex w-fit items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm font-medium text-navy" to={`/#${encodeURIComponent(group.key)}`}><ArrowLeft size={16} /> Back to ASCs</Link>
@@ -837,7 +873,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700">{categoryAudits.length} propert{categoryAudits.length === 1 ? "y" : "ies"}</span>
             </div>
             {categoryAudits.map((audit) => (
-              <article key={audit.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
+              <article id={propertyCardDomId(audit.id)} key={audit.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
@@ -939,6 +975,10 @@ function ascCardDomId(key: string) {
   return `asc-card-${key.replace(/[^a-z0-9_-]/gi, "-")}`;
 }
 
+function propertyCardDomId(auditId: string) {
+  return `property-card-${auditId.replace(/[^a-z0-9_-]/gi, "-")}`;
+}
+
 function groupMatchesPoolSearch(group: AssignmentGroup, search: string) {
   const query = search.trim().toLowerCase();
   if (!query) return true;
@@ -978,7 +1018,7 @@ function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
 
 function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): HomeJobStatusDetails {
   const confirmation = documents?.confirmation;
-  const report = documents?.report;
+  const report = documents?.[dashboardReportKey(group)];
   const deficiencyCount = groupDeficiencyCount(group, documents);
   const today = startOfLocalDay(new Date());
   const auditStart = parseLocalDate(confirmation?.startDate);
@@ -1076,17 +1116,26 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
 }
 
 function shouldShowClearanceToggle(group: AssignmentGroup, documents?: AscDocumentState) {
-  return Boolean(documents?.report?.sentToClient && groupDeficiencyCount(group, documents) > 0);
+  return Boolean(documents?.[dashboardReportKey(group)]?.sentToClient && groupDeficiencyCount(group, documents) > 0);
 }
 
-function shouldShowReportSentToggle(documents?: AscDocumentState) {
-  return Boolean(documents?.report?.reportCreated && !documents.report.sentToClient);
+function shouldShowReportSentToggle(group: AssignmentGroup, documents?: AscDocumentState) {
+  const report = documents?.[dashboardReportKey(group)];
+  return Boolean(report?.reportCreated && !report.sentToClient);
 }
 
 function groupDeficiencyCount(group: AssignmentGroup, documents?: AscDocumentState) {
-  const serviceCenterComments = documents?.report?.serviceCenterHasComment ? documents.report.serviceCenterComments || [] : [];
+  const documentKey = dashboardReportKey(group);
+  const report = documents?.[documentKey];
+  const serviceCenterComments = report?.serviceCenterHasComment ? report.serviceCenterComments || [] : [];
   const serviceCenterCount = serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()).length;
-  return serviceCenterCount + group.audits.reduce((total, audit) => total + auditDeficiencyCount(audit), 0);
+  const reportAudits = group.audits.filter((audit) => documentKey === "crzhReport" ? isProtectedAreaAudit(audit) : !isProtectedAreaAudit(audit));
+  return serviceCenterCount + reportAudits.reduce((total, audit) => total + auditDeficiencyCount(audit), 0);
+}
+
+function dashboardReportKey(group: AssignmentGroup): "report" | "crzhReport" {
+  const hasNonCrzh = group.audits.some((audit) => !isProtectedAreaAudit(audit));
+  return hasNonCrzh ? "report" : "crzhReport";
 }
 
 function auditDeficiencyCount(audit: Audit) {

@@ -324,7 +324,6 @@ function referenceFiles(audits: Audit[]) {
   for (const audit of audits) {
     const certificate = primaryCertificate(audit);
     if (certificate?.fileNo) references.add(certificate.fileNo);
-    if (certificate?.ccn) references.add(certificate.ccn);
   }
   return Array.from(references).join(", ");
 }

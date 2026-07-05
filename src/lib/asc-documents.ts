@@ -38,6 +38,7 @@ export interface ServiceCenterComment {
 export interface AscDocumentState {
   confirmation?: SavedDocumentStatus;
   report?: SavedDocumentStatus;
+  crzhReport?: SavedDocumentStatus;
 }
 
 export type AscDocuments = Record<string, AscDocumentState>;

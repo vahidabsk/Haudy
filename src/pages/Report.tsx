@@ -12,6 +12,7 @@ import { loadPhoto } from "../lib/photo-store";
 import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
+import { isProtectedAreaAudit } from "../lib/audit-program";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
 type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests" | "sectionReview";
@@ -47,29 +48,34 @@ interface ReportPhotoItem {
 export function ReportPage({ auditor }: { auditor: Auditor | null }) {
   const { ascKey = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const reportKind = searchParams.get("kind") === "crzh" ? "crzh" : "standard";
   const auditorName = auditor?.name || "";
   const store = useAudits(auditorName);
   const assignmentGroups = groupAssignmentsAndAudits(loadAuditAssignments(), store.audits);
   const group = assignmentGroups.find((item) => item.key === decodeURIComponent(ascKey)) || groupByAsc(store.audits).find((item) => item.key === decodeURIComponent(ascKey));
   if (!group) return <main className="p-6">ASC not found.</main>;
+  const reportAudits = group.audits.filter((audit) => reportKind === "crzh" ? isProtectedAreaAudit(audit) : !isProtectedAreaAudit(audit));
+  const filteredGroup = { ...group, audits: reportAudits };
 
   return (
     <ReportDocument
-      group={group}
+      group={filteredGroup}
       ascKey={decodeURIComponent(ascKey)}
       auditor={auditor}
       pocName={searchParams.get("poc") || ""}
       scn={searchParams.get("scn") || ""}
       psn={searchParams.get("psn") || ""}
+      reportKind={reportKind}
     />
   );
 }
 
-function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string }) {
+function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind }: { group: AscGroup; ascKey: string; auditor: Auditor | null; pocName: string; scn: string; psn: string; reportKind: "standard" | "crzh" }) {
   const navigate = useNavigate();
   const [savedAt, setSavedAt] = useState("");
   const [folderMessage, setFolderMessage] = useState("");
-  const savedReportDraft = loadAscDocuments()[ascKey]?.report;
+  const reportDocumentKey = reportKind === "crzh" ? "crzhReport" : "report";
+  const savedReportDraft = loadAscDocuments()[ascKey]?.[reportDocumentKey];
   const [draftAudits, setDraftAudits] = useState<Audit[]>(() => cloneAudits(group.audits));
   const [serviceCenterHasComment, setServiceCenterHasComment] = useState(savedReportDraft?.serviceCenterHasComment ?? false);
   const [serviceCenterDone, setServiceCenterDone] = useState(savedReportDraft?.serviceCenterDone ?? false);
@@ -87,7 +93,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
   const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some(serviceCenterCommentNeedsAttention);
   const reportDate = dateFromInput(reportLetterDate);
   const fileReferences = referenceFiles(group.audits);
-  const reportName = reportFileName(group, reportDate, fileReferences, scn);
+  const reportName = reportFileName(group, reportDate, fileReferences, scn, reportKind);
   const activeAudit = reportAudits.find((audit) => audit.id === activeAuditId) || reportAudits[0];
   const activeItems = activeAudit ? reportItems.filter(({ audit }) => audit.id === activeAudit.id) : [];
   const activeSignalItems = activeItems.filter(({ item }) => item.reviewType === "Signal Processing Review");
@@ -117,8 +123,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
     const draftById = new Map(draftAudits.map((audit) => [audit.id, audit]));
     const nextAudits = allAudits.map((audit) => draftById.get(audit.id) || audit);
     saveAudits(nextAudits);
-    const next = saveAscDocument(ascKey, "report", { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
-    setSavedAt(next[ascKey]?.report?.updatedAt || "");
+    const next = saveAscDocument(ascKey, reportDocumentKey, { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+    setSavedAt(next[ascKey]?.[reportDocumentKey]?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
     if (canSaveDocumentsToFolder()) {
       try {
@@ -132,7 +138,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
   }
 
   function markReportCreated() {
-    const next = saveAscDocument(ascKey, "report", {
+    const next = saveAscDocument(ascKey, reportDocumentKey, {
       pocName,
       scn,
       psn,
@@ -148,7 +154,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
       clearanceResponseReceived: savedReportDraft?.clearanceResponseReceived,
       clearanceResponseAt: savedReportDraft?.clearanceResponseAt,
     });
-    setSavedAt(next[ascKey]?.report?.updatedAt || "");
+    setSavedAt(next[ascKey]?.[reportDocumentKey]?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
   }
 
@@ -221,7 +227,10 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn }: { group: 
         </div>
         <div>
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
-          <p className="mt-1 text-sm text-slate-600">{reportItems.length} deficienc{reportItems.length === 1 ? "y" : "ies"} noted from completed field notes. Complete the report language before printing.</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {reportKind === "crzh" ? "CRZH report only. " : ""}
+            {reportItems.length} deficienc{reportItems.length === 1 ? "y" : "ies"} noted from completed field notes. Complete the report language before printing.
+          </p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1414,15 +1423,15 @@ function referenceFiles(audits: Audit[]) {
   audits.forEach((audit) => {
     const certificate = primaryCertificate(audit);
     if (certificate?.fileNo) values.add(certificate.fileNo);
-    if (certificate?.ccn) values.add(certificate.ccn);
   });
   return Array.from(values).join(", ");
 }
 
-function reportFileName(group: AscGroup, date: Date, files: string, scn: string) {
+function reportFileName(group: AscGroup, date: Date, files: string, scn: string, reportKind: "standard" | "crzh") {
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const categorySuffix = Array.from(new Set(group.audits.map((audit) => categoryOutputCode(primaryCertificate(audit)?.categoryCode || "")).filter(Boolean))).join("_");
-  return [`Report_${date.getFullYear()}_${group.ascName.toUpperCase()}${cityStateCode(ascAddress) ? `-${cityStateCode(ascAddress)}` : ""}`, filesForName(files), `SCN${scn}`, categorySuffix].filter(Boolean).join("_");
+  const prefix = reportKind === "crzh" ? "CRZH_Report" : "Report";
+  return [`${prefix}_${date.getFullYear()}_${group.ascName.toUpperCase()}${cityStateCode(ascAddress) ? `-${cityStateCode(ascAddress)}` : ""}`, filesForName(files), `SCN${scn}`, categorySuffix].filter(Boolean).join("_");
 }
 
 function filesForName(files: string) {
