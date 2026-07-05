@@ -12,7 +12,7 @@ import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/aud
 import { openAuditTracker } from "../lib/desktop-bridge";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
-import { Audit, ParsedCertificate } from "../lib/types";
+import { Audit, AuditAssignment, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
 import { isProtectedAreaAudit } from "../lib/audit-program";
@@ -129,6 +129,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }
 
   async function addCertificatesToGroup(group: AssignmentGroup, certificates: ParsedCertificate[]) {
+    const mismatch = findWrongAscCertificate(group, certificates, assignments);
+    if (mismatch) return mismatch;
     const adjustedCertificates = certificates.map((certificate) => ({ ...certificate, ...assignmentCertificateOverrides(group) }));
     const existingByKey = new Map(audits.audits.map((audit) => [auditIdentity(audit), audit]));
     const duplicates = adjustedCertificates
@@ -1152,6 +1154,43 @@ function auditDeficiencyCount(audit: Audit) {
   count += audit.deviceTests.filter((row) => row.result === "VAR").length;
   count += Object.values(audit.reportExtraFindings || {}).reduce((total, entries) => total + entries.filter((entry) => entry.finding.trim() || entry.requiredAction.trim()).length, 0);
   return count;
+}
+
+function findWrongAscCertificate(group: AssignmentGroup, certificates: ParsedCertificate[], assignments: AuditAssignment[]) {
+  for (const certificate of certificates) {
+    const assignedAsc = assignmentForCertificate(certificate, assignments);
+    if (assignedAsc && assignmentDashboardKey(assignedAsc) !== group.key) {
+      return `This certificate belongs to ${assignedAsc.ascName || "another ASC"}. Open that ASC card before uploading ${certificate.certificateNumber || certificate.fileNo || "this certificate"}.`;
+    }
+    if (certificate.ascName && group.ascName && normalizeAscText(certificate.ascName) !== normalizeAscText(group.ascName)) {
+      return `This certificate belongs to ${certificate.ascName}. Open that ASC card before uploading ${certificate.certificateNumber || certificate.fileNo || "this certificate"}.`;
+    }
+  }
+  return "";
+}
+
+function assignmentForCertificate(certificate: ParsedCertificate, assignments: AuditAssignment[]) {
+  const certificateFile = normalizeAscText(certificate.fileNo || "");
+  const certificateCcn = normalizeAscText(certificate.ccn || "");
+  if (!certificateFile) return undefined;
+  return assignments.find((assignment) => {
+    const fileMatches = normalizeAscText(assignment.fileNo) === certificateFile;
+    const ccnMatches = !certificateCcn || !assignment.ccn || normalizeAscText(assignment.ccn) === certificateCcn;
+    return fileMatches && ccnMatches;
+  });
+}
+
+function assignmentDashboardKey(assignment: Pick<AuditAssignment, "ascName" | "ascCity" | "ascState" | "psn">) {
+  return [
+    assignment.ascName || "ASC not set",
+    assignment.ascCity || "",
+    assignment.ascState || "",
+    assignment.psn || "",
+  ].join("|");
+}
+
+function normalizeAscText(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function parseLocalDate(value: string | undefined) {

@@ -12,6 +12,7 @@ const LEGACY_PROFILE_DEFAULTS = {
   phone: "+1.510.358.6443",
   email: "Vahid.Abbasikoohenjani@ul.com",
 };
+const AUDITOR_DEPARTMENT_DEFAULT = "Built Environment - Critical Infrastructure Service\nFire and Security Service Solutions";
 
 export const documentationElements = [
   "Record Drawings (As Builts)",
@@ -152,7 +153,7 @@ function normalizeAuditor(auditor: Partial<Auditor> & { name: string }): Auditor
   return {
     name: auditor.name?.trim() || "",
     title: auditor.title?.trim() || "",
-    department: auditor.department?.trim() || "",
+    department: normalizeAuditorDepartment(auditor.department),
     phone: auditor.phone?.trim() || "",
     email: auditor.email?.trim() || "",
     since: auditor.since || nowIso(),
@@ -173,6 +174,12 @@ function clearLegacyProfileDefaults(auditor: Auditor): Auditor {
 function clearLegacyProfileValue(value: string | undefined, legacyDefault: string) {
   const normalizedValue = value?.trim() || "";
   return normalizedValue === legacyDefault ? "" : normalizedValue;
+}
+
+function normalizeAuditorDepartment(value: string | undefined) {
+  const normalizedValue = value?.trim() || "";
+  if (!normalizedValue || normalizedValue === LEGACY_PROFILE_DEFAULTS.department) return AUDITOR_DEPARTMENT_DEFAULT;
+  return normalizedValue;
 }
 
 export function loadAudits(): Audit[] {

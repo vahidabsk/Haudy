@@ -36,7 +36,7 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
     psn: group.psn,
     audits: group.audits,
   };
-  const fileName = `iHaudy_Field_Notes_${safeName(group.ascName || "ASC")}_${safeName(group.psn || "PSN")}_${timestampForFile()}.ihaudy-field-notes.json`;
+  const fileName = `import it to iHaudy - ${safeName(group.ascName || "ASC")} - ${timestampForFile()}.ihaudy-field-notes.json`;
   const contents = JSON.stringify(payload, null, 2);
 
   if (canSaveDocumentsToFolder() && hasDesktopBridge()) {
@@ -195,13 +195,9 @@ function folderYear(group: AssignmentGroup) {
 function timestampForFile() {
   const now = new Date();
   return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-    String(now.getHours()).padStart(2, "0"),
-    String(now.getMinutes()).padStart(2, "0"),
-    String(now.getSeconds()).padStart(2, "0"),
-  ].join("");
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+    `${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(2, "0")}-${String(now.getSeconds()).padStart(2, "0")}`,
+  ].join(" ");
 }
 
 function safeName(value: string) {

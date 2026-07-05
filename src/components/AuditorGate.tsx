@@ -3,10 +3,19 @@ import { Auditor } from "../lib/types";
 
 type AuditorProfileInput = Omit<Auditor, "since" | "updatedAt">;
 
+const auditorTitles = [
+  "Alarm System Auditor",
+  "Senior Alarm System Auditor",
+  "Lead Auditor Specialist",
+  "Lead Auditor Technologist",
+];
+
+const defaultDepartment = "Built Environment - Critical Infrastructure Service\nFire and Security Service Solutions";
+
 const defaultProfile: AuditorProfileInput = {
   name: "",
-  title: "",
-  department: "",
+  title: auditorTitles[0],
+  department: defaultDepartment,
   phone: "",
   email: "",
 };
@@ -42,21 +51,25 @@ export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Title
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} />
+                <input className="min-h-11 rounded-md border border-slate-300 px-3" list="auditor-title-options" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} />
+                <datalist id="auditor-title-options">
+                  {auditorTitles.map((title) => <option key={title} value={title} />)}
+                </datalist>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Department
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" value={profile.department} onChange={(event) => setProfile({ ...profile, department: event.target.value })} />
+                <textarea className="min-h-20 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-slate-700" value={defaultDepartment} readOnly />
               </label>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Phone
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} />
+                <input className="min-h-11 rounded-md border border-slate-300 px-3" inputMode="tel" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: formatPhone(event.target.value) })} placeholder="(123) 456 - 7890" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Email
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} />
+                <input className="min-h-11 rounded-md border border-slate-300 px-3" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} placeholder="name@ul.com" />
+                {profile.email.trim() && !validUlEmail(profile.email) ? <span className="text-xs font-semibold text-red-700">Use your UL email address ending in @ul.com.</span> : null}
               </label>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
@@ -75,15 +88,27 @@ export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { 
 }
 
 function completeProfile(profile?: Partial<AuditorProfileInput> | null) {
-  return Boolean(profile?.name?.trim() && profile.title?.trim() && profile.department?.trim() && profile.phone?.trim() && profile.email?.trim());
+  return Boolean(profile?.name?.trim() && profile.title?.trim() && profile.phone?.trim() && validUlEmail(profile.email));
 }
 
 function trimProfile(profile: AuditorProfileInput): AuditorProfileInput {
   return {
     name: profile.name.trim(),
-    title: profile.title.trim(),
-    department: profile.department.trim(),
-    phone: profile.phone.trim(),
+    title: profile.title.trim() || auditorTitles[0],
+    department: defaultDepartment,
+    phone: formatPhone(profile.phone),
     email: profile.email.trim(),
   };
+}
+
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  if (!digits) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6)}`;
+}
+
+function validUlEmail(value?: string) {
+  return /^[^\s@]+@ul\.com$/i.test(value?.trim() || "");
 }
