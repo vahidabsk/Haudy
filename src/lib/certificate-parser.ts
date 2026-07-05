@@ -60,7 +60,7 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
   const ccn = firstValue(fullLines, /^CCN:\s*(.+)$/i) || firstValue(lines, /^CCN:\s*(.+)$/i) || fullFlat.match(/\bCCN:\s*([A-Z0-9.-]+)/i)?.[1];
   const issuedLine = firstLineMatching(fullLines, /^Issued:/i) || fullFlat.match(/\bIssued:\s*[0-9/]+(?:\s+Revised:\s*[0-9/]+)?/i)?.[0] || "";
   const revisedLine = firstLineMatching(fullLines, /^Revised:/i) || issuedLine;
-  const standardMatch = fullFlat.match(/accordance\s+with\s+standard\s+(NFPA\s*72\s*[- ]\s*\d{4}|UL\s*681)/i);
+  const standardMatch = fullFlat.match(/accordance\s+with\s+standard\s+(NFPA\s*72\s*[- ]\s*\d{4}|UL\s*681|UL\s*2050)/i);
   const coverageMatch = joined.match(/Coverage\s+is\s+([^\n]+)/i) || flat.match(/Coverage\s+is\s+([^]+?)(?=\b(?:Issued|Revised|Monitoring Location|SN|File No|Protected Property|Alarm Service Company)\b|$)/i);
 
   return {
@@ -253,7 +253,7 @@ function firstValue(lines: string[], pattern: RegExp) {
 }
 
 function firstCategoryCode(text: string) {
-  return text.match(/\b(UUFX|UUJS|UUHX|UUFM|CVSG)\b/i)?.[1]?.toUpperCase();
+  return text.match(/\b(UUFX|UUJS|UUHX|UUFM|CVSG|CRZH)\b/i)?.[1]?.toUpperCase();
 }
 
 function labelValue(text: string, label: string) {

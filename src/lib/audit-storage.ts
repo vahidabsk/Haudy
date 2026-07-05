@@ -86,6 +86,49 @@ export const mercantileInstallationElements = [
   "Other:",
 ];
 
+export const protectedAreaDocumentationElements = [
+  "Authorized User List",
+  "Annual Inspection / Service Records",
+  "ASD Form",
+  "Contracts (Mon., Inv., & Serv.)",
+  "UL2050 & UL681 Standards",
+  "Training Log (Inv., User. & Mon.)",
+  "OTHER",
+];
+
+export const protectedAreaInstallationElements = [
+  "Control & Communication",
+  "Enclosure",
+  "Tamper(s)",
+  "Grounding",
+  "Power Supplies",
+  "Batteries",
+  "Programming",
+  "Line Security (LS)",
+  "Encryption",
+  "Equipment Supervision",
+  "Sounding Device",
+  "Device Wire Protection",
+  "Physical Boundary",
+  "Detector Coverage",
+  "Det. Cov. - SCIF/SAP",
+  "Intrusion Detector(s) W/Tampers",
+  "Contact(s) W/Tampers",
+  "Wiring / Workmanship",
+  "EOLR Placement",
+  "Containers",
+  "Detector Coverage",
+  "Contact(s)",
+  "Wiring",
+  "OTHER",
+];
+
+function defaultCodeStandard(program: ReturnType<typeof certificateProgram>) {
+  if (program === "mercantile") return "UL 681";
+  if (program === "protectedArea") return "UL 2050";
+  return "NFPA 72";
+}
+
 export function loadAuditor(): Auditor | null {
   const auditor = readJson<Auditor | null>(AUDITOR_KEY, null);
   if (!auditor) return null;
@@ -143,7 +186,8 @@ export function saveAudits(audits: Audit[]) {
 export function createAuditFromCertificate(certificate: ParsedCertificate, auditorName: string): Audit {
   const now = nowIso();
   const program = certificateProgram(certificate);
-  const standard = program === "mercantile" ? certificate.standardReferenced || "UL 681" : certificate.standardReferenced || "";
+  const defaultCode = defaultCodeStandard(program);
+  const standard = program === "fire" ? certificate.standardReferenced || "" : certificate.standardReferenced || defaultCode;
   const rowSets = auditRowElementsForProgram(program);
   return {
     id: uid("audit"),
@@ -164,7 +208,7 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     signalReviewNotes: "",
     signalReviewReportFinding: "",
     signalReviewReportRequiredAction: "",
-    signalReviewReportCodeStandard: program === "mercantile" ? "UL 681" : "",
+    signalReviewReportCodeStandard: program === "fire" ? "" : defaultCode,
     signalReviewReportCodeEdition: "",
     signalReviewReportCodeSection: "",
     autoTestsStatus: "",
@@ -172,21 +216,21 @@ export function createAuditFromCertificate(certificate: ParsedCertificate, audit
     documentationReviewNotes: "",
     documentationReviewReportFinding: "",
     documentationReviewReportRequiredAction: "",
-    documentationReviewReportCodeStandard: program === "mercantile" ? "UL 681" : "",
+    documentationReviewReportCodeStandard: program === "fire" ? "" : defaultCode,
     documentationReviewReportCodeEdition: "",
     documentationReviewReportCodeSection: "",
     installationReviewed: true,
     installationReviewNotes: "",
     installationReviewReportFinding: "",
     installationReviewReportRequiredAction: "",
-    installationReviewReportCodeStandard: program === "mercantile" ? "UL 681" : "",
+    installationReviewReportCodeStandard: program === "fire" ? "" : defaultCode,
     installationReviewReportCodeEdition: "",
     installationReviewReportCodeSection: "",
     deviceTestingReviewed: true,
     deviceTestingNotes: "",
     deviceTestingReportFinding: "",
     deviceTestingReportRequiredAction: "",
-    deviceTestingReportCodeStandard: program === "mercantile" ? "UL 681" : "",
+    deviceTestingReportCodeStandard: program === "fire" ? "" : defaultCode,
     deviceTestingReportCodeEdition: "",
     deviceTestingReportCodeSection: "",
     matchesCertificateStatus: "",
@@ -291,7 +335,7 @@ function normalizeAudit(audit: Audit): Audit {
   const ascLocation = cityStateFromAddress(primaryCertificate?.ascAddress);
   const program = auditProgram(audit);
   const rowSets = auditRowElementsForProgram(program);
-  const defaultCode = program === "mercantile" ? "UL 681" : "NFPA 72";
+  const defaultCode = defaultCodeStandard(program);
   return {
     ...audit,
     ascCity: audit.ascCity ?? primaryCertificate?.ascCity ?? ascLocation.city,
@@ -353,10 +397,10 @@ function normalizeAudit(audit: Audit): Audit {
   };
 }
 
-function auditRowElementsForProgram(program: "fire" | "mercantile") {
-  return program === "mercantile"
-    ? { documentation: mercantileDocumentationElements, installation: mercantileInstallationElements }
-    : { documentation: documentationElements, installation: installationElements };
+function auditRowElementsForProgram(program: ReturnType<typeof certificateProgram>) {
+  if (program === "mercantile") return { documentation: mercantileDocumentationElements, installation: mercantileInstallationElements };
+  if (program === "protectedArea") return { documentation: protectedAreaDocumentationElements, installation: protectedAreaInstallationElements };
+  return { documentation: documentationElements, installation: installationElements };
 }
 
 function normalizeReportExtraFindings(findings: Audit["reportExtraFindings"]): Audit["reportExtraFindings"] {

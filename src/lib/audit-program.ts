@@ -1,10 +1,12 @@
 import { Audit, ParsedCertificate } from "./types";
 
-export type AuditProgram = "fire" | "mercantile";
+export type AuditProgram = "fire" | "mercantile" | "protectedArea";
 
 export function certificateProgram(certificate?: ParsedCertificate): AuditProgram {
   const code = (certificate?.categoryCode || certificate?.ccn || "").trim().toUpperCase();
-  return code === "CVSG" ? "mercantile" : "fire";
+  if (code === "CVSG") return "mercantile";
+  if (code === "CRZH") return "protectedArea";
+  return "fire";
 }
 
 export function primaryCertificateForAudit(audit: Audit) {
@@ -17,4 +19,8 @@ export function auditProgram(audit: Audit): AuditProgram {
 
 export function isMercantileAudit(audit: Audit) {
   return auditProgram(audit) === "mercantile";
+}
+
+export function isProtectedAreaAudit(audit: Audit) {
+  return auditProgram(audit) === "protectedArea";
 }

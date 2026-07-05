@@ -407,7 +407,7 @@ function groupByCategory(audits: Audit[]) {
 }
 
 function categoryFromText(value: string) {
-  return value.match(/\b(UUFX|UUJS|UUHX|UUFM)\b/i)?.[1]?.toUpperCase();
+  return value.match(/\b(UUFX|UUJS|UUHX|UUFM|CVSG|CRZH)\b/i)?.[1]?.toUpperCase();
 }
 
 function fullName(name: string) {

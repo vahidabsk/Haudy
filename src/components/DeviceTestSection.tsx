@@ -77,12 +77,12 @@ const resultOptions = [
 
 export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage = "Device testing review marked No. Use the general variation note above to explain why device testing was not completed.", program = "fire", lineSecurityKind = "", onLocalSystemChange, onChange }: { rows: DeviceTestRow[]; localSystem: boolean; disabled?: boolean; disabledMessage?: string; program?: AuditProgram; lineSecurityKind?: string; onLocalSystemChange: (localSystem: boolean) => void; onChange: (rows: DeviceTestRow[]) => void }) {
   const [currentTime, setCurrentTime] = useState(() => timeStamp(new Date()));
-  const testOptions = program === "mercantile" ? mercantileTestOptions : fireTestOptions;
-  const isMercantile = program === "mercantile";
-  const deviceTypes = isMercantile ? mercantileDeviceTypes : fireDeviceTypes;
-  const showLineSecurityTest = isMercantile && hasLineSecurityRequirement(lineSecurityKind);
+  const isSecurityProgram = program === "mercantile" || program === "protectedArea";
+  const testOptions = isSecurityProgram ? mercantileTestOptions : fireTestOptions;
+  const deviceTypes = isSecurityProgram ? mercantileDeviceTypes : fireDeviceTypes;
+  const showLineSecurityTest = isSecurityProgram && hasLineSecurityRequirement(lineSecurityKind);
   const lineSecurityRow = rows.find((row) => row.deviceType === lineSecurityDeviceType);
-  const deviceRows = isMercantile ? rows.filter((row) => row.deviceType !== lineSecurityDeviceType) : rows;
+  const deviceRows = isSecurityProgram ? rows.filter((row) => row.deviceType !== lineSecurityDeviceType) : rows;
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(timeStamp(new Date())), 1000);
@@ -94,10 +94,10 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
       onChange([createLineSecurityRow(), ...rows]);
       return;
     }
-    if (!showLineSecurityTest && lineSecurityRow && isMercantile) {
+    if (!showLineSecurityTest && lineSecurityRow && isSecurityProgram) {
       onChange(rows.filter((row) => row.deviceType !== lineSecurityDeviceType));
     }
-  }, [showLineSecurityTest, lineSecurityRow?.id, isMercantile]);
+  }, [showLineSecurityTest, lineSecurityRow?.id, isSecurityProgram]);
 
   function setLocalSystem(nextLocalSystem: boolean) {
     onLocalSystemChange(nextLocalSystem);
@@ -106,7 +106,7 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
   return (
     <section className="grid gap-4">
       <h2 className="text-lg font-semibold text-navy">Device Testing</h2>
-      {!isMercantile ? <label className="grid gap-1 rounded-lg border bg-white p-4 text-sm font-medium text-slate-700">
+      {!isSecurityProgram ? <label className="grid gap-1 rounded-lg border bg-white p-4 text-sm font-medium text-slate-700">
         Is this a local system?
         <select className="min-h-11 rounded-md border px-3 disabled:bg-slate-100 disabled:text-slate-400" value={localSystem ? "YES" : "NO"} disabled={disabled} onChange={(event) => setLocalSystem(event.target.value === "YES")}>
           <option value="NO">No - signals report to monitoring station</option>

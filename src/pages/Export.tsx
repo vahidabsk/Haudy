@@ -8,8 +8,8 @@ import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFr
 import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { loadAscProfiles } from "../lib/asc-profile";
-import { isMercantileAudit } from "../lib/audit-program";
-import { mercantileDocumentationElements, mercantileInstallationElements } from "../lib/audit-storage";
+import { isMercantileAudit, isProtectedAreaAudit } from "../lib/audit-program";
+import { mercantileDocumentationElements, mercantileInstallationElements, protectedAreaDocumentationElements, protectedAreaInstallationElements } from "../lib/audit-storage";
 import { Audit, AuditRow, DeviceTestRow, SignalLogRow, StatusCode } from "../lib/types";
 
 const deviceRowsPage2 = 20;
@@ -40,7 +40,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
   }
 
   const attachmentRows = photoAttachments(audit);
-  const basePages = isMercantileAudit(audit) ? 1 : 3;
+  const basePages = isProtectedAreaAudit(audit) ? 2 : isMercantileAudit(audit) ? 1 : 3;
   const totalPages = basePages + Math.ceil(attachmentRows.length / 4);
   const exportFileName = fieldNotesName(audit);
 
@@ -99,7 +99,14 @@ function ExportDocument({ audit }: { audit: Audit }) {
         </div>
       </div>
       {folderMessage ? <div className="no-print mb-4 rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700">{folderMessage}</div> : null}
-      {isMercantileAudit(audit) ? (
+      {isProtectedAreaAudit(audit) ? (
+        <>
+          <ProtectedAreaFieldNotesPages audit={audit} />
+          {chunk(attachmentRows, 4).map((rows, index) => (
+            <AttachmentPage key={index} audit={audit} rows={rows} pageNumber={3 + index} totalPages={totalPages} />
+          ))}
+        </>
+      ) : isMercantileAudit(audit) ? (
         <>
           <MercantileFieldNotesPage audit={audit} />
           {chunk(attachmentRows, 4).map((rows, index) => (
@@ -157,6 +164,192 @@ function MercantileFieldNotesPage({ audit }: { audit: Audit }) {
         <div>{[audit.comments, audit.deviceTestingNotes, deviceTestComments(audit.deviceTests)].filter(Boolean).join("\n")}</div>
       </div>
     </section>
+  );
+}
+
+function ProtectedAreaFieldNotesPages({ audit }: { audit: Audit }) {
+  const documentationRows = protectedAreaDisplayRows(audit.documentation, protectedAreaDocumentationElements);
+  const installationRows = protectedAreaDisplayRows(audit.installation, protectedAreaInstallationElements);
+  const deviceRows = protectedAreaDeviceRowsForExport(audit);
+  return (
+    <>
+      <section className="print-page crzh-page bg-white text-black shadow-sm print:shadow-none">
+        <h1 className="crzh-title">UL 2050 Protected Area Audit Field Notes Form</h1>
+        <Header audit={audit} />
+        <ProtectedAreaChecklist title="Documentation Reviewed:" reviewed={audit.documentationReviewed} rows={documentationRows} />
+        <ProtectedAreaChecklist title="Installation Reviewed:" reviewed={audit.installationReviewed} rows={installationRows} />
+        <ProtectedAreaGuardService audit={audit} />
+        <ProtectedAreaDeviceTable rows={padDeviceRows(deviceRows, 5)} />
+      </section>
+      <section className="print-page crzh-page bg-white text-black shadow-sm print:shadow-none">
+        <h1 className="crzh-title">UL 2050 Protected Area Audit Field Notes Form</h1>
+        <Header audit={audit} />
+        <ProtectedAreaSignalReview audit={audit} />
+      </section>
+    </>
+  );
+}
+
+function ProtectedAreaChecklist({ title, reviewed, rows }: { title: string; reviewed: boolean; rows: AuditRow[] }) {
+  return (
+    <table className="crzh-table crzh-checklist">
+      <colgroup>
+        <col className="crzh-element-col" />
+        <col className="crzh-status-col" />
+        <col className="crzh-status-col" />
+        <col className="crzh-status-col" />
+        <col className="crzh-status-col" />
+        <col />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td colSpan={6} className="crzh-section-head">
+            {title} <Check checked={reviewed} /> YES <Check checked={!reviewed} /> NO
+            <span className="crzh-key">KEY: &nbsp; OK = In Conformance &nbsp;&nbsp; VAR = Variations Noted &nbsp;&nbsp; N/A = Not Applicable &nbsp;&nbsp; N/R = Not Reviewed</span>
+          </td>
+        </tr>
+        <tr className="crzh-table-head">
+          <th className="text-left">Element</th>
+          <th>OK</th>
+          <th>VAR</th>
+          <th>N/A</th>
+          <th>N/R</th>
+          <th className="text-left">Comments and / or Variations Noted - Variations shall be included in report</th>
+        </tr>
+        {rows.map((row, index) => (
+          <tr key={`${row.id}-${index}`} className="crzh-small-row">
+            <td className={crzhIndentClass(row.element)}>{row.element}</td>
+            <td><StatusCheck status={row.status} match="OK" /></td>
+            <td><StatusCheck status={row.status} match="VAR" /></td>
+            <td><StatusCheck status={row.status} match="NA" /></td>
+            <td><StatusCheck status={row.status} match="NR" /></td>
+            <td>{row.notes}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ProtectedAreaGuardService({ audit }: { audit: Audit }) {
+  const serviceRows = [
+    "Test Signal Initiation Time",
+    "Verification Call Time",
+    "Investigator Arrival Time",
+    "Elapsed Time",
+  ];
+  return (
+    <table className="crzh-table crzh-guard-table">
+      <colgroup>
+        <col className="crzh-guard-action-col" />
+        <col className="crzh-guard-time-col" />
+        <col />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td colSpan={3} className="crzh-section-head">
+            Guard Service Test: <Check checked={audit.deviceTestingReviewed} /> YES <Check checked={!audit.deviceTestingReviewed} /> NO
+            <span className="crzh-key">Signal Type used: &nbsp; <Check checked={false} /> 24 hour contact alarm &nbsp;&nbsp; <Check checked={false} /> Comm. Fail &nbsp;&nbsp; <Check checked={false} /> Other</span>
+          </td>
+        </tr>
+        {serviceRows.map((label) => (
+          <tr key={label} className="crzh-small-row">
+            <td>{label}</td>
+            <td>{label === "Elapsed Time" ? "" : "Time:"}</td>
+            <td>{label === "Elapsed Time" ? <>PASS <Check checked={false} /> &nbsp;&nbsp; FAIL <Check checked={false} /></> : null}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ProtectedAreaDeviceTable({ rows }: { rows: DeviceTestRow[] }) {
+  return (
+    <table className="crzh-table crzh-device-table">
+      <colgroup>
+        <col className="crzh-device-location-col" />
+        <col className="crzh-device-flag-col" />
+        <col className="crzh-device-flag-col" />
+        <col className="crzh-device-flag-col" />
+        <col className="crzh-device-flag-col" />
+        <col className="crzh-device-trip-col" />
+        <col className="crzh-device-received-col" />
+        <col className="crzh-device-result-col" />
+      </colgroup>
+      <tbody>
+        <tr className="crzh-table-head">
+          <th className="text-left">Device Type Tested / Location</th>
+          <th>F</th>
+          <th>A</th>
+          <th>T</th>
+          <th>LS</th>
+          <th colSpan={3} className="text-left">F = Functional&nbsp;&nbsp;&nbsp; A = Alarm&nbsp;&nbsp;&nbsp; T = Trouble&nbsp;&nbsp;&nbsp; LS = Line Security</th>
+        </tr>
+        {rows.map((row, index) => (
+          <tr key={row.id || index} className="crzh-device-row">
+            <td>{[row.deviceType, row.location, row.deviceId].filter(Boolean).join(" / ")}</td>
+            <td><Check checked={!!row.functional} /></td>
+            <td><Check checked={!!row.alarm} /></td>
+            <td><Check checked={!!row.trouble} /></td>
+            <td><Check checked={!!row.lineSecurity || !!row.supervisory} /></td>
+            <td>Trip Time: {row.tripTime}</td>
+            <td>Time Received: {row.timeReceived}</td>
+            <td><StatusCheck status={row.result} match="OK" /> OK&nbsp;&nbsp; <StatusCheck status={row.result} match="VAR" /> VAR&nbsp;&nbsp; <StatusCheck status={row.result} match="NA" /> N/A</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ProtectedAreaSignalReview({ audit }: { audit: Audit }) {
+  const alarms = audit.signalLog.filter((row) => row.signalType === "Alarm").length;
+  const openings = audit.signalLog.filter((row) => row.signalType === "Opening/Closing").length;
+  const troubles = audit.signalLog.filter((row) => row.signalType === "Trouble").length;
+  const commFails = audit.signalLog.filter((row) => row.signalType === "Comm Fail").length;
+  return (
+    <table className="crzh-table crzh-signal-table">
+      <colgroup>
+        <col className="crzh-signal-type-col" />
+        <col className="crzh-signal-date-col" />
+        <col className="crzh-signal-time-col" />
+        <col />
+      </colgroup>
+      <tbody>
+        <tr>
+          <td colSpan={4} className="crzh-section-head">
+            Signal Processing / Alarm Record Review: <Check checked={audit.signalProcessingReviewed} /> YES <Check checked={!audit.signalProcessingReviewed} /> NO
+            <span className="crzh-key">SIGNAL PROCESSING REVIEW PERIOD:</span><Line value={audit.signalReviewStart} width="1.35in" /> TO: <Line value={audit.signalReviewEnd} width="1.35in" />
+          </td>
+        </tr>
+        <tr>
+          <td colSpan={4} className="crzh-section-head">
+            Independent Code <StatusCheck status={audit.autoTestsStatus} match="OK" /> OK <StatusCheck status={audit.autoTestsStatus} match="VAR" /> VAR
+          </td>
+        </tr>
+        <tr>
+          <td colSpan={4} className="crzh-section-head">
+            # of Alarms (A) = {alarms || ""}<span className="crzh-count-gap">Openings/Closings (O/C): OK <Check checked={false} /> VAR <Check checked={false} /></span>
+            <span className="crzh-count-gap"># of Troubles (T) = {troubles || ""}</span><span className="crzh-count-gap"># of Comm-Fail(CF) = {commFails || ""}</span>
+          </td>
+        </tr>
+        <tr className="crzh-table-head">
+          <th>Signal Type (A, O/C, T, CF)</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th className="text-left">Comments and / or Signals Not Properly Handled - Variations shall be included in report</th>
+        </tr>
+        {padSignalRows(audit.signalLog, 43).map((row, index) => (
+          <tr key={row.id || index} className="crzh-signal-row">
+            <td>{protectedAreaSignalCode(row.signalType)}</td>
+            <td>{row.date}</td>
+            <td>{row.time}</td>
+            <td>{[row.description, row.notes].filter(Boolean).join(" - ")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -432,6 +625,10 @@ function mercantileDisplayRows(rows: AuditRow[], elements: string[]) {
   return elements.map((element, index) => rows[index] || rows.find((row) => row.element === element) || blankChecklistRow(element, index));
 }
 
+function protectedAreaDisplayRows(rows: AuditRow[], elements: string[]) {
+  return elements.map((element, index) => rows[index] || rows.find((row) => row.element === element) || blankChecklistRow(element, index));
+}
+
 function mercCleanElement(element: string) {
   return element.replace(/\s+-\s+(Control|Premise|Safe|Mercantile)\s*$/i, "");
 }
@@ -439,6 +636,11 @@ function mercCleanElement(element: string) {
 function mercIndentClass(element: string) {
   if (/^(Enclosure|Tamper|Extra Protection|Check In|Equipment|Device Type|Device Wiring|Detector Coverage|Opening Protection|Intrusion|Contact|Wiring|EOLR)/i.test(element)) return "merc-indent-1";
   if (/^(Grounding|Power Supplies|MFG Instruction|Programming)/i.test(element)) return "merc-indent-2";
+  return "";
+}
+
+function crzhIndentClass(element: string) {
+  if (/^(Enclosure|Tamper|Grounding|Power Supplies|Batteries|Programming|Encryption|Equipment Supervision|Device Wire Protection|Detector Coverage|Det\. Cov|Intrusion|Contact|Wiring|EOLR)/i.test(element)) return "crzh-indent-1";
   return "";
 }
 
@@ -525,9 +727,25 @@ function mercantileDeviceRowsForExport(audit: Audit) {
   return [blankLineSecurityExportRow(), ...rows];
 }
 
+function protectedAreaDeviceRowsForExport(audit: Audit) {
+  const certificate = audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
+  const hasLineSecurity = mercantileHasLineSecurity(certificate?.lineSecurity || "");
+  const rows = audit.deviceTests.filter((row) => row.deviceType !== "Line security test" || hasLineSecurity);
+  if (!hasLineSecurity || rows.some((row) => row.deviceType === "Line security test")) return rows;
+  return [blankLineSecurityExportRow(), ...rows];
+}
+
 function mercantileHasLineSecurity(value: string) {
   const normalized = value.trim().toLowerCase();
   return Boolean(normalized && !["no", "none", "n/a", "na", "not applicable", "without line security"].includes(normalized));
+}
+
+function protectedAreaSignalCode(value: SignalLogRow["signalType"]) {
+  if (value === "Alarm") return "A";
+  if (value === "Opening/Closing") return "O/C";
+  if (value === "Trouble") return "T";
+  if (value === "Comm Fail") return "CF";
+  return value;
 }
 
 function blankLineSecurityExportRow(): DeviceTestRow {

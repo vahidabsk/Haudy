@@ -1,7 +1,7 @@
 export type StatusCode = "OK" | "VAR" | "NA" | "NR";
 export type ReviewStatus = "OK" | "VAR";
 export type DisplayStatus = "OK" | "VAR" | "NA";
-export type SignalType = "Alarm" | "Supervisory" | "Trouble";
+export type SignalType = "Alarm" | "Supervisory" | "Trouble" | "Opening/Closing" | "Comm Fail";
 export type SignalHandlingStatus = "OK" | "VAR";
 export type ReportSectionStatus = Partial<Record<"signal" | "documentation" | "installation", boolean>>;
 

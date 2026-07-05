@@ -1,22 +1,37 @@
 import { SignalLogRow, SignalType } from "../lib/types";
+import { AuditProgram } from "../lib/audit-program";
 import { uid, nowIso } from "../lib/utils";
 import { DictationNotes } from "./DictationNotes";
 
 const signalTypes: SignalType[] = ["Alarm", "Supervisory", "Trouble"];
+const protectedAreaSignalTypes: SignalType[] = ["Alarm", "Opening/Closing", "Trouble", "Comm Fail"];
 
-export function SignalLogSection({ rows, disabled, disabledMessage = "Local system selected. Signal processing review is not applicable.", onChange }: { rows: SignalLogRow[]; disabled?: boolean; disabledMessage?: string; onChange: (rows: SignalLogRow[]) => void }) {
+export function SignalLogSection({ rows, disabled, disabledMessage = "Local system selected. Signal processing review is not applicable.", program = "fire", onChange }: { rows: SignalLogRow[]; disabled?: boolean; disabledMessage?: string; program?: AuditProgram; onChange: (rows: SignalLogRow[]) => void }) {
+  const options = program === "protectedArea" ? protectedAreaSignalTypes : signalTypes;
   const counts = {
     Alarm: rows.filter((row) => row.signalType === "Alarm").length,
     Supervisory: rows.filter((row) => row.signalType === "Supervisory").length,
     Trouble: rows.filter((row) => row.signalType === "Trouble").length,
+    "Opening/Closing": rows.filter((row) => row.signalType === "Opening/Closing").length,
+    "Comm Fail": rows.filter((row) => row.signalType === "Comm Fail").length,
   };
+  const counterItems = program === "protectedArea"
+    ? [
+      { label: "Alarms", value: counts.Alarm, className: "bg-emerald-50 text-emerald-800" },
+      { label: "Open/Close", value: counts["Opening/Closing"], className: "bg-sky-50 text-sky-800" },
+      { label: "Trouble", value: counts.Trouble, className: "bg-red-50 text-red-800" },
+      { label: "Comm Fail", value: counts["Comm Fail"], className: "bg-purple-50 text-purple-800" },
+    ]
+    : [
+      { label: "Alarms", value: counts.Alarm, className: "bg-emerald-50 text-emerald-800" },
+      { label: "Supervisory", value: counts.Supervisory, className: "bg-amber-50 text-amber-800" },
+      { label: "Trouble", value: counts.Trouble, className: "bg-red-50 text-red-800" },
+    ];
   return (
     <section className="grid gap-4">
       <h2 className="text-lg font-semibold text-navy">Signal Review Rows</h2>
-      <div className="grid grid-cols-3 gap-3">
-        <Counter label="Alarms" value={counts.Alarm} className="bg-emerald-50 text-emerald-800" />
-        <Counter label="Supervisory" value={counts.Supervisory} className="bg-amber-50 text-amber-800" />
-        <Counter label="Trouble" value={counts.Trouble} className="bg-red-50 text-red-800" />
+      <div className={`grid gap-3 ${program === "protectedArea" ? "grid-cols-4" : "grid-cols-3"}`}>
+        {counterItems.map((item) => <Counter key={item.label} {...item} />)}
       </div>
       {disabled ? <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm font-medium text-slate-600">{disabledMessage}</div> : null}
       {rows.map((row) => (
@@ -24,7 +39,7 @@ export function SignalLogSection({ rows, disabled, disabledMessage = "Local syst
           <div className="grid gap-3 md:grid-cols-3">
             <select className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : row.signalType} disabled={disabled} onChange={(e) => patch(rows, row.id, { signalType: e.target.value as SignalType }, onChange)}>
               <option value="">Signal Type</option>
-              {signalTypes.map((type) => <option key={type}>{type}</option>)}
+              {options.map((type) => <option key={type}>{type}</option>)}
             </select>
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="date" value={disabled ? "" : row.date} disabled={disabled} onChange={(e) => patch(rows, row.id, { date: e.target.value }, onChange)} />
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" type="time" value={disabled ? "" : row.time} disabled={disabled} onChange={(e) => patch(rows, row.id, { time: e.target.value }, onChange)} />
