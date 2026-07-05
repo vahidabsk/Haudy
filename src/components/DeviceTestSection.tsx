@@ -58,6 +58,16 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (showLineSecurityTest && !lineSecurityRow) {
+      onChange([createLineSecurityRow(), ...rows]);
+      return;
+    }
+    if (!showLineSecurityTest && lineSecurityRow && isMercantile) {
+      onChange(rows.filter((row) => row.deviceType !== lineSecurityDeviceType));
+    }
+  }, [showLineSecurityTest, lineSecurityRow?.id, isMercantile]);
+
   function setLocalSystem(nextLocalSystem: boolean) {
     onLocalSystemChange(nextLocalSystem);
   }

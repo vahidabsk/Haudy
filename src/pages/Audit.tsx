@@ -255,8 +255,9 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
             </section>
             <DeviceTestSection
               rows={audit.deviceTests}
-              localSystem={audit.deviceSystemLocal}
+              localSystem={program === "fire" ? audit.deviceSystemLocal : false}
               program={program}
+              lineSecurityKind={primary?.lineSecurity || ""}
               disabled={!audit.deviceTestingReviewed}
               disabledMessage="Device testing review marked No. Use the general variation note above to explain why device testing was not completed."
               onLocalSystemChange={(deviceSystemLocal) =>

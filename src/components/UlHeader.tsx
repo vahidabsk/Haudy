@@ -14,7 +14,7 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-white/70">Haudy Audit Suite</p>
-              <h1 className="text-lg font-semibold">Fire Alarm Certificate Audits</h1>
+              <h1 className="text-lg font-semibold">Fire Alarm and Security Certificate Audits</h1>
             </div>
           </Link>
           <div className="flex items-center gap-2 text-sm">

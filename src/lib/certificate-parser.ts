@@ -90,7 +90,7 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     safeComplete: labelValue(fullJoined, "Safe Complete"),
     holdUp: labelValue(fullJoined, "HoldUp") || labelValue(fullJoined, "Hold Up"),
     partyNotified: labelValue(fullJoined, "Party Notified"),
-    lineSecurity: labelValue(fullJoined, "Line Security"),
+    lineSecurity: lineSecurityValue(fullJoined),
     alarmSoundingDeviceLocation: labelValue(fullJoined, "Alarm Sounding Device Location"),
     secondaryTransmission: labelValue(fullJoined, "Secondary Transmission Method"),
     controlTransmitterCombo: labelValue(fullJoined, "Control & Transmitter Combo"),
@@ -258,6 +258,16 @@ function firstCategoryCode(text: string) {
 
 function labelValue(text: string, label: string) {
   return text.match(new RegExp(`${escapeRegExp(label)}:\\s*([^\\n]+)`, "i"))?.[1]?.trim();
+}
+
+function lineSecurityValue(text: string) {
+  const direct = labelValue(text, "Line Security");
+  if (direct) return direct;
+  const inline = text.match(/\bLine\s+Security\b\s*:?\s*(Encrypted|Standard|No|None|N\/A|Not Applicable)\b/i)?.[1];
+  if (inline) return clean(inline);
+  if (/\bEncrypted\s+Line\s+Security\b/i.test(text)) return "Encrypted";
+  if (/\bStandard\s+Line\s+Security\b/i.test(text)) return "Standard";
+  return undefined;
 }
 
 function isoDate(value?: string) {

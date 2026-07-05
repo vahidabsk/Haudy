@@ -136,13 +136,14 @@ function ExportDocument({ audit }: { audit: Audit }) {
 function MercantileFieldNotesPage({ audit }: { audit: Audit }) {
   const documentationRows = mercantileDisplayRows(audit.documentation, mercantileDocumentationElements);
   const installationRows = mercantileDisplayRows(audit.installation, mercantileInstallationElements);
+  const deviceRows = mercantileDeviceRowsForExport(audit);
   return (
     <section className="print-page merc-page bg-white text-black shadow-sm print:shadow-none">
       <h1 className="merc-title">Mercantile Audit Field Notes Form</h1>
       <Header audit={audit} />
       <MercantileChecklist title="Documentation Reviewed:" reviewed={audit.documentationReviewed} rows={documentationRows} />
       <MercantileChecklist title="Installation Reviewed:" reviewed={audit.installationReviewed} rows={installationRows} />
-      <MercantileDeviceTable rows={padDeviceRows(audit.deviceTests, 5)} />
+      <MercantileDeviceTable rows={padDeviceRows(deviceRows, 5)} />
       <div className="merc-comments">
         <div className="merc-comments-label">Additional Comments</div>
         <div>{[audit.comments, audit.deviceTestingNotes, deviceTestComments(audit.deviceTests)].filter(Boolean).join("\n")}</div>
@@ -506,6 +507,49 @@ function deviceTestComments(rows: DeviceTestRow[]) {
       return `${label}: ${row.notes.trim()}`;
     })
     .join("\n");
+}
+
+function mercantileDeviceRowsForExport(audit: Audit) {
+  const certificate = audit.certificates[audit.primaryCertificateIndex] || audit.certificates[0];
+  const hasLineSecurity = mercantileHasLineSecurity(certificate?.lineSecurity || "");
+  const rows = audit.deviceTests.filter((row) => row.deviceType !== "Line security test" || hasLineSecurity);
+  if (!hasLineSecurity || rows.some((row) => row.deviceType === "Line security test")) return rows;
+  return [blankLineSecurityExportRow(), ...rows];
+}
+
+function mercantileHasLineSecurity(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return Boolean(normalized && !["no", "none", "n/a", "na", "not applicable", "without line security"].includes(normalized));
+}
+
+function blankLineSecurityExportRow(): DeviceTestRow {
+  return {
+    id: "line-security-export",
+    deviceType: "Line security test",
+    location: "",
+    deviceId: "",
+    signalType: "",
+    functional: true,
+    alarm: false,
+    supervisory: false,
+    trouble: false,
+    lineSecurity: true,
+    notApplicable: false,
+    tripTime: "",
+    timeReceived: "",
+    signalReceived: false,
+    restoralReceived: false,
+    localIndication: false,
+    result: "",
+    notes: "",
+    reportFinding: "",
+    reportRequiredAction: "",
+    reportCodeStandard: "",
+    reportCodeEdition: "",
+    reportCodeSection: "",
+    photos: [],
+    updatedAt: "",
+  };
 }
 
 function Footer({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) {
