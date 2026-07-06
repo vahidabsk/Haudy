@@ -51,10 +51,9 @@ export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Title
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" list="auditor-title-options" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} />
-                <datalist id="auditor-title-options">
-                  {auditorTitles.map((title) => <option key={title} value={title} />)}
-                </datalist>
+                <select className="min-h-11 rounded-md border border-slate-300 bg-white px-3" value={auditorTitles.includes(profile.title) ? profile.title : auditorTitles[0]} onChange={(event) => setProfile({ ...profile, title: event.target.value })}>
+                  {auditorTitles.map((title) => <option key={title} value={title}>{title}</option>)}
+                </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Department
