@@ -46,6 +46,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [activeJobTab, setActiveJobTab] = useState<HomeJobStatus>("pool");
   const [poolSearch, setPoolSearch] = useState("");
   const [focusAscKey, setFocusAscKey] = useState("");
+  const [showProgressDashboard, setShowProgressDashboard] = useState(false);
   const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
   const jobTabs = homeJobTabs(jobCards);
   const dashboardMetrics = auditProgressMetrics(groups, ascDocuments);
@@ -261,7 +262,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           </div>
         </section>
       ) : null}
-      {groups.length ? <AuditorProgressDashboard metrics={dashboardMetrics} /> : null}
+      {groups.length ? (
+        showProgressDashboard ? (
+          <AuditorProgressDashboard metrics={dashboardMetrics} onHide={() => setShowProgressDashboard(false)} />
+        ) : (
+          <CollapsedAuditDashboard metrics={dashboardMetrics} onShow={() => setShowProgressDashboard(true)} />
+        )
+      ) : null}
       <section className="grid gap-4">
         {groups.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">Import the audit tracker to create ASC assignment cards.</div> : null}
         {groups.length ? (
@@ -552,7 +559,29 @@ interface ScheduledAuditDay {
   groups: AssignmentGroup[];
 }
 
-function AuditorProgressDashboard({ metrics }: { metrics: AuditProgressMetrics }) {
+function CollapsedAuditDashboard({ metrics, onShow }: { metrics: AuditProgressMetrics; onShow: () => void }) {
+  const paceDelta = metrics.completedJobs - metrics.targetCompleted;
+  const onPace = paceDelta >= 0;
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span className="font-bold text-navy">Audit progress</span>
+        <span className="font-semibold text-slate-700">{metrics.completedJobs}/{metrics.totalJobs} reports sent</span>
+        <span className={onPace ? "font-semibold text-emerald-700" : "font-semibold text-amber-800"}>
+          {onPace ? `${paceDelta} ahead of pace` : `${Math.abs(paceDelta)} behind pace`}
+        </span>
+        <span className={metrics.overdueReports ? "font-semibold text-red-700" : "font-semibold text-slate-500"}>
+          {metrics.overdueReports ? `${metrics.overdueReports} report${metrics.overdueReports === 1 ? "" : "s"} need attention` : "No overdue reports"}
+        </span>
+      </div>
+      <button type="button" className="min-h-9 rounded-md border border-slate-300 bg-slate-50 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100" onClick={onShow}>
+        Show dashboard
+      </button>
+    </section>
+  );
+}
+
+function AuditorProgressDashboard({ metrics, onHide }: { metrics: AuditProgressMetrics; onHide: () => void }) {
   const paceDelta = metrics.completedJobs - metrics.targetCompleted;
   const onPace = paceDelta >= 0;
   return (
@@ -565,8 +594,13 @@ function AuditorProgressDashboard({ metrics }: { metrics: AuditProgressMetrics }
             Audit season: {formatShortDate(metrics.seasonStart)} to {formatShortDate(metrics.seasonEnd)}. A job is complete when the report is sent.
           </p>
         </div>
-        <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${onPace ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-          {onPace ? `${paceDelta} ahead of pace` : `${Math.abs(paceDelta)} behind pace`}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${onPace ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+            {onPace ? `${paceDelta} ahead of pace` : `${Math.abs(paceDelta)} behind pace`}
+          </div>
+          <button type="button" className="min-h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={onHide}>
+            Hide dashboard
+          </button>
         </div>
       </div>
 
