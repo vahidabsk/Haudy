@@ -47,7 +47,9 @@ export function savePastReportFindings(rows: AuditorReportFinding[]) {
 }
 
 export function allAuditorReportFindings() {
-  return [...loadPastReportFindings(), ...auditorReportFindings];
+  const localRows = loadPastReportFindings();
+  const localIds = new Set(localRows.map((row) => row.id));
+  return [...localRows, ...auditorReportFindings.filter((row) => !localIds.has(row.id))];
 }
 
 export function pastReportOptions() {
@@ -89,6 +91,26 @@ export function addReportFindingsToPastReports(rows: AuditorReportFinding[]) {
   });
   if (added) savePastReportFindings(nextRows);
   return added;
+}
+
+export function updatePastReportMetadata(rowId: string, patch: Pick<AuditorReportFinding, "standard" | "year" | "section" | "reviewType" | "category">) {
+  const localRows = loadPastReportFindings();
+  const base = localRows.find((row) => row.id === rowId) || auditorReportFindings.find((row) => row.id === rowId);
+  if (!base) return null;
+  const updated: AuditorReportFinding = {
+    ...base,
+    standard: patch.standard.trim(),
+    year: patch.year.trim(),
+    section: patch.section.trim(),
+    reviewType: patch.reviewType.trim(),
+    category: patch.category.trim(),
+    keywords: buildKeywords([base.finding, base.requiredAction, patch.standard, patch.year, patch.section, patch.reviewType, patch.category]),
+  };
+  const existingIndex = localRows.findIndex((row) => row.id === rowId);
+  const nextRows = existingIndex >= 0 ? [...localRows] : [updated, ...localRows];
+  if (existingIndex >= 0) nextRows[existingIndex] = updated;
+  savePastReportFindings(nextRows);
+  return updated;
 }
 
 function findingFingerprint(row: AuditorReportFinding) {
