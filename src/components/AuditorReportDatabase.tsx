@@ -161,10 +161,6 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
                         <span>{result.year ? `${result.year} Edition` : "Edition not listed"}</span>
                         <span className="text-slate-300">|</span>
                         <span>{result.section ? `Section ${result.section}` : "Section not listed"}</span>
-                        <span className="text-slate-300">|</span>
-                        <span>{result.reviewType || "Review not listed"}</span>
-                        <span className="text-slate-300">|</span>
-                        <span className="break-words">{result.category || "No category"}</span>
                         <button
                           type="button"
                           className="ml-1 inline-flex min-h-8 items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-bold normal-case tracking-normal text-slate-700 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-900"
