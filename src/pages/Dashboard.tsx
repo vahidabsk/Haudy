@@ -54,6 +54,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     .filter((item) => item.status.id === activeJobTab)
     .filter((item) => activeJobTab !== "pool" || groupMatchesPoolSearch(item.group, poolSearch));
 
+  function openAscFromDashboard(group: AssignmentGroup) {
+    const status = homeJobStatus(group, ascDocuments[group.key]);
+    setActiveJobTab(status.id);
+    setFocusAscKey(group.key);
+    window.history.replaceState(null, "", `#${encodeURIComponent(group.key)}`);
+  }
+
   useEffect(() => {
     function refresh() {
       setOfflineReady(localStorage.getItem(OFFLINE_READY_KEY) === "true");
@@ -264,7 +271,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       ) : null}
       {groups.length ? (
         showProgressDashboard ? (
-          <AuditorProgressDashboard metrics={dashboardMetrics} onHide={() => setShowProgressDashboard(false)} />
+          <AuditorProgressDashboard metrics={dashboardMetrics} onHide={() => setShowProgressDashboard(false)} onOpenGroup={openAscFromDashboard} />
         ) : (
           <CollapsedAuditDashboard metrics={dashboardMetrics} onShow={() => setShowProgressDashboard(true)} />
         )
@@ -542,6 +549,13 @@ interface AuditProgressMetrics {
   seasonYear: number;
   seasonStart: Date;
   seasonEnd: Date;
+  auditDaysAssigned: number;
+  auditDaysComplete: number;
+  auditDaysCompletionPercent: number;
+  companyCountAssigned: number;
+  companyCountCompleted: number;
+  companyCountCompletionPercent: number;
+  totalAuditCompletionPercent: number;
   totalJobs: number;
   completedJobs: number;
   remainingJobs: number;
@@ -560,15 +574,18 @@ interface ScheduledAuditDay {
 }
 
 function CollapsedAuditDashboard({ metrics, onShow }: { metrics: AuditProgressMetrics; onShow: () => void }) {
-  const paceDelta = metrics.completedJobs - metrics.targetCompleted;
-  const onPace = paceDelta >= 0;
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-bold text-navy">Audit progress</span>
-        <span className="font-semibold text-slate-700">{metrics.completedJobs}/{metrics.totalJobs} reports sent</span>
-        <span className={onPace ? "font-semibold text-emerald-700" : "font-semibold text-amber-800"}>
-          {onPace ? `${paceDelta} ahead of pace` : `${Math.abs(paceDelta)} behind pace`}
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-700">
+          Audit days {metrics.auditDaysComplete}/{metrics.auditDaysAssigned || 0} ({metrics.auditDaysCompletionPercent}%)
+        </span>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-700">
+          Companies {metrics.companyCountCompleted}/{metrics.companyCountAssigned} ({metrics.companyCountCompletionPercent}%)
+        </span>
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-bold text-emerald-800">
+          Total {metrics.totalAuditCompletionPercent}%
         </span>
         <span className={metrics.overdueReports ? "font-semibold text-red-700" : "font-semibold text-slate-500"}>
           {metrics.overdueReports ? `${metrics.overdueReports} report${metrics.overdueReports === 1 ? "" : "s"} need attention` : "No overdue reports"}
@@ -581,7 +598,7 @@ function CollapsedAuditDashboard({ metrics, onShow }: { metrics: AuditProgressMe
   );
 }
 
-function AuditorProgressDashboard({ metrics, onHide }: { metrics: AuditProgressMetrics; onHide: () => void }) {
+function AuditorProgressDashboard({ metrics, onHide, onOpenGroup }: { metrics: AuditProgressMetrics; onHide: () => void; onOpenGroup: (group: AssignmentGroup) => void }) {
   const paceDelta = metrics.completedJobs - metrics.targetCompleted;
   const onPace = paceDelta >= 0;
   return (
@@ -604,11 +621,15 @@ function AuditorProgressDashboard({ metrics, onHide }: { metrics: AuditProgressM
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4">
-        <ProgressMetricCard icon={<CheckCircle2 size={20} />} label="Reports sent" value={`${metrics.completedJobs}/${metrics.totalJobs}`} detail={`${metrics.completionPercent}% complete`} className="border-emerald-200 bg-emerald-50 text-emerald-900" />
-        <ProgressMetricCard icon={<Target size={20} />} label="Expected by today" value={metrics.targetCompleted} detail={`${metrics.targetPercent}% of season elapsed`} className="border-sky-200 bg-sky-50 text-sky-900" />
-        <ProgressMetricCard icon={<CalendarCheck size={20} />} label="Scheduled jobs" value={metrics.scheduledJobs} detail={`${metrics.remainingJobs} remaining total`} className="border-violet-200 bg-violet-50 text-violet-900" />
-        <ProgressMetricCard icon={<Clock3 size={20} />} label="Report attention" value={metrics.overdueReports} detail={`${metrics.remainingDays} season days left`} className={metrics.overdueReports ? "border-red-200 bg-red-50 text-red-900" : "border-slate-200 bg-slate-50 text-slate-800"} />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <ProgressMetricCard icon={<CalendarCheck size={20} />} label="Audit Days Assigned" value={metrics.auditDaysAssigned} detail="From confirmation audit dates" className="border-sky-200 bg-sky-50 text-sky-900" />
+        <ProgressMetricCard icon={<CheckCircle2 size={20} />} label="Audit Days Complete" value={metrics.auditDaysComplete} detail={`${metrics.auditDaysCompletionPercent}% complete`} className="border-emerald-200 bg-emerald-50 text-emerald-900" />
+        <ProgressMetricCard icon={<Building2 size={20} />} label="Company Count Assigned" value={metrics.companyCountAssigned} detail="ASC assignment cards" className="border-violet-200 bg-violet-50 text-violet-900" />
+        <ProgressMetricCard icon={<Target size={20} />} label="Company Count Completed" value={metrics.companyCountCompleted} detail={`${metrics.companyCountCompletionPercent}% complete`} className="border-teal-200 bg-teal-50 text-teal-900" />
+        <ProgressMetricCard icon={<ShieldCheck size={20} />} label="Total Audit Completion" value={`${metrics.totalAuditCompletionPercent}%`} detail="Combined days and company progress" className="border-navy/20 bg-navy/5 text-navy" />
+        <ProgressMetricCard icon={<Clock3 size={20} />} label="Report Attention" value={metrics.overdueReports} detail={`${metrics.remainingDays} season days left`} className={metrics.overdueReports ? "border-red-200 bg-red-50 text-red-900" : "border-slate-200 bg-slate-50 text-slate-800"} />
+        <ProgressMetricCard icon={<CalendarDays size={20} />} label="Scheduled Companies" value={metrics.scheduledJobs} detail={`${metrics.remainingJobs} remaining total`} className="border-amber-200 bg-amber-50 text-amber-900" />
+        <ProgressMetricCard icon={<Target size={20} />} label="Expected By Today" value={metrics.targetCompleted} detail={`${metrics.targetPercent}% of season elapsed`} className="border-slate-200 bg-slate-50 text-slate-800" />
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -617,7 +638,7 @@ function AuditorProgressDashboard({ metrics, onHide }: { metrics: AuditProgressM
         </div>
         <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 12 }, (_, index) => (
-            <CalendarMonthBlock key={index} year={metrics.seasonYear} month={index} schedule={metrics.schedule} seasonStart={metrics.seasonStart} seasonEnd={metrics.seasonEnd} />
+            <CalendarMonthBlock key={index} year={metrics.seasonYear} month={index} schedule={metrics.schedule} seasonStart={metrics.seasonStart} seasonEnd={metrics.seasonEnd} onOpenGroup={onOpenGroup} />
           ))}
         </div>
       </div>
@@ -638,7 +659,7 @@ function ProgressMetricCard({ icon, label, value, detail, className }: { icon: R
   );
 }
 
-function CalendarMonthBlock({ year, month, schedule, seasonStart, seasonEnd }: { year: number; month: number; schedule: ScheduledAuditDay[]; seasonStart: Date; seasonEnd: Date }) {
+function CalendarMonthBlock({ year, month, schedule, seasonStart, seasonEnd, onOpenGroup }: { year: number; month: number; schedule: ScheduledAuditDay[]; seasonStart: Date; seasonEnd: Date; onOpenGroup: (group: AssignmentGroup) => void }) {
   const firstDay = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const leadingBlanks = firstDay.getDay();
@@ -663,12 +684,21 @@ function CalendarMonthBlock({ year, month, schedule, seasonStart, seasonEnd }: {
           const date = new Date(year, month, cell.day);
           const scheduledGroups = scheduledByDay.get(cell.day) || [];
           const inSeason = date >= seasonStart && date <= seasonEnd;
+          if (scheduledGroups.length) {
+            return (
+              <button
+                key={cell.key}
+                type="button"
+                title={scheduledGroups.map((group) => group.ascName).join("\n")}
+                className="grid aspect-square place-items-center rounded-md border border-navy bg-navy text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-navy/25"
+                onClick={() => onOpenGroup(scheduledGroups[0])}
+              >
+                {cell.day}
+              </button>
+            );
+          }
           return (
-            <span
-              key={cell.key}
-              title={scheduledGroups.map((group) => group.ascName).join("\n")}
-              className={`grid aspect-square place-items-center rounded-md text-[11px] font-semibold ${scheduledGroups.length ? "border border-navy bg-navy text-white shadow-sm" : inSeason ? "bg-slate-50 text-slate-600" : "bg-slate-100 text-slate-300"}`}
-            >
+            <span key={cell.key} className={`grid aspect-square place-items-center rounded-md text-[11px] font-semibold ${inSeason ? "bg-slate-50 text-slate-600" : "bg-slate-100 text-slate-300"}`}>
               {cell.day}
             </span>
           );
@@ -1177,6 +1207,16 @@ function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<strin
   const remainingJobs = Math.max(0, totalJobs - completedJobs);
   const scheduledJobs = groups.filter((group) => Boolean(parseLocalDate(documents[group.key]?.confirmation?.startDate))).length;
   const overdueReports = groups.filter((group) => homeJobStatus(group, documents[group.key]).label === "Report overdue").length;
+  const auditDaysAssigned = groups.reduce((total, group) => total + auditDaysForGroup(documents[group.key]), 0);
+  const auditDaysComplete = groups.reduce((total, group) => {
+    if (!groupReportSent(group, documents[group.key])) return total;
+    return total + auditDaysForGroup(documents[group.key]);
+  }, 0);
+  const auditDaysCompletionPercent = percentComplete(auditDaysComplete, auditDaysAssigned);
+  const companyCountAssigned = totalJobs;
+  const companyCountCompleted = completedJobs;
+  const companyCountCompletionPercent = percentComplete(companyCountCompleted, companyCountAssigned);
+  const totalAuditCompletionPercent = percentComplete(auditDaysComplete + companyCountCompleted, auditDaysAssigned + companyCountAssigned);
   const seasonDays = Math.max(1, daysBetween(seasonStart, seasonEnd));
   const elapsedDays = Math.min(Math.max(daysBetween(seasonStart, today), 0), seasonDays);
   const targetPercent = Math.round((elapsedDays / seasonDays) * 100);
@@ -1187,6 +1227,13 @@ function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<strin
     seasonYear,
     seasonStart,
     seasonEnd,
+    auditDaysAssigned,
+    auditDaysComplete,
+    auditDaysCompletionPercent,
+    companyCountAssigned,
+    companyCountCompleted,
+    companyCountCompletionPercent,
+    totalAuditCompletionPercent,
     totalJobs,
     completedJobs,
     remainingJobs,
@@ -1198,6 +1245,18 @@ function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<strin
     remainingDays,
     schedule: scheduledAuditDays(groups, documents),
   };
+}
+
+function auditDaysForGroup(documents?: AscDocumentState) {
+  const start = parseLocalDate(documents?.confirmation?.startDate);
+  if (!start) return 0;
+  const end = parseLocalDate(documents?.confirmation?.endDate || documents?.confirmation?.startDate) || start;
+  return Math.max(1, daysBetween(startOfLocalDay(start), startOfLocalDay(end)) + 1);
+}
+
+function percentComplete(done: number, total: number) {
+  if (!total) return 0;
+  return Math.round((done / total) * 100);
 }
 
 function groupReportSent(group: AssignmentGroup, documents?: AscDocumentState) {
