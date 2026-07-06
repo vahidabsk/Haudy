@@ -48,12 +48,6 @@ export async function openCertificatePdfs() {
   return invoke<DesktopCertificateFile[]>("open_certificate_pdfs");
 }
 
-export async function openPastReportPdfs() {
-  const invoke = getTauriInvoke();
-  if (!invoke) throw new Error("Past report PDF import is available in the Windows desktop app.");
-  return invoke<DesktopCertificateFile[]>("open_past_report_pdfs");
-}
-
 export async function openAuditTracker() {
   const invoke = getTauriInvoke();
   if (!invoke) throw new Error("Audit tracker import is available in the Windows desktop app.");

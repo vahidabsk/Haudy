@@ -573,7 +573,7 @@ function ServiceCenterReportEditor({
               </div>
               <ReportFindingFields
                 value={serviceCenterReportValue(comment)}
-                showCsisHelp
+                showReportHelp
                 onChange={(reportFields) => onUpdateComment(comment.id, serviceCenterPatch(reportFields))}
               />
             </div>
@@ -666,7 +666,7 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
       <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report language needs attention." : "Ready for final review."}</div>
       <ReportFindingFields
         value={reportValue(item)}
-        showCsisHelp
+        showReportHelp
         helpStandard={certificateCode.standard}
         helpYear={certificateCode.year}
         onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}

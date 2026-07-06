@@ -1,13 +1,10 @@
-import { useMemo, useRef, useState } from "react";
-import { CheckCircle2, Search, Upload, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CheckCircle2, Search, X } from "lucide-react";
 import {
   AuditorReportFinding,
-  importPastReports,
   pastReportOptions,
   searchAuditorReportFindings,
 } from "../lib/auditor-report-findings";
-import { hasDesktopBridge, openPastReportPdfs } from "../lib/desktop-bridge";
-import { extractPdfText } from "../lib/pdf-extract";
 
 export type AuditorReportSelection = "finding" | "requiredAction" | "reference" | "all";
 
@@ -24,12 +21,8 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
   const [year, setYear] = useState("");
   const [reviewType, setReviewType] = useState("");
   const [category, setCategory] = useState("");
-  const [libraryVersion, setLibraryVersion] = useState(0);
-  const [importMessage, setImportMessage] = useState("");
-  const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const options = useMemo(() => pastReportOptions(), [libraryVersion]);
-  const results = useMemo(() => searchAuditorReportFindings({ keyword, standard, year, reviewType, category }), [keyword, standard, year, reviewType, category, libraryVersion]);
+  const options = useMemo(() => pastReportOptions(), [open]);
+  const results = useMemo(() => searchAuditorReportFindings({ keyword, standard, year, reviewType, category }), [keyword, standard, year, reviewType, category, open]);
 
   function openSearch() {
     setKeyword("");
@@ -42,47 +35,6 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
   function selectFinding(finding: AuditorReportFinding, selection: AuditorReportSelection) {
     onSelect(finding, selection);
     setOpen(false);
-  }
-
-  async function importDesktopReports() {
-    setImporting(true);
-    setImportMessage("");
-    try {
-      const files = await openPastReportPdfs();
-      finishImport(files);
-    } catch (error) {
-      setImportMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  async function importBrowserReports(files: FileList | null) {
-    if (!files?.length) return;
-    setImporting(true);
-    setImportMessage("");
-    try {
-      const extracted = await Promise.all(Array.from(files).map(async (file) => ({ fileName: file.name, text: await extractPdfText(file) })));
-      finishImport(extracted);
-    } catch (error) {
-      setImportMessage(error instanceof Error ? error.message : String(error));
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  function finishImport(files: { fileName: string; text: string }[]) {
-    if (!files.length) {
-      setImportMessage("No report was selected.");
-      return;
-    }
-    const summary = importPastReports(files);
-    const found = summary.reduce((total, item) => total + item.found, 0);
-    const added = summary.reduce((total, item) => total + item.added, 0);
-    const skipped = summary.reduce((total, item) => total + item.skipped, 0);
-    setLibraryVersion((value) => value + 1);
-    setImportMessage(`${added} Past Reports item${added === 1 ? "" : "s"} added from ${summary.length} PDF${summary.length === 1 ? "" : "s"}. ${skipped} duplicate${skipped === 1 ? "" : "s"} skipped. ${found} finding${found === 1 ? "" : "s"} detected.`);
   }
 
   return (
@@ -100,27 +52,14 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-navy">Past Reports</h3>
-                <p className="text-sm text-slate-600">Search wording from prior reports and use only the part you need, or use the full row.</p>
+                <p className="text-sm text-slate-600">Search approved wording and use only the part you need, or use the full row.</p>
               </div>
               <div className="flex items-center gap-2">
-                <input ref={fileInputRef} className="hidden" type="file" accept="application/pdf,.pdf" multiple onChange={(event) => importBrowserReports(event.target.files)} />
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100 disabled:cursor-wait disabled:opacity-60"
-                  disabled={importing}
-                  onClick={() => {
-                    if (hasDesktopBridge()) void importDesktopReports();
-                    else fileInputRef.current?.click();
-                  }}
-                >
-                  <Upload size={16} /> {importing ? "Importing..." : "Import Past Reports"}
-                </button>
                 <button type="button" className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800" onClick={() => setOpen(false)} aria-label="Close Past Reports">
                   <X size={20} />
                 </button>
               </div>
             </div>
-            {importMessage ? <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm font-semibold text-amber-900">{importMessage}</div> : null}
             <div className="grid gap-3 border-b bg-slate-50 p-4 sm:grid-cols-2 xl:grid-cols-[1.25fr_1fr_0.75fr]">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Keyword

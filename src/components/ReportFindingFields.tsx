@@ -1,7 +1,6 @@
 import { DictationNotes } from "./DictationNotes";
 import { AuditorReportDatabase, AuditorReportSelection } from "./AuditorReportDatabase";
 import { AuditorReportFinding } from "../lib/auditor-report-findings";
-import { CsisDefectList } from "./CsisDefectList";
 import { isReferenceComplete, isReferenceUsed, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 
 export interface ReportFindingValue {
@@ -15,7 +14,7 @@ export interface ReportFindingValue {
 const editionOptions = ["2022", "2019", "2016", "2013", "2010", "2007", "2002"];
 const standardOptions = ["NFPA 72", "NFPA 71", "NFPA 70", "UL 681", "UL 827", "UL 2050"];
 
-export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showCsisHelp?: boolean; helpStandard?: string; helpYear?: string }) {
+export function ReportFindingFields({ value, onChange, showReportHelp, helpStandard, helpYear }: { value: ReportFindingValue; onChange: (value: Partial<ReportFindingValue>) => void; showReportHelp?: boolean; helpStandard?: string; helpYear?: string }) {
   const standardUsed = isReferenceUsed(value.reportCodeStandard);
   const editionUsed = isReferenceUsed(value.reportCodeEdition);
   const sectionUsed = isReferenceUsed(value.reportCodeSection);
@@ -52,17 +51,8 @@ export function ReportFindingFields({ value, onChange, showCsisHelp, helpStandar
     <div className={`grid gap-3 rounded-md border p-3 transition-colors ${complete ? "border-emerald-200 bg-emerald-50/50" : "border-amber-200 bg-amber-50/60"}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className={`text-sm font-semibold ${complete ? "text-emerald-900" : "text-amber-950"}`}>Report language for this variation</div>
-        {showCsisHelp ? (
+        {showReportHelp ? (
           <div className="flex flex-wrap gap-2">
-            <CsisDefectList
-              initialStandard={helpStandard}
-              initialYear={helpYear}
-              onSelect={(defect) => onChange({
-                reportCodeStandard: defect.standard || "NFPA 72",
-                reportCodeEdition: defect.year || "",
-                reportCodeSection: defect.section || "",
-              })}
-            />
             <AuditorReportDatabase
               initialStandard={helpStandard}
               initialYear={helpYear}
