@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
@@ -114,6 +114,10 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
   }
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [ascKey]);
+
+  useEffect(() => {
     const previousTitle = document.title;
     document.title = confirmationFileName;
     return () => {
@@ -223,7 +227,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
           <p>
             <b>{auditor?.name || ""}</b><br />
             {auditor?.title || ""}<br />
-            {auditor?.department || ""}<br />
+            <SignatureDepartment department={auditor?.department} />
             {auditor?.phone || ""}<br />
             {auditor?.email || ""}
           </p>
@@ -326,6 +330,16 @@ function referenceFiles(audits: Audit[]) {
     if (certificate?.fileNo) references.add(certificate.fileNo);
   }
   return Array.from(references).join(", ");
+}
+
+function SignatureDepartment({ department }: { department?: string }) {
+  return (
+    <>
+      {(department || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => (
+        <Fragment key={line}>{line}<br /></Fragment>
+      ))}
+    </>
+  );
 }
 
 function confirmationName({ year, ascName, ascAddress, files, scn, categories }: { year: string; ascName: string; ascAddress: string; files: string; scn: string; categories: string[] }) {

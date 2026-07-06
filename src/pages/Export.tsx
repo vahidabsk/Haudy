@@ -45,6 +45,10 @@ function ExportDocument({ audit }: { audit: Audit }) {
   const exportFileName = fieldNotesName(audit);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [audit.id]);
+
+  useEffect(() => {
     const previousTitle = document.title;
     document.title = exportFileName;
     return () => {

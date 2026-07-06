@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
@@ -102,6 +102,10 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const activeInstallationItems = activeItems.filter(({ item }) => item.reviewType === "Installation Review");
   const currentSnapshot = reportSnapshot({ audits: draftAudits, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [ascKey, reportKind]);
 
   useEffect(() => {
     if (reportAudits.length && !reportAudits.some((audit) => audit.id === activeAuditId)) setActiveAuditId(reportAudits[0].id);
@@ -695,9 +699,19 @@ function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
         <p>The procedure that we will follow for Late Response actions has been outlined in detail at this time so that there will be no misunderstanding of the procedure that will be followed.</p>
         <p>Please do not hesitate to contact this office if you have any questions.</p>
         <p className="report-signature">Sincerely,</p>
-        <p><b>{auditor?.name || ""}</b><br />{auditor?.title || ""}<br />{auditor?.department || ""}<br />{auditor?.phone || ""}<br />{auditor?.email || ""}</p>
+        <p><b>{auditor?.name || ""}</b><br />{auditor?.title || ""}<br /><SignatureDepartment department={auditor?.department} />{auditor?.phone || ""}<br />{auditor?.email || ""}</p>
       </div>
     </section>
+  );
+}
+
+function SignatureDepartment({ department }: { department?: string }) {
+  return (
+    <>
+      {(department || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => (
+        <Fragment key={line}>{line}<br /></Fragment>
+      ))}
+    </>
   );
 }
 

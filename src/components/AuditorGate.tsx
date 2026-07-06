@@ -6,8 +6,8 @@ type AuditorProfileInput = Omit<Auditor, "since" | "updatedAt">;
 const auditorTitles = [
   "Alarm System Auditor",
   "Senior Alarm System Auditor",
-  "Lead Auditor Specialist",
   "Lead Auditor Technologist",
+  "Lead Auditor Specialist",
 ];
 
 const defaultDepartment = "Built Environment - Critical Infrastructure Service\nFire and Security Service Solutions";
@@ -64,7 +64,7 @@ export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Phone
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" inputMode="tel" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: formatPhone(event.target.value) })} placeholder="(123) 456 - 7890" />
+                <input className="min-h-11 rounded-md border border-slate-300 px-3" inputMode="tel" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: formatPhone(event.target.value) })} placeholder="(123)456-7890" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Email
@@ -105,8 +105,8 @@ function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 10);
   if (!digits) return "";
   if (digits.length <= 3) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6)}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)})${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)})${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 function validUlEmail(value?: string) {
