@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, CalendarCheck, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
+import { ArrowLeft, Building2, CalendarCheck, CalendarDays, CheckCircle2, Clock3, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Target, Trash2, UploadCloud } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
@@ -48,6 +48,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [focusAscKey, setFocusAscKey] = useState("");
   const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
   const jobTabs = homeJobTabs(jobCards);
+  const dashboardMetrics = auditProgressMetrics(groups, ascDocuments);
   const visibleJobCards = jobCards
     .filter((item) => item.status.id === activeJobTab)
     .filter((item) => activeJobTab !== "pool" || groupMatchesPoolSearch(item.group, poolSearch));
@@ -260,6 +261,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           </div>
         </section>
       ) : null}
+      {groups.length ? <AuditorProgressDashboard metrics={dashboardMetrics} /> : null}
       <section className="grid gap-4">
         {groups.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">Import the audit tracker to create ASC assignment cards.</div> : null}
         {groups.length ? (
@@ -526,6 +528,119 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         />
       ) : null}
     </main>
+  );
+}
+
+interface AuditProgressMetrics {
+  seasonYear: number;
+  seasonStart: Date;
+  seasonEnd: Date;
+  totalJobs: number;
+  completedJobs: number;
+  remainingJobs: number;
+  scheduledJobs: number;
+  overdueReports: number;
+  targetCompleted: number;
+  completionPercent: number;
+  targetPercent: number;
+  remainingDays: number;
+  schedule: ScheduledAuditDay[];
+}
+
+interface ScheduledAuditDay {
+  date: Date;
+  groups: AssignmentGroup[];
+}
+
+function AuditorProgressDashboard({ metrics }: { metrics: AuditProgressMetrics }) {
+  const paceDelta = metrics.completedJobs - metrics.targetCompleted;
+  const onPace = paceDelta >= 0;
+  return (
+    <section className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Auditor Dashboard</p>
+          <h2 className="mt-1 text-2xl font-bold text-navy">Annual audit progress</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Audit season: {formatShortDate(metrics.seasonStart)} to {formatShortDate(metrics.seasonEnd)}. A job is complete when the report is sent.
+          </p>
+        </div>
+        <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${onPace ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          {onPace ? `${paceDelta} ahead of pace` : `${Math.abs(paceDelta)} behind pace`}
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <ProgressMetricCard icon={<CheckCircle2 size={20} />} label="Reports sent" value={`${metrics.completedJobs}/${metrics.totalJobs}`} detail={`${metrics.completionPercent}% complete`} className="border-emerald-200 bg-emerald-50 text-emerald-900" />
+        <ProgressMetricCard icon={<Target size={20} />} label="Expected by today" value={metrics.targetCompleted} detail={`${metrics.targetPercent}% of season elapsed`} className="border-sky-200 bg-sky-50 text-sky-900" />
+        <ProgressMetricCard icon={<CalendarCheck size={20} />} label="Scheduled jobs" value={metrics.scheduledJobs} detail={`${metrics.remainingJobs} remaining total`} className="border-violet-200 bg-violet-50 text-violet-900" />
+        <ProgressMetricCard icon={<Clock3 size={20} />} label="Report attention" value={metrics.overdueReports} detail={`${metrics.remainingDays} season days left`} className={metrics.overdueReports ? "border-red-200 bg-red-50 text-red-900" : "border-slate-200 bg-slate-50 text-slate-800"} />
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-navy">
+          <CalendarDays size={17} /> Audit Calendar
+        </div>
+        <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 12 }, (_, index) => (
+            <CalendarMonthBlock key={index} year={metrics.seasonYear} month={index} schedule={metrics.schedule} seasonStart={metrics.seasonStart} seasonEnd={metrics.seasonEnd} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProgressMetricCard({ icon, label, value, detail, className }: { icon: ReactNode; label: string; value: string | number; detail: string; className: string }) {
+  return (
+    <div className={`rounded-lg border p-3 ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="grid h-9 w-9 place-items-center rounded-md bg-white/75">{icon}</span>
+        <span className="text-2xl font-bold">{value}</span>
+      </div>
+      <div className="mt-3 text-sm font-bold">{label}</div>
+      <div className="mt-1 text-xs font-semibold opacity-75">{detail}</div>
+    </div>
+  );
+}
+
+function CalendarMonthBlock({ year, month, schedule, seasonStart, seasonEnd }: { year: number; month: number; schedule: ScheduledAuditDay[]; seasonStart: Date; seasonEnd: Date }) {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadingBlanks = firstDay.getDay();
+  const scheduledByDay = new Map(schedule.filter((item) => item.date.getMonth() === month).map((item) => [item.date.getDate(), item.groups]));
+  const cells = [
+    ...Array.from({ length: leadingBlanks }, (_, index) => ({ key: `blank-${index}`, day: 0 })),
+    ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 })),
+  ];
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-navy">{firstDay.toLocaleDateString(undefined, { month: "long" })}</h3>
+        <span className="text-xs font-semibold text-slate-500">{scheduledByDay.size} audit day{scheduledByDay.size === 1 ? "" : "s"}</span>
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-slate-400">
+        {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((cell) => {
+          if (!cell.day) return <span key={cell.key} className="aspect-square" />;
+          const date = new Date(year, month, cell.day);
+          const scheduledGroups = scheduledByDay.get(cell.day) || [];
+          const inSeason = date >= seasonStart && date <= seasonEnd;
+          return (
+            <span
+              key={cell.key}
+              title={scheduledGroups.map((group) => group.ascName).join("\n")}
+              className={`grid aspect-square place-items-center rounded-md text-[11px] font-semibold ${scheduledGroups.length ? "border border-navy bg-navy text-white shadow-sm" : inSeason ? "bg-slate-50 text-slate-600" : "bg-slate-100 text-slate-300"}`}
+            >
+              {cell.day}
+            </span>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1018,6 +1133,69 @@ function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
   return (Object.keys(labels) as HomeJobStatus[]).map((id) => ({ id, label: labels[id], count: counts[id] }));
 }
 
+function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<string, AscDocumentState>): AuditProgressMetrics {
+  const today = startOfLocalDay(new Date());
+  const seasonYear = today.getFullYear();
+  const seasonStart = new Date(seasonYear, 0, 15);
+  const seasonEnd = new Date(seasonYear, 11, 15);
+  const totalJobs = groups.length;
+  const completedJobs = groups.filter((group) => groupReportSent(group, documents[group.key])).length;
+  const remainingJobs = Math.max(0, totalJobs - completedJobs);
+  const scheduledJobs = groups.filter((group) => Boolean(parseLocalDate(documents[group.key]?.confirmation?.startDate))).length;
+  const overdueReports = groups.filter((group) => homeJobStatus(group, documents[group.key]).label === "Report overdue").length;
+  const seasonDays = Math.max(1, daysBetween(seasonStart, seasonEnd));
+  const elapsedDays = Math.min(Math.max(daysBetween(seasonStart, today), 0), seasonDays);
+  const targetPercent = Math.round((elapsedDays / seasonDays) * 100);
+  const targetCompleted = Math.min(totalJobs, Math.ceil(totalJobs * (elapsedDays / seasonDays)));
+  const completionPercent = totalJobs ? Math.round((completedJobs / totalJobs) * 100) : 0;
+  const remainingDays = Math.max(0, daysBetween(today, seasonEnd));
+  return {
+    seasonYear,
+    seasonStart,
+    seasonEnd,
+    totalJobs,
+    completedJobs,
+    remainingJobs,
+    scheduledJobs,
+    overdueReports,
+    targetCompleted,
+    completionPercent,
+    targetPercent,
+    remainingDays,
+    schedule: scheduledAuditDays(groups, documents),
+  };
+}
+
+function groupReportSent(group: AssignmentGroup, documents?: AscDocumentState) {
+  const keys = applicableReportKeys(group);
+  return keys.length > 0 && keys.every((key) => Boolean(documents?.[key]?.sentToClient));
+}
+
+function applicableReportKeys(group: AssignmentGroup): Array<"report" | "crzhReport">;
+function applicableReportKeys(group: AssignmentGroup): Array<"report" | "crzhReport"> {
+  const keys: Array<"report" | "crzhReport"> = [];
+  if (group.audits.some((audit) => !isProtectedAreaAudit(audit))) keys.push("report");
+  if (group.audits.some(isProtectedAreaAudit)) keys.push("crzhReport");
+  return keys;
+}
+
+function scheduledAuditDays(groups: AssignmentGroup[], documents: Record<string, AscDocumentState>): ScheduledAuditDay[] {
+  const byDate = new Map<string, { date: Date; groups: AssignmentGroup[] }>();
+  for (const group of groups) {
+    const confirmation = documents[group.key]?.confirmation;
+    const start = parseLocalDate(confirmation?.startDate);
+    const end = parseLocalDate(confirmation?.endDate || confirmation?.startDate);
+    if (!start || !end) continue;
+    for (let date = startOfLocalDay(start); date <= end; date = addDays(date, 1)) {
+      const key = localDateKey(date);
+      const existing = byDate.get(key) || { date, groups: [] };
+      existing.groups.push(group);
+      byDate.set(key, existing);
+    }
+  }
+  return Array.from(byDate.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
 function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): HomeJobStatusDetails {
   const confirmation = documents?.confirmation;
   const report = documents?.[dashboardReportKey(group)];
@@ -1206,6 +1384,10 @@ function formatDisplayDate(value: string) {
   return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+function formatShortDate(date: Date) {
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 function startOfLocalDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -1218,6 +1400,12 @@ function addDays(date: Date, days: number) {
 
 function daysBetween(start: Date, end: Date) {
   return Math.ceil((startOfLocalDay(end).getTime() - startOfLocalDay(start).getTime()) / 86400000);
+}
+
+function localDateKey(date: Date) {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function StatusChip({ label, value }: { label: string; value: string | number }) {
