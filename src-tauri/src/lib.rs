@@ -22,6 +22,7 @@ struct TrackerAssignment {
     file_no: String,
     scn: String,
     cert_count: String,
+    audit_days: String,
     psn: String,
     auditor_notes: String,
     asc_status: String,
@@ -103,8 +104,15 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
         return Ok(Vec::new());
     };
     let headers = header_row.iter().map(cell_text).collect::<Vec<_>>();
+    let header_key = |value: &str| -> String {
+        value.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    };
     let index = |name: &str| -> Option<usize> {
-        headers.iter().position(|header| header.trim().eq_ignore_ascii_case(name.trim()))
+        let needle = header_key(name);
+        headers.iter().position(|header| header_key(header) == needle)
+    };
+    let index_any = |names: &[&str]| -> Option<usize> {
+        names.iter().find_map(|name| index(name))
     };
 
     let auditor_index = index("Assigned Auditor").ok_or_else(|| "Tracker is missing Assigned Auditor column.".to_string())?;
@@ -115,6 +123,7 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
     let file_index = index("File").ok_or_else(|| "Tracker is missing File column.".to_string())?;
     let scn_index = index("SCN").ok_or_else(|| "Tracker is missing SCN column.".to_string())?;
     let cert_count_index = index("Cert Count").ok_or_else(|| "Tracker is missing Cert Count column.".to_string())?;
+    let audit_days_index = index_any(&["Audit Days Assigned", "Audit Days", "Assigned Audit Days", "Days"]);
     let psn_index = index("PSN").ok_or_else(|| "Tracker is missing PSN column.".to_string())?;
     let notes_index = index("Auditor Notes");
     let status_index = index("ASC Status");
@@ -130,6 +139,7 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
             file_no: row_cell_text(row, file_index),
             scn: row_cell_text(row, scn_index),
             cert_count: row_cell_text(row, cert_count_index),
+            audit_days: audit_days_index.map(|column| row_cell_text(row, column)).unwrap_or_default(),
             psn: row_cell_text(row, psn_index),
             auditor_notes: notes_index.map(|column| row_cell_text(row, column)).unwrap_or_default(),
             asc_status: status_index.map(|column| row_cell_text(row, column)).unwrap_or_default(),

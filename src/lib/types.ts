@@ -75,6 +75,7 @@ export interface AuditAssignment {
   ccn: string;
   fileNo: string;
   certCount: string;
+  auditDays: string;
   auditorNotes: string;
   ascStatus: string;
 }

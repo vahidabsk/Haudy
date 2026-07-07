@@ -45,6 +45,7 @@ export function importTrackerAssignments(rows: DesktopTrackerAssignment[], audit
     ccn: row.ccn,
     fileNo: row.fileNo,
     certCount: row.certCount,
+    auditDays: row.auditDays,
     auditorNotes: row.auditorNotes,
     ascStatus: row.ascStatus,
   }));
@@ -157,6 +158,7 @@ function normalizeAssignment(assignment: AuditAssignment): AuditAssignment {
     ccn: clean(assignment.ccn).toUpperCase(),
     fileNo: clean(assignment.fileNo).toUpperCase(),
     certCount: clean(assignment.certCount),
+    auditDays: clean(assignment.auditDays),
     auditorNotes: clean(assignment.auditorNotes),
     ascStatus: clean(assignment.ascStatus),
   };

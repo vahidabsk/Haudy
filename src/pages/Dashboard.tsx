@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Building2, CalendarCheck, CalendarDays, CheckCircle2, Clock3, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Target, Trash2, UploadCloud } from "lucide-react";
+import { ArrowLeft, Building2, CalendarCheck, CalendarDays, CheckCircle2, Clock3, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Target, Trash2, UploadCloud, X } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
@@ -294,15 +294,34 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               ))}
             </div>
             {activeJobTab === "pool" ? (
-              <label className="flex min-h-14 items-center gap-3 rounded-lg border-2 border-sky-200 bg-sky-50 px-4 text-sm text-sky-900 shadow-sm focus-within:border-navy focus-within:bg-white focus-within:ring-2 focus-within:ring-navy/15">
-                <Search size={20} />
-                <input
-                  className="min-w-0 flex-1 bg-transparent py-3 text-base font-semibold text-navy outline-none placeholder:text-sky-700/60"
-                  value={poolSearch}
-                  onChange={(event) => setPoolSearch(event.target.value)}
-                  placeholder="Search Pool of Jobs by ASC name or PSN..."
-                />
-              </label>
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <label className="flex min-h-12 flex-1 items-center gap-3 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-700 shadow-inner focus-within:border-navy focus-within:ring-2 focus-within:ring-navy/15">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-navy/10 text-navy">
+                      <Search size={17} />
+                    </span>
+                    <input
+                      className="min-w-0 flex-1 bg-transparent py-2 text-base font-semibold text-navy outline-none placeholder:text-slate-400"
+                      value={poolSearch}
+                      onChange={(event) => setPoolSearch(event.target.value)}
+                      placeholder="Search ASC name or PSN"
+                    />
+                    {poolSearch.trim() ? (
+                      <button
+                        type="button"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-navy"
+                        onClick={() => setPoolSearch("")}
+                        aria-label="Clear ASC search"
+                      >
+                        <X size={16} />
+                      </button>
+                    ) : null}
+                  </label>
+                  <span className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500 sm:w-32 sm:text-right">
+                    {poolSearch.trim() ? `${visibleJobCards.length} result${visibleJobCards.length === 1 ? "" : "s"}` : "Pool Search"}
+                  </span>
+                </div>
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -622,7 +641,7 @@ function AuditorProgressDashboard({ metrics, onHide, onOpenGroup }: { metrics: A
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <ProgressMetricCard icon={<CalendarCheck size={20} />} label="Audit Days Assigned" value={metrics.auditDaysAssigned} detail="From confirmation audit dates" className="border-sky-200 bg-sky-50 text-sky-900" />
+        <ProgressMetricCard icon={<CalendarCheck size={20} />} label="Audit Days Assigned" value={metrics.auditDaysAssigned} detail="From Audit Tracker days" className="border-sky-200 bg-sky-50 text-sky-900" />
         <ProgressMetricCard icon={<CheckCircle2 size={20} />} label="Audit Days Complete" value={metrics.auditDaysComplete} detail={`${metrics.auditDaysCompletionPercent}% complete`} className="border-emerald-200 bg-emerald-50 text-emerald-900" />
         <ProgressMetricCard icon={<Building2 size={20} />} label="Company Count Assigned" value={metrics.companyCountAssigned} detail="ASC assignment cards" className="border-violet-200 bg-violet-50 text-violet-900" />
         <ProgressMetricCard icon={<Target size={20} />} label="Company Count Completed" value={metrics.companyCountCompleted} detail={`${metrics.companyCountCompletionPercent}% complete`} className="border-teal-200 bg-teal-50 text-teal-900" />
@@ -1207,10 +1226,10 @@ function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<strin
   const remainingJobs = Math.max(0, totalJobs - completedJobs);
   const scheduledJobs = groups.filter((group) => Boolean(parseLocalDate(documents[group.key]?.confirmation?.startDate))).length;
   const overdueReports = groups.filter((group) => homeJobStatus(group, documents[group.key]).label === "Report overdue").length;
-  const auditDaysAssigned = groups.reduce((total, group) => total + auditDaysForGroup(documents[group.key]), 0);
+  const auditDaysAssigned = groups.reduce((total, group) => total + auditDaysForGroup(group, documents[group.key]), 0);
   const auditDaysComplete = groups.reduce((total, group) => {
     if (!groupReportSent(group, documents[group.key])) return total;
-    return total + auditDaysForGroup(documents[group.key]);
+    return total + auditDaysForGroup(group, documents[group.key]);
   }, 0);
   const auditDaysCompletionPercent = percentComplete(auditDaysComplete, auditDaysAssigned);
   const companyCountAssigned = totalJobs;
@@ -1247,11 +1266,30 @@ function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<strin
   };
 }
 
-function auditDaysForGroup(documents?: AscDocumentState) {
+function auditDaysForGroup(group: AssignmentGroup, documents?: AscDocumentState) {
+  const trackerDays = trackerAuditDaysForGroup(group);
+  if (trackerDays > 0) return trackerDays;
   const start = parseLocalDate(documents?.confirmation?.startDate);
   if (!start) return 0;
   const end = parseLocalDate(documents?.confirmation?.endDate || documents?.confirmation?.startDate) || start;
   return Math.max(1, daysBetween(startOfLocalDay(start), startOfLocalDay(end)) + 1);
+}
+
+function trackerAuditDaysForGroup(group: AssignmentGroup) {
+  const values = group.assignments.map((assignment) => parseAuditDays(assignment.auditDays)).filter((value) => value > 0);
+  if (!values.length) return 0;
+  return roundMetric(Math.max(...values));
+}
+
+function parseAuditDays(value: string | undefined) {
+  const match = (value || "").match(/\d+(?:\.\d+)?/);
+  if (!match) return 0;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundMetric(value: number) {
+  return Math.round(value * 10) / 10;
 }
 
 function percentComplete(done: number, total: number) {

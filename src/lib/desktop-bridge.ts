@@ -20,6 +20,7 @@ export interface DesktopTrackerAssignment {
   fileNo: string;
   scn: string;
   certCount: string;
+  auditDays: string;
   psn: string;
   auditorNotes: string;
   ascStatus: string;
