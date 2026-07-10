@@ -30,6 +30,18 @@ export interface ParsedCertificate {
   coverageType?: string;
   systemDeviations?: string;
   commentsAndClarifications?: string;
+  governmentManual?: string;
+  governmentContractNumber?: string;
+  protectedArea?: string;
+  protectedAreaType?: string;
+  protectedAreaDescription?: string;
+  physicalBoundary?: string;
+  closedArea?: string;
+  alarmResponse?: string;
+  guardResponse?: string;
+  openingClosing?: string;
+  independentCode?: string;
+  asdForm?: string;
   premisesExtent?: string;
   stockroomExtent?: string;
   safeComplete?: string;
@@ -60,6 +72,23 @@ export interface ParsedCertificate {
     strobe?: number;
     notificationAppliances?: number;
   };
+}
+
+export interface CertificateSummaryItem {
+  label: string;
+  value: string;
+}
+
+export interface CertificateSummarySection {
+  title: string;
+  items: CertificateSummaryItem[];
+}
+
+export interface CertificateTransferSummary {
+  generatedAt: string;
+  certificateNumber?: string;
+  categoryCode?: string;
+  sections: CertificateSummarySection[];
 }
 
 export interface AuditAssignment {
@@ -223,6 +252,7 @@ export interface Audit {
   certificateDisplayedReportCodeSection: string;
   deviceSystemLocal: boolean;
   certificates: ParsedCertificate[];
+  certificateSummary?: CertificateTransferSummary;
   primaryCertificateIndex: number;
   matchesCertificate: boolean;
   certificateDisplayed: boolean;

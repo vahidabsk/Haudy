@@ -3,7 +3,7 @@ import { loadAudits, saveAudits } from "./audit-storage";
 import { hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 import { canSaveDocumentsToFolder, chooseStorageRoot } from "./local-document-storage";
 import { storePhotoDataUrl } from "./photo-store";
-import { Audit, AuditRow, DeviceTestRow, ReportFindingEntry, SignalLogRow } from "./types";
+import { Audit, AuditRow, CertificateSummaryItem, CertificateSummarySection, CertificateTransferSummary, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "./types";
 
 const IHAUDY_APP_NAME = "iHaudy Field Notes";
 const IHAUDY_VERSION = 1;
@@ -15,6 +15,7 @@ interface IHaudyFieldNotesFile {
   exportedAt: string;
   ascKey: string;
   ascName: string;
+  ascAddress?: string;
   ascCity: string;
   ascState: string;
   psn: string;
@@ -34,7 +35,8 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
     ascCity: group.ascCity,
     ascState: group.ascState,
     psn: group.psn,
-    audits: group.audits,
+    ascAddress: group.audits[0]?.certificates?.[0]?.ascAddress || "",
+    audits: group.audits.map((audit) => withCertificateSummary(audit, group)),
   };
   const fileName = `import it to iHaudy - ${safeName(group.ascName || "ASC")} - ${timestampForFile()}.ihaudy-field-notes.json`;
   const contents = JSON.stringify(payload, null, 2);
@@ -47,6 +49,136 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
 
   downloadTextFile(fileName, contents);
   return "iHaudy field notes file downloaded.";
+}
+
+function withCertificateSummary(audit: Audit, group: AssignmentGroup): Audit {
+  return {
+    ...audit,
+    certificateSummary: buildCertificateSummary(audit, group),
+  };
+}
+
+function buildCertificateSummary(audit: Audit, group: AssignmentGroup): CertificateTransferSummary {
+  const certificate = primaryCertificate(audit);
+  const category = certificate?.categoryCode || certificate?.ccn || categoryFromAudit(audit);
+  const sections = [
+    section("Certificate", [
+      item("Certificate number", certificate?.certificateNumber || audit.certificateNumber),
+      item("Category", category),
+      item("File / SCN", audit.fileScn),
+      item("File number", certificate?.fileNo),
+      item("CCN", certificate?.ccn),
+      item("Type", certificate?.certificateType),
+      item("Standard", certificate?.standardReferenced || audit.codeEdition),
+      item("Issued", certificate?.issuedDate),
+      item("Revised", certificate?.revisedDate),
+      item("Coverage", certificate?.coverageType),
+      item("Area covered", certificate?.areaCovered),
+    ]),
+    section("Protected Property", [
+      item("Name", certificate?.propertyName || audit.protectedProperty),
+      item("Address", certificate?.propertyAddress),
+      item("Government manual", certificate?.governmentManual),
+      item("Government contract number", certificate?.governmentContractNumber),
+      item("Protected area", certificate?.protectedArea),
+      item("Protected area type", certificate?.protectedAreaType),
+      item("Protected area description", certificate?.protectedAreaDescription),
+      item("Physical boundary", certificate?.physicalBoundary),
+      item("Closed area", certificate?.closedArea),
+      item("Premises extent of protection", certificate?.premisesExtent),
+      item("Stockroom extent of protection", certificate?.stockroomExtent),
+      item("Safe complete", certificate?.safeComplete),
+      item("Hold-up", certificate?.holdUp),
+    ]),
+    section("Alarm Service Company", [
+      item("ASC", certificate?.ascName || audit.ascName),
+      item("Address", certificate?.ascAddress),
+      item("City", certificate?.ascCity || audit.ascCity),
+      item("State", certificate?.ascState || audit.ascState),
+      item("PSN", group.psn),
+    ]),
+    section("Monitoring / Signal Transmission", [
+      item("Monitoring station", certificate?.centralStation),
+      item("Monitoring file", certificate?.centralStationFile),
+      item("Monitoring address", certificate?.centralStationAddress),
+      item("Primary transmission", certificate?.primaryTransmission),
+      item("Secondary transmission", certificate?.secondaryTransmission),
+      item("Retransmission to fire department", certificate?.retransmission),
+      item("Party notified", certificate?.partyNotified),
+      item("Line security", certificate?.lineSecurity),
+      item("Alarm sounding device location", certificate?.alarmSoundingDeviceLocation),
+      item("Opening / closing", certificate?.openingClosing),
+    ]),
+    section("Equipment", [
+      item("Control unit manufacturer", certificate?.controlUnitMfr),
+      item("Control unit model", certificate?.controlUnitModel),
+      item("Transmitter manufacturer", certificate?.signalTransmitterMfr),
+      item("Transmitter model", certificate?.signalTransmitterModel),
+      item("Control / transmitter combo", certificate?.controlTransmitterCombo),
+    ]),
+    section("Fire Device Counts", fireDeviceItems(certificate)),
+    section("Fire Department / NFPA", [
+      item("Authority having jurisdiction", certificate?.ahj),
+      item("Responding fire department", certificate?.respondingFD),
+      item("System deviations", certificate?.systemDeviations),
+      item("Comments and clarifications", certificate?.commentsAndClarifications),
+    ]),
+    section("CRZH / Security Details", [
+      item("Government manual", certificate?.governmentManual),
+      item("Alarm response", certificate?.alarmResponse),
+      item("Guard response", certificate?.guardResponse),
+      item("Independent code", certificate?.independentCode),
+      item("ASD form", certificate?.asdForm),
+      item("Line security", certificate?.lineSecurity),
+      item("Protected area", certificate?.protectedArea),
+      item("Protected area type", certificate?.protectedAreaType),
+      item("Physical boundary", certificate?.physicalBoundary),
+      item("Closed area", certificate?.closedArea),
+    ]),
+  ].filter((candidate): candidate is CertificateSummarySection => Boolean(candidate));
+
+  return {
+    generatedAt: new Date().toISOString(),
+    certificateNumber: certificate?.certificateNumber || audit.certificateNumber,
+    categoryCode: category,
+    sections,
+  };
+}
+
+function primaryCertificate(audit: Audit): ParsedCertificate | undefined {
+  return audit.certificates?.[audit.primaryCertificateIndex] || audit.certificates?.[0];
+}
+
+function section(title: string, items: Array<CertificateSummaryItem | null | undefined>): CertificateSummarySection | null {
+  const cleanItems = items.filter((entry): entry is CertificateSummaryItem => Boolean(entry));
+  return cleanItems.length ? { title, items: cleanItems } : null;
+}
+
+function item(label: string, value: unknown): CertificateSummaryItem | null {
+  const cleanValue = String(value ?? "").trim();
+  if (!cleanValue) return null;
+  return { label, value: cleanValue };
+}
+
+function fireDeviceItems(certificate?: ParsedCertificate): CertificateSummaryItem[] {
+  const counts = certificate?.deviceCounts;
+  if (!counts) return [];
+  return [
+    item("Smoke detectors", counts.smoke),
+    item("Heat detectors", counts.heat),
+    item("Duct-type smoke detectors", counts.duct),
+    item("Other initiating devices", counts.otherInitiating),
+    item("Manual pull stations", counts.manualStations),
+    item("Waterflow / control valves", counts.waterflowControlValve),
+    item("Horn / strobes", counts.hornStrobe),
+    item("Strobes", counts.strobe),
+    item("Notification appliances", counts.notificationAppliances),
+  ].filter((entry): entry is CertificateSummaryItem => Boolean(entry));
+}
+
+function categoryFromAudit(audit: Audit) {
+  const fileScn = audit.fileScn || "";
+  return fileScn.match(/\b(UUFX|UUJS|CVSG|CRZH)\b/i)?.[1]?.toUpperCase() || "";
 }
 
 export async function importFieldNotesFromIHaudy(file: File, group: AssignmentGroup) {
