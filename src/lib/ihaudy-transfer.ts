@@ -195,11 +195,8 @@ function fireDeviceSummarySections(certificate?: ParsedCertificate): Certificate
         const metadataItems = (deviceSection.metadata || []).map((entry) => item(entry.label, entry.value));
         const rowItems = (deviceSection.rows || []).map((row) => {
           const label = [row.category, row.description].filter(Boolean).join(" - ");
-          const valueParts = [
-            typeof row.count === "number" ? row.count.toString() : "",
-            typeof row.total === "number" ? `Total: ${row.total}` : "",
-          ].filter(Boolean);
-          return item(label || "Device", valueParts.join(" | "));
+          const value = typeof row.count === "number" ? row.count.toString() : "";
+          return item(label || "Device", value);
         });
         return section(deviceSection.title, [...metadataItems, ...rowItems]);
       })

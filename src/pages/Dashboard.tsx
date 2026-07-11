@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Building2, CalendarCheck, CalendarDays, CheckCircle2, Clock3, Download, FilePenLine, FileText, MapPin, Search, Share, ShieldCheck, Target, Trash2, UploadCloud, X } from "lucide-react";
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
@@ -27,6 +27,7 @@ interface DuplicateUploadReview {
 export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const navigate = useNavigate();
+  const location = useLocation();
   const [assignments, setAssignments] = useState(() => loadAuditAssignments());
   const groups = groupAssignmentsAndAudits(assignments, audits.audits);
   const desktopStorageAvailable = canSaveDocumentsToFolder();
@@ -58,7 +59,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const status = homeJobStatus(group, ascDocuments[group.key]);
     setActiveJobTab(status.id);
     setFocusAscKey(group.key);
-    window.history.replaceState(null, "", `#${encodeURIComponent(group.key)}`);
+    window.history.replaceState(null, "", `?asc=${encodeURIComponent(group.key)}`);
   }
 
   useEffect(() => {
@@ -93,13 +94,15 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }, [audits.audits.length, assignments.length]);
 
   useEffect(() => {
-    const key = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+    const searchKey = new URLSearchParams(location.search).get("asc") || "";
+    const hashKey = location.hash.replace(/^#/, "");
+    const key = decodeURIComponent(searchKey || hashKey);
     if (!key || !groups.length) return;
     const card = jobCards.find((item) => item.group.key === key);
     if (!card) return;
     setFocusAscKey(key);
     setActiveJobTab(card.status.id);
-  }, [ascDocuments, assignments.length, audits.audits.length, groups.length]);
+  }, [ascDocuments, assignments.length, audits.audits.length, groups.length, location.hash, location.search]);
 
   useEffect(() => {
     if (!focusAscKey) return;
@@ -343,7 +346,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const dashboardReport = documents?.[dashboardReportKey(group)];
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
-          <section id={ascCardDomId(group.key)} key={group.key} className={`grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName}`}>
+          <section id={ascCardDomId(group.key)} key={group.key} className={`grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName} ${focusAscKey === group.key ? "ring-2 ring-navy/30" : ""}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
@@ -1006,7 +1009,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
 
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
-      <Link className="inline-flex w-fit items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm font-medium text-navy" to={`/#${encodeURIComponent(group.key)}`}><ArrowLeft size={16} /> Back to ASCs</Link>
+      <Link className="inline-flex w-fit items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm font-medium text-navy" to={`/?asc=${encodeURIComponent(group.key)}`}><ArrowLeft size={16} /> Back to ASCs</Link>
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
