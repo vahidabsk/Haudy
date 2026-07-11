@@ -116,7 +116,7 @@ function buildCertificateSummary(audit: Audit, group: AssignmentGroup): Certific
       item("Transmitter model", certificate?.signalTransmitterModel),
       item("Control / transmitter combo", certificate?.controlTransmitterCombo),
     ]),
-    section("Fire Device Counts", fireDeviceItems(certificate)),
+    ...fireDeviceSummarySections(certificate),
     section("Fire Department / NFPA", [
       item("Authority having jurisdiction", certificate?.ahj),
       item("Responding fire department", certificate?.respondingFD),
@@ -162,18 +162,52 @@ function item(label: string, value: unknown): CertificateSummaryItem | null {
 
 function fireDeviceItems(certificate?: ParsedCertificate): CertificateSummaryItem[] {
   const counts = certificate?.deviceCounts;
-  if (!counts) return [];
+  if (!counts && !certificate?.sprinklerSystemType) return [];
   return [
-    item("Smoke detectors", counts.smoke),
-    item("Heat detectors", counts.heat),
-    item("Duct-type smoke detectors", counts.duct),
-    item("Other initiating devices", counts.otherInitiating),
-    item("Manual pull stations", counts.manualStations),
-    item("Waterflow / control valves", counts.waterflowControlValve),
-    item("Horn / strobes", counts.hornStrobe),
-    item("Strobes", counts.strobe),
-    item("Notification appliances", counts.notificationAppliances),
+    item("Sprinkler system type", certificate?.sprinklerSystemType),
+    item("Smoke detectors", counts?.smoke),
+    item("Photoelectric smoke detectors", counts?.photoelectricSmoke),
+    item("Ionization smoke detectors", counts?.ionizationSmoke),
+    item("Heat detectors", counts?.heat),
+    item("Duct-type smoke detectors", counts?.duct),
+    item("Tamper switches", counts?.tamperSwitches),
+    item("Sprinkler waterflow", counts?.sprinklerWaterflow),
+    item("Waterflow switches", counts?.waterflowSwitches),
+    item("Control valves", counts?.controlValves),
+    item("Valve supervisory", counts?.valveSupervisory),
+    item("OS&Y switches", counts?.osy),
+    item("PIV switches", counts?.piv),
+    item("Pressure switches", counts?.pressureSwitches),
+    item("Low air switches", counts?.lowAirSwitches),
+    item("Other initiating devices", counts?.otherInitiating),
+    item("Manual pull stations", counts?.manualStations),
+    item("Waterflow / control valves", counts?.waterflowControlValve),
+    item("Horn / strobes", counts?.hornStrobe),
+    item("Strobes", counts?.strobe),
+    item("Notification appliances", counts?.notificationAppliances),
   ].filter((entry): entry is CertificateSummaryItem => Boolean(entry));
+}
+
+function fireDeviceSummarySections(certificate?: ParsedCertificate): CertificateSummarySection[] {
+  if (certificate?.fireDeviceSections?.length) {
+    return certificate.fireDeviceSections
+      .map((deviceSection) => {
+        const metadataItems = (deviceSection.metadata || []).map((entry) => item(entry.label, entry.value));
+        const rowItems = (deviceSection.rows || []).map((row) => {
+          const label = [row.category, row.description].filter(Boolean).join(" - ");
+          const valueParts = [
+            typeof row.count === "number" ? row.count.toString() : "",
+            typeof row.total === "number" ? `Total: ${row.total}` : "",
+          ].filter(Boolean);
+          return item(label || "Device", valueParts.join(" | "));
+        });
+        return section(deviceSection.title, [...metadataItems, ...rowItems]);
+      })
+      .filter((entry): entry is CertificateSummarySection => Boolean(entry));
+  }
+  const fallbackItems = fireDeviceItems(certificate);
+  const fallbackSection = section("Fire Device Counts", fallbackItems);
+  return fallbackSection ? [fallbackSection] : [];
 }
 
 function categoryFromAudit(audit: Audit) {

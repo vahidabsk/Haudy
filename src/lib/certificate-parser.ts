@@ -1,4 +1,4 @@
-import { ParsedCertificate } from "./types";
+import { CertificateDeviceSection, ParsedCertificate } from "./types";
 
 const headings = [
   "Protected Property",
@@ -11,6 +11,7 @@ const headings = [
   "Sprinkler System and Supervisory Service",
   "Manual Fire Alarm Devices",
   "Alarm Notification and Annunciation Devices",
+  "Emergency Voice Alarm Devices",
   "Control and Transmitter Unit",
   "Monitoring Location",
   "Comments and Clarifications",
@@ -75,6 +76,8 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
   const revisedLine = firstLineMatching(fullLines, /^Revised:/i) || issuedLine;
   const standardMatch = fullFlat.match(/accordance\s+with\s+standard\s+(NFPA\s*72\s*[- ]\s*\d{4}|UL\s*681|UL\s*2050)/i);
   const coverageMatch = joined.match(/Coverage\s+is\s+([^\n]+)/i) || flat.match(/Coverage\s+is\s+([^]+?)(?=\b(?:Issued|Revised|Monitoring Location|SN|File No|Protected Property|Alarm Service Company)\b|$)/i);
+  const parsedFireDeviceSections = fireDeviceSections(fullLines);
+  const parsedSprinklerType = sprinklerTypeFromSections(parsedFireDeviceSections) || sprinklerSystemType(fullJoined) || sprinklerSystemType(joined);
 
   return {
     fileName,
@@ -128,7 +131,9 @@ export function parseCertificateText(rawText: string, fileName: string): ParsedC
     centralStation: monitoring.name,
     centralStationAddress: monitoring.address,
     centralStationFile: monitoring.file,
-    deviceCounts: deviceCounts(joined),
+    sprinklerSystemType: parsedSprinklerType,
+    fireDeviceSections: parsedFireDeviceSections,
+    deviceCounts: deviceCounts(joined, parsedFireDeviceSections),
   };
 }
 
@@ -309,16 +314,164 @@ function systemDeviations(lines: string[]) {
   return /^NONE$/i.test(value) ? "" : value;
 }
 
-function deviceCounts(text: string) {
+function deviceCounts(text: string, sections: CertificateDeviceSection[] = []) {
+  const sectionCount = (category: RegExp, description?: RegExp) => countFromSections(sections, category, description);
   return {
-    smoke: totalNear(text, /Smoke Detector/i),
-    heat: totalNear(text, /Heat Detector/i),
-    duct: totalNear(text, /Duct Detector/i),
-    waterflowControlValve: totalNear(text, /Waterflow[\s\S]*?Control Valve/i),
-    manualStations: totalNear(text, /Manual[\s\S]*?(Station|Boxes)/i),
-    hornStrobe: totalNear(text, /Horn\s*\/\s*Strobe/i),
-    strobe: totalNear(text, /(^|\n)Strobe/i),
+    smoke: sectionCount(/Smoke Detector/i),
+    photoelectricSmoke: sectionCount(/Smoke Detector/i, /Photo/i),
+    ionizationSmoke: totalNear(text, /Ionization\s+Smoke Detector/i),
+    heat: sectionCount(/Heat Detector/i),
+    duct: sectionCount(/Other Detector|Duct/i, /Duct/i),
+    tamperSwitches: totalNear(text, /Tamper Switch/i),
+    sprinklerWaterflow: sectionCount(/Sprinkler Device/i, /Waterflow/i),
+    waterflowSwitches: sectionCount(/Sprinkler Device/i, /Waterflow/i),
+    controlValves: sectionCount(/Sprinkler Device/i, /Control Valve/i),
+    valveSupervisory: totalNear(text, /Valve Supervisory/i),
+    osy: totalNear(text, /OS\s*&\s*Y/i),
+    piv: totalNear(text, /PIV|Post Indicator Valve/i),
+    pressureSwitches: totalNear(text, /Pressure Switch/i),
+    lowAirSwitches: totalNear(text, /Low Air Switch/i),
+    waterflowControlValve: totalFromSection(sections, /Sprinkler System and Supervisory Service/i) || totalNear(text, /Waterflow[\s\S]*?Control Valve/i),
+    manualStations: totalFromSection(sections, /Manual Fire Alarm Devices/i) || totalNear(text, /Manual[\s\S]*?(Station|Boxes)/i),
+    hornStrobe: sectionCount(/Combination Signaling|Notification Appliances/i, /Horn\s*\/\s*Strobe/i),
+    strobe: sectionCount(/Visual Only Signaling|Notification Appliances/i, /^Strobe$/i),
+    notificationAppliances: totalFromSection(sections, /Alarm Notification and Annunciation Devices/i),
   };
+}
+
+function fireDeviceSections(lines: string[]): CertificateDeviceSection[] {
+  const specs = [
+    "Automatic Fire Detection and Alarm Devices",
+    "Sprinkler System and Supervisory Service",
+    "Manual Fire Alarm Devices",
+    "Alarm Notification and Annunciation Devices",
+    "Emergency Voice Alarm Devices",
+  ];
+  return specs
+    .map((title) => {
+      const parsed = parseDeviceSection(title, sectionLines(lines, title));
+      return parsed.rows.length || parsed.metadata?.length ? parsed : null;
+    })
+    .filter((section): section is NonNullable<typeof section> => Boolean(section));
+}
+
+function sectionLines(lines: string[], title: string) {
+  const start = lines.findIndex((line) => sameHeading(line, title));
+  if (start < 0) return [];
+  const block: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (isHeading(line)) break;
+    block.push(line);
+  }
+  return block;
+}
+
+function parseDeviceSection(title: string, lines: string[]): CertificateDeviceSection {
+  const rows: CertificateDeviceSection["rows"] = [];
+  const metadata: Array<{ label: string; value: string }> = [];
+  let currentCategory = "";
+  let pendingCountedRow: CertificateDeviceSection["rows"][number] | undefined;
+
+  for (const rawLine of lines.map(clean).filter(Boolean)) {
+    const categoryWithCountedTotal = rawLine.match(/^(.+?)\s+(\d+)\s+(.+?)\s+Total\s*:?\s*(\d+)$/i);
+    if (categoryWithCountedTotal && !/^(Coverage|Sprinkler Type)\b/i.test(rawLine)) {
+      rows.push({
+        category: clean(categoryWithCountedTotal[1]),
+        count: Number(categoryWithCountedTotal[2]),
+        description: clean(categoryWithCountedTotal[3]),
+        total: Number(categoryWithCountedTotal[4]),
+      });
+      pendingCountedRow = undefined;
+      continue;
+    }
+    const categoryWithCounted = rawLine.match(/^(.+?)\s+(\d+)\s+([A-Za-z].+)$/);
+    if (categoryWithCounted && !rawLine.match(/^(\d+)\s+/) && !/^(Coverage|Sprinkler Type)\b/i.test(rawLine)) {
+      rows.push({
+        category: clean(categoryWithCounted[1]),
+        count: Number(categoryWithCounted[2]),
+        description: clean(categoryWithCounted[3]),
+      });
+      pendingCountedRow = rows[rows.length - 1];
+      continue;
+    }
+    const coverage = rawLine.match(/^Coverage\s+is\s+(.+)$/i);
+    if (coverage) {
+      metadata.push({ label: "Coverage", value: clean(coverage[1]) });
+      pendingCountedRow = undefined;
+      continue;
+    }
+    const sprinklerType = rawLine.match(/^Sprinkler\s+Type\s+is\s+(.+)$/i) || rawLine.match(/^Sprinkler\s+Type\s*:?\s*(.+)$/i);
+    if (sprinklerType) {
+      metadata.push({ label: "Sprinkler type", value: clean(sprinklerType[1]) });
+      pendingCountedRow = undefined;
+      continue;
+    }
+    const countedWithTotal = rawLine.match(/^(\d+)\s+(.+?)\s+Total\s*:?\s*(\d+)$/i);
+    if (countedWithTotal) {
+      rows.push({ category: currentCategory, count: Number(countedWithTotal[1]), description: clean(countedWithTotal[2]), total: Number(countedWithTotal[3]) });
+      pendingCountedRow = undefined;
+      continue;
+    }
+    const counted = rawLine.match(/^(\d+)\s+(.+)$/);
+    if (counted) {
+      rows.push({ category: currentCategory, count: Number(counted[1]), description: clean(counted[2]) });
+      pendingCountedRow = rows[rows.length - 1];
+      continue;
+    }
+    const totalOnly = rawLine.match(/^Total\s*:?\s*(\d+)$/i);
+    if (totalOnly && (pendingCountedRow || rows.length)) {
+      (pendingCountedRow || rows[rows.length - 1]).total = Number(totalOnly[1]);
+      pendingCountedRow = undefined;
+      continue;
+    }
+    currentCategory = rawLine.replace(/:$/, "");
+    pendingCountedRow = undefined;
+  }
+
+  return {
+    title,
+    metadata: metadata.length ? metadata : undefined,
+    rows,
+  };
+}
+
+function sameHeading(line: string, title: string) {
+  return line.replace(/:$/, "").toLowerCase() === title.toLowerCase();
+}
+
+function sprinklerTypeFromSections(sections: CertificateDeviceSection[]) {
+  return sections
+    .find((section) => /Sprinkler System/i.test(section.title))
+    ?.metadata?.find((item) => /sprinkler type/i.test(item.label))
+    ?.value;
+}
+
+function countFromSections(sections: CertificateDeviceSection[], category: RegExp, description?: RegExp) {
+  for (const row of sections.flatMap((section) => section.rows)) {
+    const categoryText = row.category || "";
+    const descriptionText = row.description || "";
+    if (!category.test(categoryText) && !category.test(descriptionText)) continue;
+    if (description && !description.test(descriptionText)) continue;
+    return row.count ?? row.total;
+  }
+  return undefined;
+}
+
+function totalFromSection(sections: CertificateDeviceSection[], title: RegExp) {
+  const rows = sections.find((section) => title.test(section.title))?.rows || [];
+  const totals = rows.map((row) => row.total).filter((total): total is number => typeof total === "number");
+  if (totals.length) return totals[totals.length - 1];
+  const counts = rows.map((row) => row.count).filter((count): count is number => typeof count === "number");
+  return counts.length ? counts.reduce((sum, count) => sum + count, 0) : undefined;
+}
+
+function sprinklerSystemType(text: string) {
+  return (
+    labelValue(text, "Sprinkler System Type") ||
+    labelValue(text, "Type of Sprinkler System") ||
+    labelValue(text, "Sprinkler Type") ||
+    text.match(/\b(?:Type of )?Sprinkler System\b\s*:?\s*([A-Za-z0-9 /&(),.-]+?)(?=\s{2,}|\n|$)/i)?.[1]?.trim()
+  );
 }
 
 function totalNear(text: string, label: RegExp) {

@@ -61,10 +61,23 @@ export interface ParsedCertificate {
   centralStationAddress?: string;
   centralStationFile?: string;
   testingContractDate?: string;
+  sprinklerSystemType?: string;
+  fireDeviceSections?: CertificateDeviceSection[];
   deviceCounts?: {
     smoke?: number;
+    photoelectricSmoke?: number;
+    ionizationSmoke?: number;
     heat?: number;
     duct?: number;
+    tamperSwitches?: number;
+    sprinklerWaterflow?: number;
+    waterflowSwitches?: number;
+    controlValves?: number;
+    valveSupervisory?: number;
+    osy?: number;
+    piv?: number;
+    pressureSwitches?: number;
+    lowAirSwitches?: number;
     otherInitiating?: number;
     manualStations?: number;
     waterflowControlValve?: number;
@@ -72,6 +85,19 @@ export interface ParsedCertificate {
     strobe?: number;
     notificationAppliances?: number;
   };
+}
+
+export interface CertificateDeviceRow {
+  category?: string;
+  count?: number;
+  description: string;
+  total?: number;
+}
+
+export interface CertificateDeviceSection {
+  title: string;
+  metadata?: Array<{ label: string; value: string }>;
+  rows: CertificateDeviceRow[];
 }
 
 export interface CertificateSummaryItem {
