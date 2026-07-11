@@ -43,8 +43,8 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
 
   if (canSaveDocumentsToFolder() && hasDesktopBridge()) {
     if (!storedHaudyDatabaseRoot()) await chooseStorageRoot();
-    await saveDesktopTextFile(iHaudyStorageFolders(group), fileName, contents);
-    return `iHaudy field notes file saved in ${group.ascName || "ASC"} / iHaudy files.`;
+    await saveDesktopTextFile(iHaudyStorageFolders(), fileName, contents);
+    return "iHaudy field notes file saved in Haudy Database / iHaudy files.";
   }
 
   downloadTextFile(fileName, contents);
@@ -206,8 +206,8 @@ export async function importFieldNotesFromIHaudy(file: File, group: AssignmentGr
   return { imported, audits: mergedAudits };
 }
 
-export function iHaudyStorageFolders(group: AssignmentGroup) {
-  return [safeName([folderYear(group), group.ascName || "ASC"].filter(Boolean).join(" - ")), "iHaudy files"];
+export function iHaudyStorageFolders() {
+  return ["iHaudy files"];
 }
 
 function parseIHaudyFile(contents: string): IHaudyFieldNotesFile {
@@ -317,11 +317,6 @@ function importPhotoReference(photo: string) {
 
 function certificateMatchKey(audit: Audit) {
   return [audit.ascName, audit.ascCity, audit.ascState, audit.certificateNumber, audit.protectedProperty].map((value) => (value || "").trim().toLowerCase()).join("|");
-}
-
-function folderYear(group: AssignmentGroup) {
-  const auditDate = group.audits[0]?.auditDate || group.audits[0]?.createdAt;
-  return auditDate?.slice(0, 4) || new Date().getFullYear().toString();
 }
 
 function timestampForFile() {

@@ -9,6 +9,7 @@ export interface StorageDocumentDetails {
   ascName: string;
   cityState: string;
   psn: string;
+  categoryCode?: string;
   propertyName?: string;
   certificateNumber?: string;
   folder: DocumentFolder;
@@ -38,14 +39,14 @@ export async function prepareStorageFolders(details: Array<Omit<StorageDocumentD
   if (!storedHaudyDatabaseRoot()) await chooseStorageRoot();
   const folderSets = new Set<string>();
   for (const detail of details) {
-    const base = safeName([detail.year || new Date().getFullYear().toString(), detail.ascName || "ASC"].filter(Boolean).join(" - "));
+    const base = ascFolderName(detail);
     folderSets.add(JSON.stringify([base, "Confirmation"]));
     folderSets.add(JSON.stringify([base, "Report"]));
     if (detail.propertyName || detail.certificateNumber) {
-      const property = safeName([detail.propertyName || "Property", detail.certificateNumber || detail.psn || "Certificate"].filter(Boolean).join(" - "));
-      folderSets.add(JSON.stringify([base, property, "Field Notes"]));
+      folderSets.add(JSON.stringify(fieldNoteFolders(detail)));
     }
   }
+  folderSets.add(JSON.stringify(["iHaudy files"]));
   await createDesktopFolders(Array.from(folderSets, (folders) => JSON.parse(folders) as string[]));
 }
 
@@ -59,6 +60,7 @@ export function storageDetailsFromAudit(audit: Audit, folder: DocumentFolder, fi
     ascName: audit.ascName || "ASC",
     cityState: [audit.ascCity, audit.ascState].filter(Boolean).join(" "),
     psn: audit.certificateNumber || "PSN",
+    categoryCode: auditCategoryCode(audit),
     propertyName: audit.protectedProperty || "Property",
     certificateNumber: audit.certificateNumber || audit.id,
     folder,
@@ -71,12 +73,11 @@ export function storageDetailsFromAsc({ year, ascName, cityState, psn, folder, f
 }
 
 export function storageFoldersForDetails(details: StorageDocumentDetails) {
-  const ascFolderName = safeName([details.year || new Date().getFullYear().toString(), details.ascName || "ASC"].filter(Boolean).join(" - "));
+  const base = ascFolderName(details);
   if (details.folder === "Field Notes") {
-    const propertyFolderName = safeName([details.propertyName || "Property", details.certificateNumber || details.psn || "Certificate"].filter(Boolean).join(" - "));
-    return [ascFolderName, propertyFolderName, details.folder];
+    return fieldNoteFolders(details);
   }
-  return [ascFolderName, details.folder];
+  return [base, details.folder];
 }
 
 async function printableHtmlSnapshot(title: string) {
@@ -130,6 +131,25 @@ function blobToDataUrl(blob: Blob) {
 
 function safeName(value: string) {
   return value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Haudy Document";
+}
+
+function ascFolderName(details: Pick<StorageDocumentDetails, "year" | "ascName">) {
+  return safeName([details.year || new Date().getFullYear().toString(), details.ascName || "ASC"].filter(Boolean).join(" - "));
+}
+
+function fieldNoteFolders(details: Pick<StorageDocumentDetails, "year" | "ascName" | "categoryCode" | "propertyName" | "certificateNumber" | "psn">) {
+  const propertyFolderName = safeName([details.propertyName || "Property", details.certificateNumber || details.psn || "Certificate"].filter(Boolean).join(" - "));
+  return [
+    ascFolderName(details),
+    "Selected Certificates (Properties)",
+    safeName((details.categoryCode || "Uncategorized").toUpperCase()),
+    propertyFolderName,
+  ];
+}
+
+function auditCategoryCode(audit: Audit) {
+  const certificate = audit.certificates?.[audit.primaryCertificateIndex] || audit.certificates?.[0];
+  return (certificate?.categoryCode || certificate?.ccn || audit.fileScn.match(/\b(UUFX|UUJS|CVSG|CRZH)\b/i)?.[1] || "Uncategorized").toUpperCase();
 }
 
 function escapeHtml(value: string) {
