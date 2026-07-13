@@ -12,7 +12,7 @@ import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/aud
 import { openAuditTracker } from "../lib/desktop-bridge";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
-import { Audit, AuditAssignment, ParsedCertificate } from "../lib/types";
+import { Audit, ParsedCertificate } from "../lib/types";
 import { relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
 import { isProtectedAreaAudit } from "../lib/audit-program";
@@ -48,12 +48,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [poolSearch, setPoolSearch] = useState("");
   const [focusAscKey, setFocusAscKey] = useState("");
   const [showProgressDashboard, setShowProgressDashboard] = useState(false);
-  const jobCards = groups.map((group) => ({ group, status: homeJobStatus(group, ascDocuments[group.key]) }));
+  const jobCards = groups.map((group) => {
+    const documents = ascDocuments[group.key];
+    return { group, documents, status: homeJobStatus(group, documents) };
+  });
   const jobTabs = homeJobTabs(jobCards);
   const dashboardMetrics = auditProgressMetrics(groups, ascDocuments);
   const visibleJobCards = jobCards
     .filter((item) => item.status.id === activeJobTab)
-    .filter((item) => activeJobTab !== "pool" || groupMatchesPoolSearch(item.group, poolSearch));
+    .filter((item) => activeJobTab !== "pool" || groupMatchesPoolSearch(item.group, poolSearch))
+    .sort((a, b) => compareJobCards(a, b, activeJobTab));
 
   function openAscFromDashboard(group: AssignmentGroup) {
     const status = homeJobStatus(group, ascDocuments[group.key]);
@@ -141,7 +145,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }
 
   async function addCertificatesToGroup(group: AssignmentGroup, certificates: ParsedCertificate[]) {
-    const mismatch = findWrongAscCertificate(group, certificates, assignments);
+    const mismatch = findWrongAscCertificate(group, certificates);
     if (mismatch) return mismatch;
     const adjustedCertificates = certificates.map((certificate) => ({ ...certificate, ...assignmentCertificateOverrides(group) }));
     const existingByKey = new Map(audits.audits.map((audit) => [auditIdentity(audit), audit]));
@@ -1433,6 +1437,55 @@ function shouldShowClearanceToggle(group: AssignmentGroup, documents?: AscDocume
   return Boolean(documents?.[dashboardReportKey(group)]?.sentToClient && groupDeficiencyCount(group, documents) > 0);
 }
 
+type DashboardJobCard = {
+  group: AssignmentGroup;
+  documents?: AscDocumentState;
+  status: HomeJobStatusDetails;
+};
+
+function compareJobCards(a: DashboardJobCard, b: DashboardJobCard, status: HomeJobStatus) {
+  const first = jobCardSortTime(a.group, a.documents, status);
+  const second = jobCardSortTime(b.group, b.documents, status);
+  if (first !== second) return first - second;
+  return a.group.ascName.localeCompare(b.group.ascName, undefined, { sensitivity: "base" });
+}
+
+function jobCardSortTime(
+  group: AssignmentGroup,
+  documents: AscDocumentState | undefined,
+  status: HomeJobStatus,
+) {
+  const confirmation = documents?.confirmation;
+  const report = documents?.[dashboardReportKey(group)];
+  const auditStart = parseLocalDate(confirmation?.startDate);
+  const auditEnd = parseLocalDate(confirmation?.endDate || confirmation?.startDate);
+  const clearanceStart = parseLocalDate(
+    report?.clearanceStartDate ||
+      report?.letterDate ||
+      report?.reportSentAt?.slice(0, 10) ||
+      "",
+  );
+
+  switch (status) {
+    case "pool":
+    case "scheduled":
+      return auditStart?.getTime() ?? Number.POSITIVE_INFINITY;
+    case "reportDue":
+      return auditEnd ? addDays(auditEnd, 14).getTime() : Number.POSITIVE_INFINITY;
+    case "reportCreated":
+      return timestampOrInfinity(report?.reportCreatedAt);
+    case "clearance":
+      return clearanceStart ? addDays(clearanceStart, 30).getTime() : Number.POSITIVE_INFINITY;
+    case "done":
+      return timestampOrInfinity(report?.clearanceResponseAt || report?.reportSentAt || report?.reportCreatedAt);
+  }
+}
+
+function timestampOrInfinity(value?: string) {
+  const time = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
+}
+
 function shouldShowReportSentToggle(group: AssignmentGroup, documents?: AscDocumentState) {
   const report = documents?.[dashboardReportKey(group)];
   return Boolean(report?.reportCreated && !report.sentToClient);
@@ -1468,33 +1521,32 @@ function auditDeficiencyCount(audit: Audit) {
   return count;
 }
 
-function findWrongAscCertificate(group: AssignmentGroup, certificates: ParsedCertificate[], assignments: AuditAssignment[]) {
-  const expectedPsn = normalizePsn(group.psn);
-  if (!expectedPsn) return "";
+function findWrongAscCertificate(group: AssignmentGroup, certificates: ParsedCertificate[]) {
+  const expectedName = normalizeAscName(group.ascName);
+  if (!expectedName) return "";
 
   for (const certificate of certificates) {
-    const certificatePsn = normalizePsn(certificate.certificateNumber);
-    if (!certificatePsn) {
-      return `Haudy could not verify this certificate because its PSN was not detected. This ASC card expects PSN ${group.psn}. Please upload the certificate with a readable PSN.`;
-    }
-    if (certificatePsn === expectedPsn) continue;
+    const certificateName = certificate.ascName?.trim();
+    if (!certificateName) continue;
+    if (normalizeAscName(certificateName) === expectedName) continue;
 
-    const assignedAsc = assignmentForCertificate(certificate, assignments);
-    const certificateAsc = assignedAsc?.ascName || certificate.ascName || "another ASC";
-    const actualPsn = assignedAsc?.psn || certificate.certificateNumber;
-    return `This certificate belongs to ${certificateAsc} (PSN: ${actualPsn}), not ${group.ascName} (PSN: ${group.psn}). Haudy matches ASC cards by PSN. Open the ${certificateAsc} ASC card before uploading ${certificate.certificateNumber}.`;
+    const uploadName = certificate.fileName || certificate.certificateNumber || "this certificate";
+    return `This certificate belongs to ${certificateName}, not ${group.ascName}. Haudy matches ASC cards by the ASC name. Open the ${certificateName} ASC card before uploading ${uploadName}.`;
   }
   return "";
 }
 
-function assignmentForCertificate(certificate: ParsedCertificate, assignments: AuditAssignment[]) {
-  const certificatePsn = normalizePsn(certificate.certificateNumber);
-  if (!certificatePsn) return undefined;
-  return assignments.find((assignment) => normalizePsn(assignment.psn) === certificatePsn);
-}
-
-function normalizePsn(value: string | undefined) {
-  return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+function normalizeAscName(value: string | undefined) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\b(?:incorporated|inc)\b/g, " inc ")
+    .replace(/\b(?:company|co)\b/g, " company ")
+    .replace(/\b(?:limited liability company|l\s*\.?\s*l\s*\.?\s*c)\b/g, " llc ")
+    .replace(/\b(?:dba|doing business as)\b/g, " dba ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseLocalDate(value: string | undefined) {

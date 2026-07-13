@@ -157,10 +157,11 @@ function standaloneBlock(lines: string[], label: string) {
   const index = lines.findIndex((line) => line.replace(/:$/, "").toLowerCase() === label.toLowerCase());
   if (index < 0) return [];
   const block: string[] = [];
+  const maxLines = label.toLowerCase() === "alarm service company" ? 10 : 5;
   for (const line of lines.slice(index + 1)) {
     if (isHeading(line)) break;
     block.push(line);
-    if (block.length >= 5) break;
+    if (block.length >= maxLines) break;
   }
   return block;
 }
@@ -188,9 +189,20 @@ function splitAscBlock(block: string[]) {
 function splitNameAddressBlock(block: string[]) {
   const first = block[0] || "";
   const streetStart = streetAddressStart(first);
-  const name = streetStart > 0 ? first.slice(0, streetStart) : first;
-  const addressLines = streetStart > 0 ? [first.slice(streetStart), ...block.slice(1)] : block.slice(1);
-  return { name: clean(name), address: addressLines.map(clean).filter(Boolean).join(", ") };
+  if (streetStart > 0) {
+    const addressLines = [first.slice(streetStart), ...block.slice(1)];
+    return { name: clean(first.slice(0, streetStart)), address: addressLines.map(clean).filter(Boolean).join(", ") };
+  }
+
+  const addressIndex = block.findIndex((line, index) => index > 0 && looksLikeAddressLine(line));
+  const nameLines = addressIndex >= 0 ? block.slice(0, addressIndex) : block.slice(0, 1);
+  const addressLines = addressIndex >= 0 ? block.slice(addressIndex) : block.slice(1);
+  return { name: clean(nameLines.join(" ")), address: addressLines.map(clean).filter(Boolean).join(", ") };
+}
+
+function looksLikeAddressLine(line: string) {
+  return /\b\d{1,6}[A-Z]?\b/.test(line) &&
+    (streetSuffixRegex().test(line) || /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/i.test(line));
 }
 
 function streetAddressStart(line: string) {
