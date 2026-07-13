@@ -336,8 +336,8 @@ function ProtectedAreaSignalReview({ audit }: { audit: Audit }) {
         </tr>
         <tr>
           <td colSpan={4} className="crzh-section-head">
-            # of Alarms (A) = {alarms || ""}<span className="crzh-count-gap">Openings/Closings (O/C): OK <Check checked={false} /> VAR <Check checked={false} /></span>
-            <span className="crzh-count-gap"># of Troubles (T) = {troubles || ""}</span><span className="crzh-count-gap"># of Comm-Fail(CF) = {commFails || ""}</span>
+            # of Alarms (A) = {signalCountValue(alarms, audit.signalProcessingReviewed)}<span className="crzh-count-gap">Openings/Closings (O/C): OK <Check checked={false} /> VAR <Check checked={false} /></span>
+            <span className="crzh-count-gap"># of Troubles (T) = {signalCountValue(troubles, audit.signalProcessingReviewed)}</span><span className="crzh-count-gap"># of Comm-Fail(CF) = {signalCountValue(commFails, audit.signalProcessingReviewed)}</span>
           </td>
         </tr>
         <tr className="crzh-table-head">
@@ -456,13 +456,13 @@ function Header({ audit }: { audit: Audit }) {
     <div className="field-header">
       <div className="field-header-row field-header-row-top">
         <span className="field-header-item">Date:<Line value={audit.auditDate} width="auto" /></span>
-        <span className="field-header-item">ASC:<Line value={audit.ascName} width="auto" /></span>
+        <span className="field-header-item">ASC:<Line value={audit.ascName} width="auto" fit /></span>
         <span className="field-header-item">File/SCN:<Line value={formatFileScn(audit, ascProfile?.scn)} width="auto" /></span>
         <span className="field-header-item">Auditor:<Line value={audit.auditorName} width="auto" /></span>
       </div>
       <div className="field-header-row field-header-row-bottom">
         <span className="field-header-item">Certificate #:<Line value={audit.certificateNumber} width="auto" /></span>
-        <span className="field-header-item">PP:<Line value={protectedPropertyHeader(audit)} width="auto" /></span>
+        <span className="field-header-item">PP:<Line value={protectedPropertyHeader(audit)} width="auto" fit /></span>
       </div>
     </div>
   );
@@ -520,6 +520,10 @@ function categoryOutputCode(category: string) {
   return codes[category.toUpperCase()] || category.toUpperCase();
 }
 
+function signalCountValue(count: number, reviewed: boolean) {
+  return reviewed || count > 0 ? count : "";
+}
+
 function SignalReview({ audit }: { audit: Audit }) {
   const alarms = audit.signalLog.filter((row) => row.signalType === "Alarm").length;
   const supervisory = audit.signalLog.filter((row) => row.signalType === "Supervisory").length;
@@ -541,7 +545,7 @@ function SignalReview({ audit }: { audit: Audit }) {
         </tr>
         <tr className="thick-row">
           <td colSpan={4} className="field-subhead">
-            # of Alarms (A) = {alarms || ""}<span className="ml-24"># of Supervisory (S) = {supervisory || ""}</span><span className="ml-24"># of Troubles (T) = {troubles || ""}</span>
+            # of Alarms (A) = {signalCountValue(alarms, audit.signalProcessingReviewed)}<span className="ml-24"># of Supervisory (S) = {signalCountValue(supervisory, audit.signalProcessingReviewed)}</span><span className="ml-24"># of Troubles (T) = {signalCountValue(troubles, audit.signalProcessingReviewed)}</span>
             <span className="float-right">Auto Tests = <StatusCheck status={audit.autoTestsStatus} match="OK" /> OK <StatusCheck status={audit.autoTestsStatus} match="VAR" /> VAR</span>
           </td>
         </tr>
@@ -820,8 +824,17 @@ function AttachmentPage({ audit, rows, pageNumber, totalPages }: { audit: Audit;
   );
 }
 
-function Line({ value = "", width }: { value?: string; width: string }) {
-  return <span className="field-line" style={{ width }}>{value}</span>;
+function Line({ value = "", width, fit = false }: { value?: string; width: string; fit?: boolean }) {
+  const className = ["field-line", fit ? fittedLineClass(value) : ""].filter(Boolean).join(" ");
+  return <span className={className} style={{ width }}>{value}</span>;
+}
+
+function fittedLineClass(value: string) {
+  const length = (value || "").length;
+  if (length > 95) return "field-line-fit-xxs";
+  if (length > 70) return "field-line-fit-xs";
+  if (length > 45) return "field-line-fit-sm";
+  return "";
 }
 
 function Check({ checked }: { checked: boolean }) {

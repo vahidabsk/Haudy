@@ -425,6 +425,21 @@ textarea {
   min-width: 0;
 }
 
+.field-line-fit-sm {
+  font-size: 11.5px;
+  line-height: 1.05;
+}
+
+.field-line-fit-xs {
+  font-size: 9.5px;
+  line-height: 1.05;
+}
+
+.field-line-fit-xxs {
+  font-size: 8px;
+  line-height: 1.05;
+}
+
 .field-table {
   width: 100%;
   table-layout: fixed;
