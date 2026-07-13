@@ -1469,40 +1469,32 @@ function auditDeficiencyCount(audit: Audit) {
 }
 
 function findWrongAscCertificate(group: AssignmentGroup, certificates: ParsedCertificate[], assignments: AuditAssignment[]) {
+  const expectedPsn = normalizePsn(group.psn);
+  if (!expectedPsn) return "";
+
   for (const certificate of certificates) {
+    const certificatePsn = normalizePsn(certificate.certificateNumber);
+    if (!certificatePsn) {
+      return `Haudy could not verify this certificate because its PSN was not detected. This ASC card expects PSN ${group.psn}. Please upload the certificate with a readable PSN.`;
+    }
+    if (certificatePsn === expectedPsn) continue;
+
     const assignedAsc = assignmentForCertificate(certificate, assignments);
-    if (assignedAsc && assignmentDashboardKey(assignedAsc) !== group.key) {
-      return `This certificate belongs to ${assignedAsc.ascName || "another ASC"}. Open that ASC card before uploading ${certificate.certificateNumber || certificate.fileNo || "this certificate"}.`;
-    }
-    if (certificate.ascName && group.ascName && normalizeAscText(certificate.ascName) !== normalizeAscText(group.ascName)) {
-      return `This certificate belongs to ${certificate.ascName}. Open that ASC card before uploading ${certificate.certificateNumber || certificate.fileNo || "this certificate"}.`;
-    }
+    const certificateAsc = assignedAsc?.ascName || certificate.ascName || "another ASC";
+    const actualPsn = assignedAsc?.psn || certificate.certificateNumber;
+    return `This certificate belongs to ${certificateAsc} (PSN: ${actualPsn}), not ${group.ascName} (PSN: ${group.psn}). Haudy matches ASC cards by PSN. Open the ${certificateAsc} ASC card before uploading ${certificate.certificateNumber}.`;
   }
   return "";
 }
 
 function assignmentForCertificate(certificate: ParsedCertificate, assignments: AuditAssignment[]) {
-  const certificateFile = normalizeAscText(certificate.fileNo || "");
-  const certificateCcn = normalizeAscText(certificate.ccn || "");
-  if (!certificateFile) return undefined;
-  return assignments.find((assignment) => {
-    const fileMatches = normalizeAscText(assignment.fileNo) === certificateFile;
-    const ccnMatches = !certificateCcn || !assignment.ccn || normalizeAscText(assignment.ccn) === certificateCcn;
-    return fileMatches && ccnMatches;
-  });
+  const certificatePsn = normalizePsn(certificate.certificateNumber);
+  if (!certificatePsn) return undefined;
+  return assignments.find((assignment) => normalizePsn(assignment.psn) === certificatePsn);
 }
 
-function assignmentDashboardKey(assignment: Pick<AuditAssignment, "ascName" | "ascCity" | "ascState" | "psn">) {
-  return [
-    assignment.ascName || "ASC not set",
-    assignment.ascCity || "",
-    assignment.ascState || "",
-    assignment.psn || "",
-  ].join("|");
-}
-
-function normalizeAscText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function normalizePsn(value: string | undefined) {
+  return (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 function parseLocalDate(value: string | undefined) {
