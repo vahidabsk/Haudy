@@ -201,8 +201,11 @@ function splitNameAddressBlock(block: string[]) {
 }
 
 function looksLikeAddressLine(line: string) {
-  return /\b\d{1,6}[A-Z]?\b/.test(line) &&
-    (streetSuffixRegex().test(line) || /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/i.test(line));
+  const value = clean(line);
+  if (!/\b\d{1,6}[A-Z]?\b/.test(value)) return false;
+  if (streetSuffixRegex().test(value) || /\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/i.test(value)) return true;
+
+  return /^\d{1,6}[A-Z]?\s+[A-Z0-9'&.-]+(?:\s+[A-Z0-9'&.-]+){0,6}$/i.test(value) && !looksLikeEntityName(value);
 }
 
 function streetAddressStart(line: string) {
@@ -211,6 +214,7 @@ function streetAddressStart(line: string) {
   for (const candidate of candidates) {
     if (candidate.index === undefined) continue;
     const before = line.slice(0, candidate.index).trim();
+    if (!before && looksLikeEntityName(line)) continue;
     if (/\b(BLDG|BUILDING|STE|SUITE|UNIT|APT|ROOM|FL|FLOOR)\s*$/i.test(before)) continue;
     const rest = line.slice(candidate.index);
     const suffix = rest.search(streetSuffixRegex());
@@ -244,7 +248,11 @@ export function cityStateFromAddress(address?: string) {
 }
 
 function streetSuffixRegex() {
-  return /\b(ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|CIR|CIRCLE|WAY|PKWY|PARKWAY|PL|PLACE|HWY|HIGHWAY|TER|TERRACE|LOOP)\.?\b/gi;
+  return /\b(ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|LN|LANE|CT|COURT|CIR|CIRCLE|WAY|PARK|PKWY|PARKWAY|PL|PLACE|HWY|HIGHWAY|TER|TERRACE|LOOP)\.?\b/gi;
+}
+
+function looksLikeEntityName(line: string) {
+  return /\b(LLC|L\.L\.C\.|INC|INC\.|CORP|CORPORATION|CO|COMPANY|LP|L\.P\.|LLP|L\.L\.P\.)\b/i.test(line);
 }
 
 function monitoringLocationBlock(lines: string[]) {
