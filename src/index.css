@@ -16,13 +16,12 @@ body {
 }
 
 .haudy-page-transition {
-  animation: haudy-page-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  transform-origin: 50% 24px;
+  animation: haudy-page-enter 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes haudy-page-enter {
-  from { opacity: 0; transform: translateY(8px) scale(0.997); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .haudy-card-action {
