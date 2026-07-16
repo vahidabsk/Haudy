@@ -154,7 +154,7 @@ function normalizeAuditor(auditor: Partial<Auditor> & { name: string }): Auditor
     name: auditor.name?.trim() || "",
     title: auditor.title?.trim() || "",
     department: normalizeAuditorDepartment(auditor.department),
-    phone: auditor.phone?.trim() || "",
+    phone: normalizePhone(auditor.phone),
     email: auditor.email?.trim() || "",
     since: auditor.since || nowIso(),
     updatedAt: auditor.updatedAt || auditor.since || nowIso(),
@@ -180,6 +180,15 @@ function normalizeAuditorDepartment(value: string | undefined) {
   const normalizedValue = value?.trim() || "";
   if (!normalizedValue || normalizedValue === LEGACY_PROFILE_DEFAULTS.department) return AUDITOR_DEPARTMENT_DEFAULT;
   return normalizedValue;
+}
+
+function normalizePhone(value: string | undefined) {
+  const rawDigits = String(value || "").replace(/\D/g, "");
+  const digits = (rawDigits.length === 11 && rawDigits.startsWith("1") ? rawDigits.slice(1) : rawDigits).slice(0, 10);
+  if (!digits) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 export function loadAudits(): Audit[] {
