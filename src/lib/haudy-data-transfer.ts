@@ -118,6 +118,7 @@ async function readHaudyEntries(includePhotos: boolean) {
     const value = localStorage.getItem(key);
     if (value !== null) entries[key] = await exportEntryValue(key, value, includePhotos);
   }
+  if (includePhotos) Object.assign(entries, await readAllStoredPhotos());
   return entries;
 }
 
@@ -127,8 +128,9 @@ async function exportEntryValue(key: string, value: string, includePhotos: boole
   return value;
 }
 
-function replaceHaudyEntries(entries: Record<string, string>) {
+async function replaceHaudyEntries(entries: Record<string, string>) {
   const previousEntries = readCurrentHaudyEntries();
+  Object.assign(previousEntries, await readAllStoredPhotos());
   Object.keys(localStorage)
     .filter(isTransferableHaudyKey)
     .forEach((key) => localStorage.removeItem(key));
@@ -136,10 +138,12 @@ function replaceHaudyEntries(entries: Record<string, string>) {
   let imported = 0;
   let skippedPhotos = 0;
   try {
-    Object.entries(entries).forEach(([key, value]) => {
+    await clearStoredPhotos();
+    for (const [key, value] of Object.entries(entries)) {
       if (isTransferableHaudyKey(key) && typeof value === "string") {
         try {
-          localStorage.setItem(key, value);
+          if (key.startsWith(PHOTO_PREFIX)) await importStoredPhoto(key, value);
+          else localStorage.setItem(key, value);
           imported += 1;
         } catch (error) {
           if (key.startsWith(PHOTO_PREFIX)) {
@@ -149,9 +153,9 @@ function replaceHaudyEntries(entries: Record<string, string>) {
           throw error;
         }
       }
-    });
+    }
   } catch (error) {
-    restoreEntries(previousEntries);
+    await restoreEntries(previousEntries);
     throw error;
   }
   return { imported, skippedPhotos };
@@ -168,18 +172,20 @@ function readCurrentHaudyEntries() {
   return entries;
 }
 
-function restoreEntries(entries: Record<string, string>) {
+async function restoreEntries(entries: Record<string, string>) {
   Object.keys(localStorage)
     .filter(isTransferableHaudyKey)
     .forEach((key) => localStorage.removeItem(key));
 
-  Object.entries(entries).forEach(([key, value]) => {
+  await clearStoredPhotos();
+  for (const [key, value] of Object.entries(entries)) {
     try {
-      localStorage.setItem(key, value);
+      if (key.startsWith(PHOTO_PREFIX)) await importStoredPhoto(key, value);
+      else localStorage.setItem(key, value);
     } catch {
       // Best effort restore. If the browser quota is already full, keep going.
     }
-  });
+  }
 }
 
 function isTransferableHaudyKey(key: string) {
@@ -226,3 +232,4 @@ function compressPhotoDataUrl(dataUrl: string) {
     image.src = dataUrl;
   });
 }
+import { clearStoredPhotos, importStoredPhoto, readAllStoredPhotos } from "./photo-store";
