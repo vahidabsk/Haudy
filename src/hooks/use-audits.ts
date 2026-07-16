@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { createAuditFromCertificate, loadAudits, saveAudits } from "../lib/audit-storage";
-import { removeAuditPhotos } from "../lib/photo-store";
+import { initializePhotoStore, removeAuditPhotos, subscribePhotoStore } from "../lib/photo-store";
 import { auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 
 export function useAudits(auditorName = "") {
   const [audits, setAudits] = useState<Audit[]>(() => loadAudits());
+  const [, setPhotoRevision] = useState(0);
+
+  useEffect(() => {
+    const unsubscribe = subscribePhotoStore(() => setPhotoRevision((value) => value + 1));
+    void initializePhotoStore(audits);
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => saveAudits(audits), 500);
