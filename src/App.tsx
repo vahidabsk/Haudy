@@ -68,6 +68,7 @@ export default function App() {
           onCancel={() => setEditingAuditor(false)}
         >
           <UlHeader auditor={auditor.auditor} localUsername={session.username} onChange={() => setEditingAuditor(true)} onHelp={() => setShowHelp(true)} onPatch={() => setShowPatchCenter(true)} onLogout={logout} />
+          <div key={location.pathname} className="haudy-page-transition">
           <Routes>
             <Route path="/" element={<Dashboard auditorName={auditor.auditor?.name || ""} />} />
             <Route path="/asc/:ascKey/report" element={<ReportPage auditor={auditor.auditor} />} />
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="/audit/:auditId" element={<AuditPage auditorName={auditor.auditor?.name || ""} />} />
             <Route path="/audit/:auditId/export" element={<ExportPage auditorName={auditor.auditor?.name || ""} />} />
           </Routes>
+          </div>
           {showHelp ? <OperatingHelp onClose={() => setShowHelp(false)} /> : null}
           {showPatchCenter ? <PatchUpdateDialog onClose={() => setShowPatchCenter(false)} /> : null}
         </AuditorGate>

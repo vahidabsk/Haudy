@@ -144,6 +144,27 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     }
   }
 
+  async function chooseDatabase() {
+    try {
+      await chooseStorageRoot();
+      setStorageReady(true);
+      setStorageMessage("Haudy Database location saved.");
+    } catch (error) {
+      setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
+    }
+  }
+
+  useEffect(() => {
+    const handleImport = () => void importTracker();
+    const handleChooseDatabase = () => void chooseDatabase();
+    window.addEventListener("haudy:import-audit-tracker", handleImport);
+    window.addEventListener("haudy:choose-database", handleChooseDatabase);
+    return () => {
+      window.removeEventListener("haudy:import-audit-tracker", handleImport);
+      window.removeEventListener("haudy:choose-database", handleChooseDatabase);
+    };
+  });
+
   async function addCertificatesToGroup(group: AssignmentGroup, certificates: ParsedCertificate[]) {
     const mismatch = findWrongAscCertificate(group, certificates);
     if (mismatch) return mismatch;
@@ -214,34 +235,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {desktopStorageAvailable ? (
-              <button
-                type="button"
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-                onClick={importTracker}
-              >
-                <UploadCloud size={16} /> Import Audit Tracker
-              </button>
-            ) : null}
-            {desktopStorageAvailable ? (
-              <button
-                type="button"
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                onClick={async () => {
-                  try {
-                    await chooseStorageRoot();
-                    setStorageReady(true);
-                    setStorageMessage("Haudy Database location saved.");
-                  } catch (error) {
-                    setStorageMessage(error instanceof Error ? error.message : "Could not choose storage location.");
-                  }
-                }}
-              >
-                Choose Haudy Database
-              </button>
-            ) : null}
-          </div>
+          <div className="text-sm font-semibold text-slate-600">Audit workspace</div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <StatusChip label="ASCs" value={groups.length} />
             <StatusChip label="Certificates" value={audits.audits.length} />
@@ -393,9 +387,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
-                  {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"} uploaded
-                </span>
                 <div className="min-w-[128px]">
                   <UploadDialog compact compactLabel="Add Certificate" onParsed={(certificates) => addCertificatesToGroup(group, certificates)} />
                 </div>
@@ -429,13 +420,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setProfileGroup(group)}>
+                  <button className="haudy-card-action" onClick={() => setProfileGroup(group)}>
                     <FilePenLine size={16} /> Edit Info
                   </button>
-                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
+                  <button className="haudy-card-action" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
                     <Building2 size={16} /> Field Notes
                   </button>
-                  <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
+                  <button className="haudy-card-action" onClick={() => {
                     if (confirmationSaved && documents?.confirmation) {
                       const params = new URLSearchParams({
                         poc: profile.pocName,
@@ -456,7 +447,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : "Create Confirmation"}
                   </button>
                   {hasNonCrzhCertificates ? (
-                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => {
+                    <button className="haudy-card-action" onClick={() => {
                       const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
                       navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
                     }}>
