@@ -31,6 +31,7 @@ export interface ParsedCertificate {
   systemDeviations?: string;
   commentsAndClarifications?: string;
   governmentManual?: string;
+  responseTime?: string;
   governmentContractNumber?: string;
   protectedArea?: string;
   protectedAreaType?: string;

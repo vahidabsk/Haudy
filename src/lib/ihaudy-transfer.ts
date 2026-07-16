@@ -108,7 +108,7 @@ function buildCertificateSummary(audit: Audit, group: AssignmentGroup): Certific
     section("Protected Property", [
       item("Name", certificate?.propertyName || audit.protectedProperty),
       item("Address", certificate?.propertyAddress),
-      item("Government manual", certificate?.governmentManual),
+      item("Government standard / manual", certificate?.governmentManual),
       item("Government contract number", certificate?.governmentContractNumber),
       item("Protected area", certificate?.protectedArea),
       item("Protected area type", certificate?.protectedAreaType),
@@ -154,7 +154,8 @@ function buildCertificateSummary(audit: Audit, group: AssignmentGroup): Certific
       item("Comments and clarifications", certificate?.commentsAndClarifications),
     ]),
     section("CRZH / Security Details", [
-      item("Government manual", certificate?.governmentManual),
+      item("Government standard / manual", certificate?.governmentManual),
+      item("Response time", certificate?.responseTime),
       item("Alarm response", certificate?.alarmResponse),
       item("Guard response", certificate?.guardResponse),
       item("Independent code", certificate?.independentCode),

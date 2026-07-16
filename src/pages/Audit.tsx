@@ -251,6 +251,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
         {program === "protectedArea" && activeTab === "guard" ? (
           <GuardServiceTestSection
             value={audit.guardServiceTest || defaultGuardServiceTest()}
+            certificateResponseTime={primary?.responseTime || primary?.guardResponse || primary?.alarmResponse || "Not stated"}
             onChange={(guardServiceTest) => update({ ...audit, guardServiceTest })}
           />
         ) : null}
@@ -302,7 +303,7 @@ function cloneAudit(audit?: Audit) {
   return JSON.parse(JSON.stringify(audit)) as Audit;
 }
 
-function GuardServiceTestSection({ value, onChange }: { value: GuardServiceTest; onChange: (value: GuardServiceTest) => void }) {
+function GuardServiceTestSection({ value, certificateResponseTime, onChange }: { value: GuardServiceTest; certificateResponseTime: string; onChange: (value: GuardServiceTest) => void }) {
   const [currentTime, setCurrentTime] = useState(() => guardTimeStamp(new Date()));
   const disabled = !value.reviewed;
   const expectedSeconds = Math.max(1, value.expectedMinutes || 20) * 60;
@@ -357,6 +358,9 @@ function GuardServiceTestSection({ value, onChange }: { value: GuardServiceTest;
     <section className="grid gap-6">
       <section className="grid gap-3 rounded-lg border bg-white p-4">
         <h2 className="text-lg font-semibold text-navy">Guard Service Test</h2>
+        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+          <span className="font-semibold">Certificate response-time reference:</span> {certificateResponseTime}
+        </div>
         <div className="grid gap-3 md:grid-cols-4">
           <YesNoControl label="Guard service test completed?" value={value.reviewed} defaultToYes onChange={(reviewed) => patch({ reviewed })} />
           <label className="grid gap-1 text-sm font-medium text-slate-700">
