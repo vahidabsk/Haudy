@@ -22,7 +22,9 @@ const defaultProfile: AuditorProfileInput = {
 
 export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { auditor: Auditor | null; editing: boolean; onSave: (profile: AuditorProfileInput) => void; onCancel: () => void; children: ReactNode }) {
   const [profile, setProfile] = useState<AuditorProfileInput>(() => ({ ...defaultProfile, ...auditor }));
-  const needsProfile = editing || !completeProfile(auditor);
+  // A saved profile belongs to the user and should not interrupt each login.
+  // Validation is enforced when it is created or intentionally edited.
+  const needsProfile = editing || !auditor;
   const ready = completeProfile(profile);
 
   useEffect(() => {
@@ -72,7 +74,7 @@ export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { 
               </label>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
-              {completeProfile(auditor) ? (
+              {auditor ? (
                 <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
               ) : null}
               <button className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={!ready}>
