@@ -135,7 +135,18 @@ export function DeviceTestSection({ rows, localSystem, disabled, disabledMessage
         return (
         <div key={row.id} className={`grid gap-3 rounded-lg border bg-white p-4 ${disabled ? "opacity-60" : ""}`}>
           <div className="grid gap-3 md:grid-cols-3">
-            <select className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" value={disabled ? "" : row.deviceType} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceType: e.target.value, waterflowEntryMode: "", waterflowElapsedSeconds: 0, tripTime: "", timeReceived: "", result: "", notes: "" }, onChange)}><option value="">Device Type Tested</option>{deviceTypes.map((item) => <option key={item}>{item}</option>)}</select>
+            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Device type
+              <input
+                className="min-h-11 rounded-md border px-2 text-sm font-normal normal-case tracking-normal text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                list={`device-types-${row.id}`}
+                placeholder="Select or type a device"
+                value={disabled ? "" : row.deviceType}
+                disabled={disabled}
+                onChange={(e) => patch(rows, row.id, { deviceType: e.target.value, waterflowEntryMode: e.target.value === "Waterflow switch" ? row.waterflowEntryMode || "manual" : "", waterflowElapsedSeconds: 0, tripTime: "", timeReceived: "", result: "", notes: "" }, onChange)}
+              />
+              <datalist id={`device-types-${row.id}`}>{deviceTypes.map((item) => <option key={item} value={item} />)}</datalist>
+            </label>
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Location" value={disabled ? "" : row.location} disabled={disabled} onChange={(e) => patch(rows, row.id, { location: e.target.value }, onChange)} />
             <input className="min-h-11 rounded-md border px-2 disabled:bg-slate-100 disabled:text-slate-400" placeholder="Device ID / Zone" value={disabled ? "" : row.deviceId} disabled={disabled} onChange={(e) => patch(rows, row.id, { deviceId: e.target.value }, onChange)} />
             {!isWaterflow ? (
