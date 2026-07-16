@@ -48,6 +48,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [poolSearch, setPoolSearch] = useState("");
   const [focusAscKey, setFocusAscKey] = useState("");
   const [showProgressDashboard, setShowProgressDashboard] = useState(false);
+  const restoredAscRoute = useRef("");
   const jobCards = groups.map((group) => {
     const documents = ascDocuments[group.key];
     return { group, documents, status: homeJobStatus(group, documents) };
@@ -108,8 +109,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const hashKey = location.hash.replace(/^#/, "");
     const key = decodeURIComponent(searchKey || hashKey);
     if (!key || !groups.length) return;
+    if (restoredAscRoute.current === key) return;
     const card = jobCards.find((item) => item.group.key === key);
     if (!card) return;
+    restoredAscRoute.current = key;
     setFocusAscKey(key);
     setActiveJobTab(card.status.id);
   }, [ascDocuments, assignments.length, audits.audits.length, groups.length, location.hash, location.search]);
@@ -172,6 +175,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   });
 
   async function addCertificatesToGroup(group: AssignmentGroup, certificates: ParsedCertificate[]) {
+    setActiveJobTab(homeJobStatus(group, ascDocuments[group.key]).id);
+    setFocusAscKey(group.key);
     const mismatch = findWrongAscCertificate(group, certificates);
     if (mismatch) return mismatch;
     const adjustedCertificates = certificates.map((certificate) => ({ ...certificate, ...assignmentCertificateOverrides(group) }));
@@ -512,6 +517,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           onClose={() => setProfileGroup(null)}
           onSave={(profile) => {
             const next = { ...ascProfiles, [profileGroup.key]: profile };
+            setActiveJobTab(homeJobStatus(profileGroup, ascDocuments[profileGroup.key]).id);
+            setFocusAscKey(profileGroup.key);
             setAscProfiles(next);
             saveAscProfiles(next);
             setProfileGroup(null);
