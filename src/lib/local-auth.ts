@@ -34,15 +34,19 @@ export function saveLocalAuth(auth: LocalAuthState) {
 }
 
 export function loadLocalSession(): LocalSession | null {
-  return readJson<LocalSession | null>(SESSION_KEY, null);
+  // Credentials remain persistent, but an authenticated session lasts only for
+  // the current application window. Remove sessions created by older releases.
+  localStorage.removeItem(SESSION_KEY);
+  return readSessionJson<LocalSession | null>(SESSION_KEY, null);
 }
 
 export function saveLocalSession(session: LocalSession) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
 export function clearLocalSession() {
   localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 export async function createLocalUser(username: string, password: string) {
@@ -130,6 +134,15 @@ function randomSalt() {
 function readJson<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readSessionJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(key);
     return raw ? JSON.parse(raw) as T : fallback;
   } catch {
     return fallback;

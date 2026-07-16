@@ -94,7 +94,7 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form className="grid gap-3" onSubmit={submit}>
-      <p className="rounded-md border border-sky-100 bg-sky-50 p-3 text-sm text-sky-900">Create the local user for this device. This protects Haudy from casual access on this browser.</p>
+      <p className="rounded-md border border-sky-100 bg-sky-50 p-3 text-sm text-sky-900">Create the authorized local user for this computer. These credentials protect access to the Haudy desktop application and its locally stored audit information.</p>
       <AuthInput label="Username" value={username} onChange={setUsername} autoFocus />
       <AuthInput label="Password" value={password} onChange={setPassword} type="password" />
       <AuthInput label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} type="password" />
@@ -123,8 +123,8 @@ function LoginForm({ username, onDone }: { username: string; onDone: () => void 
 
   return (
     <form className="grid gap-3" onSubmit={submit}>
-      <AuthInput label="Username" value={enteredUsername} onChange={setEnteredUsername} autoFocus />
-      <AuthInput label="Password" value={password} onChange={setPassword} type="password" />
+      <AuthInput label="Username" value={enteredUsername} onChange={setEnteredUsername} readOnly />
+      <AuthInput label="Password" value={password} onChange={setPassword} type="password" autoFocus />
       {message ? <p className="text-sm font-medium text-red-700">{message}</p> : null}
       <button className="min-h-11 rounded-md bg-navy px-4 font-semibold text-white">Log In</button>
     </form>
@@ -214,11 +214,11 @@ function AdminTool({ username, onBack, onAuthChanged, onLoggedIn }: { username: 
   );
 }
 
-function AuthInput({ label, value, onChange, type = "text", autoFocus }: { label: string; value: string; onChange: (value: string) => void; type?: string; autoFocus?: boolean }) {
+function AuthInput({ label, value, onChange, type = "text", autoFocus, readOnly = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; autoFocus?: boolean; readOnly?: boolean }) {
   return (
     <label className="grid gap-1 text-sm font-medium text-slate-700">
       {label}
-      <input className="min-h-11 rounded-md border border-slate-300 px-3" type={type} value={value} onChange={(event) => onChange(event.target.value)} autoFocus={autoFocus} />
+      <input className={`min-h-11 rounded-md border border-slate-300 px-3 ${readOnly ? "bg-slate-100 font-semibold text-slate-700" : "bg-white"}`} type={type} value={value} onChange={(event) => onChange(event.target.value)} autoFocus={autoFocus} readOnly={readOnly} />
     </label>
   );
 }
