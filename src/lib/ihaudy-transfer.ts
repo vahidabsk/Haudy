@@ -2,7 +2,7 @@ import { AssignmentGroup } from "./audit-assignments";
 import { loadAudits, saveAudits } from "./audit-storage";
 import { hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 import { canSaveDocumentsToFolder, chooseStorageRoot } from "./local-document-storage";
-import { initializePhotoStore, storePhotoDataUrl } from "./photo-store";
+import { initializePhotoStore, loadPhoto, storePhotoDataUrl } from "./photo-store";
 import { Audit, AuditRow, CertificateSummaryItem, CertificateSummarySection, CertificateTransferSummary, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "./types";
 
 const IHAUDY_APP_NAME = "iHaudy Field Notes";
@@ -25,6 +25,8 @@ interface IHaudyFieldNotesFile {
 export const IHAUDY_FIELD_NOTES_ACCEPT = ".ihaudy-field-notes.json,.json,application/json";
 
 export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
+  await initializePhotoStore(group.audits);
+  const portableAudits = group.audits.map((audit) => withPortablePhotos(audit));
   const payload: IHaudyFieldNotesFile = {
     app: IHAUDY_APP_NAME,
     version: IHAUDY_VERSION,
@@ -36,7 +38,7 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
     ascState: group.ascState,
     psn: group.psn,
     ascAddress: group.audits[0]?.certificates?.[0]?.ascAddress || "",
-    audits: group.audits.map((audit) => withCertificateSummary(audit, group)),
+    audits: portableAudits.map((audit) => withCertificateSummary(audit, group)),
   };
   const fileName = `import it to iHaudy - ${safeName(group.ascName || "ASC")} - ${timestampForFile()}.ihaudy-field-notes.json`;
   const contents = JSON.stringify(payload, null, 2);
@@ -49,6 +51,22 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
 
   downloadTextFile(fileName, contents);
   return "iHaudy field notes file downloaded.";
+}
+
+function withPortablePhotos(audit: Audit): Audit {
+  const portable = structuredClone(audit);
+  const rowSets = [portable.documentation, portable.installation, portable.deviceTests];
+  for (const rows of rowSets) {
+    for (const row of rows || []) {
+      row.photos = (row.photos || []).map((photo) => {
+        if (photo.startsWith("data:")) return photo;
+        const image = loadPhoto(photo);
+        if (!image) throw new Error("A field-note photo could not be prepared for iHaudy. Open the field note, confirm the photo is visible, and export again.");
+        return image;
+      });
+    }
+  }
+  return portable;
 }
 
 function withCertificateSummary(audit: Audit, group: AssignmentGroup): Audit {
