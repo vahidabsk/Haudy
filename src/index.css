@@ -15,6 +15,39 @@ body {
   background: #f4f7fa;
 }
 
+/* Shared iHaudy / Haudy card language */
+.haudy-asc-card {
+  border-color: #234d78 !important;
+  background: linear-gradient(145deg, #102d50, #142f54) !important;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(16, 45, 80, 0.2);
+}
+
+.haudy-asc-title { color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22); }
+.haudy-asc-muted { color: #d7e7f5; }
+
+.haudy-asc-detail-panel {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.haudy-asc-detail-panel .text-slate-700,
+.haudy-asc-detail-panel .text-slate-500,
+.haudy-asc-detail-panel .text-navy { color: #e4eef8; }
+
+.haudy-property-card {
+  border-color: #91bfe4;
+  border-left-width: 6px;
+  background: linear-gradient(135deg, #f1f8ff, #e6f2fc);
+}
+
+.haudy-property-uufx { border-color: #4c91cf; background: linear-gradient(135deg, #f1f8ff, #e6f2fc); }
+.haudy-property-uujs { border-color: #8a6ac8; background: linear-gradient(135deg, #f7f3ff, #eee8fb); }
+.haudy-property-cvsg { border-color: #d39a2e; background: linear-gradient(135deg, #fff9eb, #fdf0ce); }
+.haudy-property-crzh { border-color: #2f9b78; background: linear-gradient(135deg, #effbf6, #def4ea); }
+.haudy-property-card:hover { border-color: #277abe; box-shadow: 0 12px 26px rgba(15, 76, 129, 0.14); }
+
 button,
 input,
 select,
