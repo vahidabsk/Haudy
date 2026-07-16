@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Database, DownloadCloud, Flame, HelpCircle, LogOut, Menu, UploadCloud, UserCog, UserRound, X } from "lucide-react";
 import { Auditor } from "../lib/types";
+import { HAUDY_VERSION } from "../lib/version";
 
 export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, onLogout }: { auditor: Auditor | null; localUsername: string; onChange: () => void; onHelp: () => void; onPatch: () => void; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
@@ -53,7 +54,10 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
           <Link className="flex min-w-0 items-center gap-3" to="/">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white text-navy"><Flame size={24} strokeWidth={2.4} /></div>
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-wide text-white/70">Haudy Audit Suite</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs uppercase tracking-wide text-white/70">Haudy Audit Suite</p>
+                <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/80">Ver. {HAUDY_VERSION}</span>
+              </div>
               <h1 className="truncate text-lg font-semibold">Fire Alarm and Security Certificate Audits</h1>
             </div>
           </Link>

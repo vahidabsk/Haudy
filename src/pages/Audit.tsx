@@ -251,7 +251,7 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
         {program === "protectedArea" && activeTab === "guard" ? (
           <GuardServiceTestSection
             value={audit.guardServiceTest || defaultGuardServiceTest()}
-            certificateResponseTime={primary?.responseTime || primary?.guardResponse || primary?.alarmResponse || "Not stated"}
+            certificateResponseTime={primary?.responseTime || primary?.guardResponse || primary?.alarmResponse || "Not detected — re-add the CRZH certificate with Haudy Suite Ver. 1.1.0"}
             onChange={(guardServiceTest) => update({ ...audit, guardServiceTest })}
           />
         ) : null}
@@ -359,7 +359,8 @@ function GuardServiceTestSection({ value, certificateResponseTime, onChange }: {
       <section className="grid gap-3 rounded-lg border bg-white p-4">
         <h2 className="text-lg font-semibold text-navy">Guard Service Test</h2>
         <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
-          <span className="font-semibold">Certificate response-time reference:</span> {certificateResponseTime}
+          <span className="font-semibold">Certificate required response time:</span> {certificateResponseTime}
+          <span className="mt-1 block text-xs text-sky-800">Use this certificate value as the judgment reference. Record the actual field response with the test controls below.</span>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
           <YesNoControl label="Guard service test completed?" value={value.reviewed} defaultToYes onChange={(reviewed) => patch({ reviewed })} />

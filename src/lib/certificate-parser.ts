@@ -310,7 +310,11 @@ function firstCategoryCode(text: string) {
 }
 
 function labelValue(text: string, label: string) {
-  return text.match(new RegExp(`${escapeRegExp(label)}:\\s*([^\\n]+)`, "i"))?.[1]?.trim();
+  const nextLabel = headings
+    .filter((heading) => heading.toLowerCase() !== label.toLowerCase())
+    .map((heading) => escapeRegExp(heading).replace(/\\ /g, "\\s+"))
+    .join("|");
+  return text.match(new RegExp(`${escapeRegExp(label).replace(/\\ /g, "\\s+")}\\s*:\\s*(.+?)(?=\\n|\\s+(?:${nextLabel})\\s*:|$)`, "i"))?.[1]?.trim();
 }
 
 function lineSecurityValue(text: string) {
