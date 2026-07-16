@@ -2,7 +2,7 @@ import { AssignmentGroup } from "./audit-assignments";
 import { loadAudits, saveAudits } from "./audit-storage";
 import { hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 import { canSaveDocumentsToFolder, chooseStorageRoot } from "./local-document-storage";
-import { storePhotoDataUrl } from "./photo-store";
+import { removeOrphanedPhotos, storePhotoDataUrl } from "./photo-store";
 import { Audit, AuditRow, CertificateSummaryItem, CertificateSummarySection, CertificateTransferSummary, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "./types";
 
 const IHAUDY_APP_NAME = "iHaudy Field Notes";
@@ -215,6 +215,9 @@ function categoryFromAudit(audit: Audit) {
 export async function importFieldNotesFromIHaudy(file: File, group: AssignmentGroup) {
   const payload = parseIHaudyFile(await file.text());
   const existingAudits = loadAudits();
+  // A quota failure can leave photos written before the audit itself was
+  // saved. Reclaim those orphaned entries before retrying an iHaudy import.
+  removeOrphanedPhotos(existingAudits);
   const incomingById = new Map(payload.audits.map((audit) => [audit.id, audit]));
   const incomingByCertificate = new Map(payload.audits.map((audit) => [certificateMatchKey(audit), audit]));
   const groupAuditIds = new Set(group.audits.map((audit) => audit.id));

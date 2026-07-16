@@ -32,6 +32,21 @@ export function removeAuditPhotos(audit: Audit) {
   photoIds.forEach(removePhoto);
 }
 
+export function removeOrphanedPhotos(audits: Audit[]) {
+  const referenced = new Set(audits.flatMap((audit) => [
+    ...audit.documentation.flatMap((row) => row.photos),
+    ...audit.installation.flatMap((row) => row.photos),
+    ...audit.deviceTests.flatMap((row) => row.photos),
+  ]).filter((id) => !isDataUrl(id)));
+
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith("haudy.photos."))
+    .forEach((key) => {
+      const id = key.slice("haudy.photos.".length);
+      if (!referenced.has(id)) localStorage.removeItem(key);
+    });
+}
+
 async function downscale(file: File) {
   const bitmap = await createImageBitmap(file);
   const longEdge = Math.max(bitmap.width, bitmap.height);
