@@ -350,20 +350,20 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const dashboardReport = documents?.[dashboardReportKey(group)];
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
-          <section id={ascCardDomId(group.key)} key={group.key} className={`grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName} ${focusAscKey === group.key ? "ring-2 ring-navy/30" : ""}`}>
+          <section id={ascCardDomId(group.key)} key={group.key} className={`haudy-asc-card grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName} ${focusAscKey === group.key ? "ring-2 ring-sky-300" : ""}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl font-bold text-navy">{group.ascName}</h2>
+                    <h2 className="haudy-asc-title text-xl font-bold">{group.ascName}</h2>
                   </div>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
+                  <p className="haudy-asc-muted mt-1 flex items-center gap-1 text-sm">
                     <MapPin size={14} />
                     {group.location || "City and state not detected"}
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    <span className="font-semibold text-navy">PSN:</span> {group.psn || profile.psn || "not detected"}
+                  <p className="haudy-asc-muted mt-1 text-sm">
+                    <span className="font-semibold text-white">PSN:</span> {group.psn || profile.psn || "not detected"}
                     {trackerFileSummary ? <span className="ml-3 text-xs text-slate-500">{trackerFileSummary}{group.assignments.length > 4 ? " ..." : ""}</span> : null}
                   </p>
                   <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${status.className}`}>
@@ -403,7 +403,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               </div>
             </div>
             {readyForDocuments ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="haudy-asc-detail-panel flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
                 <div className="text-sm text-slate-700">
                   <span className="font-semibold text-navy">POC:</span> {profile.pocName}
                   <span className="mx-2 text-slate-300">|</span>
@@ -1080,7 +1080,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700">{categoryAudits.length} propert{categoryAudits.length === 1 ? "y" : "ies"}</span>
             </div>
             {categoryAudits.map((audit) => (
-              <article id={propertyCardDomId(audit.id)} key={audit.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-sky-300 hover:shadow-md">
+              <article id={propertyCardDomId(audit.id)} key={audit.id} className={`haudy-property-card haudy-property-${category.toLowerCase()} grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
