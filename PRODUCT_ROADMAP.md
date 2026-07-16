@@ -19,7 +19,7 @@ This project follows the supplied 14-phase plan:
 
 ## Safety Rule
 
-Haudy is a field-note portal, not a code-reference hallucination engine. Any future AI/code-evaluation feature must not invent NFPA 72, NFPA 70, UL 681, or manufacturer instruction references. Citations must come from verified source text for the applicable edition.
+Haudy must only present code and standard references from verified source material for the applicable edition. Unverified NFPA, UL, and manufacturer references must not be presented as authoritative.
 
 ## Current Build State
 

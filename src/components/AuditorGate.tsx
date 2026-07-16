@@ -22,8 +22,7 @@ const defaultProfile: AuditorProfileInput = {
 
 export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { auditor: Auditor | null; editing: boolean; onSave: (profile: AuditorProfileInput) => void; onCancel: () => void; children: ReactNode }) {
   const [profile, setProfile] = useState<AuditorProfileInput>(() => ({ ...defaultProfile, ...auditor }));
-  // A saved profile belongs to the user and should not interrupt each login.
-  // Validation is enforced when it is created or intentionally edited.
+  // Show profile setup only for a new profile or an explicit edit.
   const needsProfile = editing || !auditor;
   const ready = completeProfile(profile);
 

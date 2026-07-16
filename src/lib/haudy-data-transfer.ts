@@ -81,7 +81,7 @@ function parseHaudyBackup(rawText: string): Partial<HaudyBackupFile> {
     try {
       return JSON.parse(candidate) as Partial<HaudyBackupFile>;
     } catch {
-      // Try the next shape. Some mobile file providers wrap or prefix text.
+      // Continue through supported wrapper formats.
     }
   }
   throw new Error("Haudy could not read this file as JSON. Please export Haudy Data again and import that exact .haudy-data.json file.");
@@ -183,7 +183,7 @@ async function restoreEntries(entries: Record<string, string>) {
       if (key.startsWith(PHOTO_PREFIX)) await importStoredPhoto(key, value);
       else localStorage.setItem(key, value);
     } catch {
-      // Best effort restore. If the browser quota is already full, keep going.
+      // Continue restoring remaining entries after a quota failure.
     }
   }
 }

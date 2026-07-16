@@ -10,7 +10,7 @@ export function registerServiceWorker() {
       localStorage.setItem(OFFLINE_READY_KEY, "true");
       window.dispatchEvent(new Event("haudy:offline-ready"));
     }).catch(() => {
-      // Offline support is helpful but should never block the audit workflow.
+      // Service-worker failures do not block local operation.
     });
   });
 }

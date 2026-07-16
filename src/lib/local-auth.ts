@@ -34,8 +34,7 @@ export function saveLocalAuth(auth: LocalAuthState) {
 }
 
 export function loadLocalSession(): LocalSession | null {
-  // Credentials remain persistent, but an authenticated session lasts only for
-  // the current application window. Remove sessions created by older releases.
+  // Discard legacy persistent sessions; authentication is window-scoped.
   localStorage.removeItem(SESSION_KEY);
   return readSessionJson<LocalSession | null>(SESSION_KEY, null);
 }

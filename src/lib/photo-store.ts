@@ -22,8 +22,7 @@ export async function storePhotoDataUrl(dataUrl: string) {
   return id;
 }
 
-// Rendering stays synchronous by reading the in-memory cache. useAudits starts
-// the async vault hydration and causes React to rerender when photos arrive.
+// Serve renders from memory while the vault hydrates asynchronously.
 export function loadPhoto(id: string) {
   if (isDataUrl(id)) return normalizePhotoDataUrl(id);
   return cache.get(id) || "";
@@ -52,8 +51,7 @@ export function initializePhotoStore(audits: Audit[]) {
     await navigator.storage?.persist?.().catch(() => false);
     const referenced = new Set(photoIdsForAudits(audits));
 
-    // Migrate legacy localStorage photos into IndexedDB, including valid photos
-    // from older Haudy versions. Orphaned quota-consuming entries are removed.
+    // Migrate referenced legacy photos and remove obsolete local entries.
     for (const key of Object.keys(localStorage).filter((key) => key.startsWith(LEGACY_PREFIX))) {
       const id = key.slice(LEGACY_PREFIX.length);
       const value = localStorage.getItem(key);
