@@ -6,7 +6,7 @@ import { initializePhotoStore, loadPhoto, storePhotoDataUrl } from "./photo-stor
 import { Audit, AuditRow, CertificateSummaryItem, CertificateSummarySection, CertificateTransferSummary, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "./types";
 
 const IHAUDY_APP_NAME = "iHaudy Field Notes";
-const IHAUDY_VERSION = 1;
+const IHAUDY_VERSION = 2;
 
 interface IHaudyFieldNotesFile {
   app: typeof IHAUDY_APP_NAME;
@@ -19,6 +19,8 @@ interface IHaudyFieldNotesFile {
   ascCity: string;
   ascState: string;
   psn: string;
+  photoFormat: "embedded-data-url";
+  photoCount: number;
   audits: Audit[];
 }
 
@@ -27,6 +29,7 @@ export const IHAUDY_FIELD_NOTES_ACCEPT = ".ihaudy-field-notes.json,.json,applica
 export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
   await initializePhotoStore(group.audits);
   const portableAudits = group.audits.map((audit) => withPortablePhotos(audit));
+  const photoCount = countAuditPhotos(portableAudits);
   const payload: IHaudyFieldNotesFile = {
     app: IHAUDY_APP_NAME,
     version: IHAUDY_VERSION,
@@ -37,6 +40,8 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
     ascCity: group.ascCity,
     ascState: group.ascState,
     psn: group.psn,
+    photoFormat: "embedded-data-url",
+    photoCount,
     ascAddress: group.audits[0]?.certificates?.[0]?.ascAddress || "",
     audits: portableAudits.map((audit) => withCertificateSummary(audit, group)),
   };
@@ -46,11 +51,18 @@ export async function exportFieldNotesForIHaudy(group: AssignmentGroup) {
   if (canSaveDocumentsToFolder() && hasDesktopBridge()) {
     if (!storedHaudyDatabaseRoot()) await chooseStorageRoot();
     await saveDesktopTextFile(iHaudyStorageFolders(), fileName, contents);
-    return "iHaudy field notes file saved in Haudy Database / iHaudy files.";
+    return `iHaudy field notes file saved with ${photoCount} photo${photoCount === 1 ? "" : "s"} in Haudy Database / iHaudy files.`;
   }
 
   downloadTextFile(fileName, contents);
-  return "iHaudy field notes file downloaded.";
+  return `iHaudy field notes file downloaded with ${photoCount} photo${photoCount === 1 ? "" : "s"}.`;
+}
+
+function countAuditPhotos(audits: Audit[]) {
+  return audits.reduce((total, audit) => total
+    + audit.documentation.reduce((count, row) => count + (row.photos || []).length, 0)
+    + audit.installation.reduce((count, row) => count + (row.photos || []).length, 0)
+    + audit.deviceTests.reduce((count, row) => count + (row.photos || []).length, 0), 0);
 }
 
 function withPortablePhotos(audit: Audit): Audit {
