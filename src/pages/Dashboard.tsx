@@ -92,6 +92,12 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }, []);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("haudy:workspace-counts", {
+      detail: { ascs: groups.length, certificates: audits.audits.length },
+    }));
+  }, [groups.length, audits.audits.length]);
+
+  useEffect(() => {
     if (audits.audits.length > 0 || assignments.length > 0) return;
     setAscProfiles(clearAscProfiles());
     setAscDocuments(clearAscDocuments());
@@ -235,10 +241,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-semibold text-slate-600">Audit workspace</div>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <StatusChip label="ASCs" value={groups.length} />
-            <StatusChip label="Certificates" value={audits.audits.length} />
+          <div>
+            <h2 className="font-bold text-navy">Audit workspace</h2>
+            <p className="mt-0.5 text-sm text-slate-500">Prepare your secure workspace, then load the assignments allocated to this auditor.</p>
           </div>
         </div>
         {storageMessage || transferMessage ? (
@@ -247,12 +252,28 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             {transferMessage ? <span>{transferMessage}</span> : null}
           </div>
         ) : null}
-        {desktopStorageAvailable && !storageReady ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            Choose a Haudy Database location once. Then import the audit tracker, and add certificate PDFs from the correct ASC card.
-          </div>
-        ) : null}
       </section>
+      {desktopStorageAvailable && (!storageReady || groups.length === 0) ? (
+        <section className="grid gap-3 rounded-xl border border-sky-200 bg-gradient-to-br from-white to-sky-50 p-4 shadow-sm">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">Quick start</p>
+            <h2 className="mt-1 text-lg font-bold text-navy">Set up this audit workspace</h2>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <button type="button" className="haudy-setup-step text-left" onClick={() => void chooseDatabase()}>
+              <span className="haudy-setup-number">1</span>
+              <span><strong>Choose the audit file location</strong><small>Select the secure folder where Haudy will organize and store audit files, reports, and field notes.</small></span>
+              <span className="haudy-setup-state">{storageReady ? "Location selected" : "Choose location"}</span>
+            </button>
+            <button type="button" className="haudy-setup-step text-left" onClick={() => void importTracker()}>
+              <span className="haudy-setup-number">2</span>
+              <span><strong>Import the Audit Tracker</strong><small>Load the current tracker to create the ASC assignment cards allocated to this auditor.</small></span>
+              <span className="haudy-setup-state">Import tracker</span>
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">Both commands remain available at any time from the menu in the upper-right corner.</p>
+        </section>
+      ) : null}
       {showInstallHelp ? (
         <section className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -278,7 +299,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         )
       ) : null}
       <section className="grid gap-4">
-        {groups.length === 0 ? <div className="rounded-lg border border-dashed bg-white p-6 text-slate-600">Import the audit tracker to create ASC assignment cards.</div> : null}
         {groups.length ? (
           <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="flex flex-wrap gap-2">

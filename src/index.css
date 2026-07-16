@@ -52,6 +52,32 @@ body {
   opacity: 1;
 }
 
+.haudy-setup-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 112px;
+  border: 1px solid #b6d8ef;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 1rem;
+  color: #102d50;
+  box-shadow: 0 4px 14px rgba(16, 45, 80, 0.07);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+
+.haudy-setup-step:hover { border-color: #4c91cf; box-shadow: 0 8px 20px rgba(16, 45, 80, 0.12); transform: translateY(-1px); }
+.haudy-setup-step strong { display: block; font-size: 0.95rem; }
+.haudy-setup-step small { display: block; margin-top: 0.3rem; color: #52677c; font-size: 0.8rem; line-height: 1.45; }
+.haudy-setup-number { display: grid; width: 2.35rem; height: 2.35rem; place-items: center; border-radius: 999px; background: #102d50; color: #fff; font-weight: 800; }
+.haudy-setup-state { border-radius: 999px; background: #e8f4fd; padding: 0.45rem 0.7rem; color: #164f7d; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .haudy-setup-step { grid-template-columns: auto minmax(0, 1fr); }
+  .haudy-setup-state { grid-column: 2; justify-self: start; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .haudy-page-transition { animation: none; }
 }

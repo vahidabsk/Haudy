@@ -5,11 +5,20 @@ import { Auditor } from "../lib/types";
 
 export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, onLogout }: { auditor: Auditor | null; localUsername: string; onChange: () => void; onHelp: () => void; onPatch: () => void; onLogout: () => void }) {
   const [open, setOpen] = useState(false);
+  const [workspaceCounts, setWorkspaceCounts] = useState({ ascs: 0, certificates: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => setOpen(false), [location.pathname]);
+  useEffect(() => {
+    function updateCounts(event: Event) {
+      const detail = (event as CustomEvent<{ ascs: number; certificates: number }>).detail;
+      if (detail) setWorkspaceCounts(detail);
+    }
+    window.addEventListener("haudy:workspace-counts", updateCounts);
+    return () => window.removeEventListener("haudy:workspace-counts", updateCounts);
+  }, []);
   useEffect(() => {
     function closeOnOutsideClick(event: PointerEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
@@ -40,7 +49,7 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
     <header className="no-print relative z-50">
       <div className="h-1 bg-signal" />
       <div className="bg-navy text-white shadow-sm">
-        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 py-3">
+        <div className="flex min-h-16 w-full items-center gap-4 px-4 py-3">
           <Link className="flex min-w-0 items-center gap-3" to="/">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white text-navy"><Flame size={24} strokeWidth={2.4} /></div>
             <div className="min-w-0">
@@ -48,6 +57,10 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
               <h1 className="truncate text-lg font-semibold">Fire Alarm and Security Certificate Audits</h1>
             </div>
           </Link>
+          <div className="ml-auto hidden shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wide md:flex">
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-2"><strong className="mr-1 text-base text-white">{workspaceCounts.ascs}</strong> ASCs</span>
+            <span className="rounded-full border border-white/20 bg-white/10 px-3 py-2"><strong className="mr-1 text-base text-white">{workspaceCounts.certificates}</strong> Certificates</span>
+          </div>
           <div className="flex shrink-0 items-center gap-2 text-sm">
             <span className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 sm:flex"><UserRound size={16} />{localUsername || auditor?.name || "No user"}</span>
             <div className="relative" ref={menuRef}>
