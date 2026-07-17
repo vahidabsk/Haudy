@@ -244,20 +244,12 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
 
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
-      <section className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-bold text-navy">Audit workspace</h2>
-            <p className="mt-0.5 text-sm text-slate-500">Prepare your secure workspace, then load the assignments allocated to this auditor.</p>
-          </div>
-        </div>
-        {storageMessage || transferMessage ? (
-          <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-2 text-sm text-slate-600">
+      {storageMessage || transferMessage ? (
+        <section className="flex flex-wrap gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
             {storageMessage ? <span>{storageMessage}</span> : null}
             {transferMessage ? <span>{transferMessage}</span> : null}
-          </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
       {desktopStorageAvailable && (!storageReady || groups.length === 0) ? (
         <section className="grid gap-3 rounded-xl border border-sky-200 bg-gradient-to-br from-white to-sky-50 p-4 shadow-sm">
           <div>
@@ -276,7 +268,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <span className="haudy-setup-state">Import tracker</span>
             </button>
           </div>
-          <p className="text-xs text-slate-500">Both commands remain available at any time from the menu in the upper-right corner.</p>
+          <p className="text-xs text-slate-500">Both commands remain available at any time from the menu in the upper-left corner.</p>
         </section>
       ) : null}
       {showInstallHelp ? (
