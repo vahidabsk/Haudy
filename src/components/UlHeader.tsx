@@ -45,12 +45,29 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
     window.dispatchEvent(new Event(eventName));
   }
 
-  const menuItem = "flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-800 transition hover:bg-sky-50 hover:text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600";
+  const menuItem = "flex min-h-11 w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
   return (
-    <header className="no-print relative z-50">
+    <header className="no-print sticky top-0 z-50">
       <div className="h-1 bg-signal" />
       <div className="bg-navy text-white shadow-sm">
         <div className="flex min-h-16 w-full items-center gap-4 px-4 py-3">
+          <div className="relative shrink-0" ref={menuRef}>
+            <button className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-white/35 bg-white/5 px-3 transition hover:bg-white/15" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" aria-label={open ? "Close application menu" : "Open application menu"}>
+              {open ? <X size={23} /> : <Menu size={24} />}
+            </button>
+            {open ? (
+              <div className="absolute left-0 mt-2 w-72 overflow-hidden rounded-xl border border-white/20 bg-[#102f52] p-2 text-white shadow-2xl" role="menu">
+                <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-white/60">Data</p>
+                <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:import-audit-tracker")}><UploadCloud size={18} /> Import Audit Tracker</button>
+                <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:choose-database")}><Database size={18} /> Choose Haudy Database</button>
+                <div className="my-2 border-t border-white/15" />
+                <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onHelp(); }}><HelpCircle size={18} /> Help</button>
+                <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onPatch(); }}><DownloadCloud size={18} /> Patch &amp; Updates</button>
+                <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onChange(); }}><UserCog size={18} /> Edit Profile</button>
+                <button className={`${menuItem} hover:bg-red-500/20`} role="menuitem" onClick={() => { setOpen(false); onLogout(); }}><LogOut size={18} /> Logout</button>
+              </div>
+            ) : null}
+          </div>
           <Link className="flex min-w-0 items-center gap-3" to="/">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-white text-navy"><Flame size={24} strokeWidth={2.4} /></div>
             <div className="min-w-0">
@@ -67,23 +84,6 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
           </div>
           <div className="flex shrink-0 items-center gap-2 text-sm">
             <span className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-2 sm:flex"><UserRound size={16} />{localUsername || auditor?.name || "No user"}</span>
-            <div className="relative" ref={menuRef}>
-              <button className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-white/35 bg-white/5 px-3 transition hover:bg-white/15" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" aria-label={open ? "Close application menu" : "Open application menu"}>
-                {open ? <X size={23} /> : <Menu size={24} />}
-              </button>
-              {open ? (
-                <div className="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 text-slate-900 shadow-2xl" role="menu">
-                  <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-slate-500">Data</p>
-                  <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:import-audit-tracker")}><UploadCloud size={18} /> Import Audit Tracker</button>
-                  <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:choose-database")}><Database size={18} /> Choose Haudy Database</button>
-                  <div className="my-2 border-t border-slate-200" />
-                  <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onHelp(); }}><HelpCircle size={18} /> Help</button>
-                  <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onPatch(); }}><DownloadCloud size={18} /> Patch &amp; Updates</button>
-                  <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onChange(); }}><UserCog size={18} /> Edit Profile</button>
-                  <button className={`${menuItem} text-red-700 hover:bg-red-50 hover:text-red-800`} role="menuitem" onClick={() => { setOpen(false); onLogout(); }}><LogOut size={18} /> Logout</button>
-                </div>
-              ) : null}
-            </div>
           </div>
         </div>
       </div>

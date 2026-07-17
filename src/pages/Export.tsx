@@ -58,7 +58,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
 
   return (
     <main className="mx-auto max-w-[8.5in] px-4 py-6 print:m-0 print:max-w-none print:p-0">
-      <div className="no-print sticky top-0 z-20 mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/95 px-2 py-3 backdrop-blur print:static">
+      <div className="no-print sticky top-[4.5rem] z-20 mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50/95 px-2 py-3 backdrop-blur print:static">
         <div className="flex flex-wrap gap-2">
           <Link className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-navy hover:bg-slate-50" to={`/?asc=${encodeURIComponent(ascKey(audit))}`}>
             <ArrowLeft size={16} /> Back to ASC Cards
