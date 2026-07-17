@@ -360,6 +360,14 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const trackerDefaults = assignmentProfileDefaults(group);
           const profile = ascProfiles[group.key] || { pocName: "", scn: trackerDefaults.scn || "", psn: trackerDefaults.psn || "", updatedAt: "" };
           const readyForDocuments = completeAscProfile(profile);
+          const missingProfileFields = [
+            !profile.pocName.trim() ? "POC" : "",
+            !profile.scn.trim() ? "SCN" : "",
+            !profile.psn.trim() ? "PSN" : "",
+          ].filter(Boolean);
+          const missingProfileText = missingProfileFields.length === 1
+            ? missingProfileFields[0]
+            : `${missingProfileFields.slice(0, -1).join(", ")} and ${missingProfileFields[missingProfileFields.length - 1]}`;
           const documents = ascDocuments[group.key];
           const confirmationSaved = documents?.confirmation?.saved;
           const reportSaved = documents?.report?.saved;
@@ -494,9 +502,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                <span>To create confirmation letter and report, add POC, SCN, and PSN.</span>
+                <span>To create the confirmation letter and report, add {missingProfileText}.</span>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100" onClick={() => setProfileGroup(group)}>
-                  <FilePenLine size={16} /> Add Info
+                  <FilePenLine size={16} /> {missingProfileFields.length === 1 ? `Add ${missingProfileText}` : "Add Info"}
                 </button>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
                   <Building2 size={16} /> Field Notes
