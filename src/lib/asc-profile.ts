@@ -2,6 +2,9 @@ const ASC_PROFILE_KEY = "haudy.ascProfiles";
 
 export interface AscProfile {
   pocName: string;
+  pocPhone?: string;
+  pocEmail?: string;
+  pocType?: string;
   scn: string;
   psn: string;
   updatedAt: string;

@@ -9,7 +9,8 @@ import type { AscDocumentState } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
-import { openAuditTracker } from "../lib/desktop-bridge";
+import { openAuditTracker, openCustomerContactList } from "../lib/desktop-bridge";
+import { CustomerContact, contactsForPsn, saveCustomerContacts } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
@@ -140,6 +141,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         if (!defaults.psn && !defaults.scn) continue;
         nextProfiles[group.key] = {
           pocName: nextProfiles[group.key]?.pocName || "",
+          pocPhone: nextProfiles[group.key]?.pocPhone || "",
+          pocEmail: nextProfiles[group.key]?.pocEmail || "",
+          pocType: nextProfiles[group.key]?.pocType || "",
           scn: nextProfiles[group.key]?.scn || defaults.scn || "",
           psn: nextProfiles[group.key]?.psn || defaults.psn || "",
           updatedAt: nextProfiles[group.key]?.updatedAt || new Date().toISOString(),
@@ -163,13 +167,31 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     }
   }
 
+  async function importCustomerContactList() {
+    try {
+      setTransferMessage("Reading customer contact list...");
+      const contacts = await openCustomerContactList();
+      if (!contacts.length) {
+        setTransferMessage("No healthy contacts were found. The list must use the SigmaSight contact format: Primary, Secondary, Site Contact, or Oracle — Name, Phone, Email.");
+        return;
+      }
+      saveCustomerContacts(contacts);
+      setTransferMessage(`${contacts.length} healthy contact${contacts.length === 1 ? "" : "s"} imported. Select a POC from the related ASC card.`);
+    } catch (error) {
+      setTransferMessage(error instanceof Error ? error.message : "Could not import the customer contact list.");
+    }
+  }
+
   useEffect(() => {
     const handleImport = () => void importTracker();
+    const handleContactImport = () => void importCustomerContactList();
     const handleChooseDatabase = () => void chooseDatabase();
     window.addEventListener("haudy:import-audit-tracker", handleImport);
+    window.addEventListener("haudy:import-customer-contact-list", handleContactImport);
     window.addEventListener("haudy:choose-database", handleChooseDatabase);
     return () => {
       window.removeEventListener("haudy:import-audit-tracker", handleImport);
+      window.removeEventListener("haudy:import-customer-contact-list", handleContactImport);
       window.removeEventListener("haudy:choose-database", handleChooseDatabase);
     };
   });
@@ -350,7 +372,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         ) : null}
         {visibleJobCards.map(({ group, status }) => {
           const trackerDefaults = assignmentProfileDefaults(group);
-          const profile = ascProfiles[group.key] || { pocName: "", scn: trackerDefaults.scn || "", psn: trackerDefaults.psn || "", updatedAt: "" };
+          const profile = ascProfiles[group.key] || { pocName: "", pocPhone: "", pocEmail: "", pocType: "", scn: trackerDefaults.scn || "", psn: trackerDefaults.psn || "", updatedAt: "" };
           const readyForDocuments = completeAscProfile(profile);
           const missingProfileFields = [
             !profile.pocName.trim() ? "POC" : "",
@@ -422,6 +444,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <div className="haudy-asc-detail-panel flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
                 <div className="text-sm text-slate-700">
                   <span className="font-semibold text-navy">POC:</span> {profile.pocName}
+                  {profile.pocPhone ? <><span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">Phone:</span> {profile.pocPhone}</> : null}
+                  {profile.pocEmail ? <><span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">Email:</span> {profile.pocEmail}</> : null}
                   <span className="mx-2 text-slate-300">|</span>
                   <span className="font-semibold text-navy">SCN:</span> {profile.scn}
                   <span className="mx-2 text-slate-300">|</span>
@@ -496,7 +520,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                 <span>To create the confirmation letter and report, add {missingProfileText}.</span>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100" onClick={() => setProfileGroup(group)}>
-                  <FilePenLine size={16} /> {missingProfileFields.length === 1 ? `Add ${missingProfileText}` : "Add Info"}
+                  <FilePenLine size={16} /> {missingProfileFields.length === 1 && missingProfileText === "POC" ? "Select / Add POC" : missingProfileFields.length === 1 ? `Add ${missingProfileText}` : "Add Info"}
                 </button>
                 <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
                   <Building2 size={16} /> Field Notes
@@ -876,9 +900,22 @@ function DuplicateUploadDialog({ review, onCancel, onReplace }: { review: Duplic
 
 function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup; profile?: AscProfile; onClose: () => void; onSave: (profile: AscProfile) => void }) {
   const [pocName, setPocName] = useState(profile?.pocName || "");
+  const [pocPhone, setPocPhone] = useState(profile?.pocPhone || "");
+  const [pocEmail, setPocEmail] = useState(profile?.pocEmail || "");
+  const [pocType, setPocType] = useState(profile?.pocType || "");
   const [scn, setScn] = useState(profile?.scn || "");
   const [psn, setPsn] = useState(profile?.psn || "");
+  const contactPsn = psn.trim() || profile?.psn || "";
+  const availableContacts = contactsForPsn(contactPsn);
   const ready = pocName.trim() && scn.trim() && psn.trim();
+
+  function selectContact(contact: CustomerContact | null) {
+    if (!contact) return;
+    setPocName(contact.name);
+    setPocPhone(contact.phone);
+    setPocEmail(contact.email);
+    setPocType(contact.type);
+  }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
@@ -886,7 +923,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
         className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onSave({ pocName: pocName.trim(), scn: scn.trim(), psn: psn.trim(), updatedAt: new Date().toISOString() });
+          if (ready) onSave({ pocName: pocName.trim(), pocPhone: pocPhone.trim(), pocEmail: pocEmail.trim(), pocType: pocType.trim(), scn: scn.trim(), psn: psn.trim(), updatedAt: new Date().toISOString() });
         }}
       >
         <div>
@@ -894,9 +931,22 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
           <p className="mt-1 text-sm text-slate-600">{group.ascName} - saved for confirmation letters and reports</p>
         </div>
         <label className="grid gap-1 text-sm font-medium text-slate-700">
+          Select POC
+          {availableContacts.length ? (
+            <select className="min-h-11 rounded-md border px-3" value={availableContacts.some((contact) => contact.name === pocName && contact.email === pocEmail) ? `${pocName}|${pocEmail}` : ""} onChange={(event) => selectContact(availableContacts.find((contact) => `${contact.name}|${contact.email}` === event.target.value) || null)}>
+              <option value="">Select a healthy contact for PSN {contactPsn}</option>
+              {availableContacts.map((contact) => <option key={`${contact.psn}|${contact.email}|${contact.name}`} value={`${contact.name}|${contact.email}`}>{contact.name} — {contact.type} — {contact.email}</option>)}
+            </select>
+          ) : <span className="text-xs font-medium text-amber-800">No imported healthy contacts match this PSN. Enter the POC manually.</span>}
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
           POC name
           <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name" autoFocus />
         </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">POC phone<input className="min-h-11 rounded-md border px-3" value={pocPhone} onChange={(event) => setPocPhone(event.target.value)} placeholder="(123) 456-7890" /></label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">POC email<input className="min-h-11 rounded-md border px-3" type="email" value={pocEmail} onChange={(event) => setPocEmail(event.target.value)} placeholder="name@example.com" /></label>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             SCN number

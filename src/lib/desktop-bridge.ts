@@ -26,6 +26,14 @@ export interface DesktopTrackerAssignment {
   ascStatus: string;
 }
 
+export interface DesktopCustomerContact {
+  psn: string;
+  name: string;
+  phone: string;
+  email: string;
+  type: string;
+}
+
 export function hasDesktopBridge() {
   return Boolean(getTauriInvoke());
 }
@@ -53,6 +61,12 @@ export async function openAuditTracker() {
   const invoke = getTauriInvoke();
   if (!invoke) throw new Error("Audit tracker import is available in the Windows desktop app.");
   return invoke<DesktopTrackerAssignment[]>("open_audit_tracker");
+}
+
+export async function openCustomerContactList() {
+  const invoke = getTauriInvoke();
+  if (!invoke) throw new Error("Customer contact-list import is available in the Windows desktop app.");
+  return invoke<DesktopCustomerContact[]>("open_customer_contact_list");
 }
 
 export async function saveDesktopTextFile(folders: string[], fileName: string, contents: string) {

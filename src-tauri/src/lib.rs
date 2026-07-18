@@ -30,6 +30,16 @@ struct TrackerAssignment {
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+struct CustomerContact {
+    psn: String,
+    name: String,
+    phone: String,
+    email: String,
+    contact_type: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct AppVersion {
     version: String,
 }
@@ -150,6 +160,71 @@ fn open_audit_tracker() -> Result<Vec<TrackerAssignment>, String> {
     }
 
     Ok(assignments)
+}
+
+#[tauri::command]
+fn open_customer_contact_list() -> Result<Vec<CustomerContact>, String> {
+    let Some(path) = rfd::FileDialog::new()
+        .set_title("Choose customer contact list workbook")
+        .add_filter("Excel workbook", &["xlsx", "xlsm", "xls"])
+        .pick_file()
+    else {
+        return Ok(Vec::new());
+    };
+
+    let mut workbook = open_workbook_auto(&path).map_err(|error| format!("Could not open contact list: {error}"))?;
+    let sheet_name = workbook.sheet_names().first().cloned().ok_or_else(|| "The contact list workbook has no worksheets.".to_string())?;
+    let range = workbook.worksheet_range(&sheet_name).map_err(|error| format!("Could not read contact list: {error}"))?;
+    let mut contacts = Vec::new();
+
+    for row in range.rows() {
+        let psn = row_cell_text(row, 0);
+        let details = row_cell_text(row, 8);
+        if psn.is_empty() || psn.eq_ignore_ascii_case("psn") || details.is_empty() {
+            continue;
+        }
+        for section in contact_sections(&details) {
+            let Some(contact) = parse_contact_section(&psn, &section) else { continue };
+            contacts.push(contact);
+        }
+    }
+
+    contacts.sort_by(|left, right| left.psn.cmp(&right.psn).then(left.name.cmp(&right.name)));
+    contacts.dedup_by(|left, right| left.psn == right.psn && left.email.eq_ignore_ascii_case(&right.email) && left.name.eq_ignore_ascii_case(&right.name));
+    Ok(contacts)
+}
+
+fn contact_sections(details: &str) -> Vec<String> {
+    let markers = ["Primary -", "Secondary -", "Site Contact -", "Oracle -"];
+    let mut starts = Vec::new();
+    let lower = details.to_lowercase();
+    for marker in markers {
+        let marker_lower = marker.to_lowercase();
+        let mut offset = 0;
+        while let Some(position) = lower[offset..].find(&marker_lower) {
+            starts.push((offset + position, marker.trim_end_matches(" -").to_string()));
+            offset += position + marker_lower.len();
+        }
+    }
+    starts.sort_by_key(|(position, _)| *position);
+    starts.iter().enumerate().map(|(index, (start, label))| {
+        let end = starts.get(index + 1).map(|(next, _)| *next).unwrap_or(details.len());
+        format!("{}|{}", label, details[*start..end].trim())
+    }).collect()
+}
+
+fn parse_contact_section(psn: &str, section: &str) -> Option<CustomerContact> {
+    let (contact_type, value) = section.split_once('|')?;
+    let value = value.split_once('-').map(|(_, tail)| tail).unwrap_or(value).trim();
+    let parts = value.splitn(3, ',').map(str::trim).collect::<Vec<_>>();
+    let name = parts.first().copied().unwrap_or("");
+    let phone = parts.get(1).copied().unwrap_or("");
+    let email = parts.get(2).copied().unwrap_or("");
+    let normalized_phone = phone.chars().filter(|character| character.is_ascii_digit()).count();
+    let valid_name = !name.is_empty() && !["na", "n/a", "none"].iter().any(|empty| name.eq_ignore_ascii_case(empty));
+    let valid_email = email.contains('@') && email.rsplit_once('.').map(|(_, suffix)| !suffix.trim().is_empty()).unwrap_or(false);
+    if !valid_name || normalized_phone < 7 || !valid_email { return None; }
+    Some(CustomerContact { psn: psn.to_string(), name: name.to_string(), phone: phone.to_string(), email: email.to_string(), contact_type: contact_type.to_string() })
 }
 
 fn row_cell_text(row: &[Data], index: usize) -> String {
@@ -309,6 +384,7 @@ pub fn run() {
             get_haudy_version,
             install_haudy_patch,
             open_audit_tracker,
+            open_customer_contact_list,
             open_certificate_pdfs,
             save_haudy_binary_file,
             save_haudy_binary_file_with_dialog,
