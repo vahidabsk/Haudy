@@ -799,12 +799,18 @@ function CustomerPhoneBook({ auditorName, onClose }: { auditorName: string; onCl
   const matchingAssignments = new Map(trackerDirectory.map((entry) => [entry.psn, entry]));
   const contactsByPsn = new Map<string, CustomerContact[]>();
   for (const contact of contacts) contactsByPsn.set(contact.psn, [...(contactsByPsn.get(contact.psn) || []), contact]);
-  const matchingGroups = Array.from(contactsByPsn.entries()).filter(([psn, psnContacts]) => {
-    if (!query) return true;
-    const assignment = matchingAssignments.get(psn);
-    return [psn, assignment?.ascName, ...psnContacts.flatMap((contact) => [contact.company, contact.name, contact.email, contact.address])]
-      .some((value) => String(value || "").toLowerCase().includes(query));
-  });
+  const matchingGroups = Array.from(contactsByPsn.entries())
+    .filter(([psn, psnContacts]) => {
+      if (!query) return true;
+      const assignment = matchingAssignments.get(psn);
+      return [psn, assignment?.ascName, ...psnContacts.flatMap((contact) => [contact.company, contact.name, contact.email, contact.address])]
+        .some((value) => String(value || "").toLowerCase().includes(query));
+    })
+    .sort(([leftPsn, leftContacts], [rightPsn, rightContacts]) => {
+      const leftName = matchingAssignments.get(leftPsn)?.ascName || leftContacts[0]?.company || "";
+      const rightName = matchingAssignments.get(rightPsn)?.ascName || rightContacts[0]?.company || "";
+      return leftName.localeCompare(rightName, undefined, { sensitivity: "base" }) || leftPsn.localeCompare(rightPsn);
+    });
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/55 px-4 py-6">
