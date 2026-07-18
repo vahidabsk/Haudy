@@ -32,6 +32,7 @@ interface ConfirmationEmailEditorState {
   confirmation: NonNullable<AscDocumentState["confirmation"]>;
   startTime: string;
   meetingLocation: string;
+  confirmationAttachmentPath: string;
   attachments: string[];
 }
 
@@ -291,30 +292,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     setReportSentGroup(null);
   }
 
-  async function prepareConfirmationEmail(group: AssignmentGroup, profile: AscProfile, confirmation: NonNullable<AscDocumentState["confirmation"]>, options: Pick<ConfirmationEmailEditorState, "startTime" | "meetingLocation" | "attachments">) {
+  async function prepareConfirmationEmail(group: AssignmentGroup, profile: AscProfile, confirmation: NonNullable<AscDocumentState["confirmation"]>, options: Pick<ConfirmationEmailEditorState, "startTime" | "meetingLocation" | "confirmationAttachmentPath" | "attachments">) {
     if (!(profile.pocEmail || "").trim()) {
       setConfirmationEmailMessage({ ascKey: group.key, text: "Add a POC email address before preparing the confirmation email.", tone: "warning" });
       return;
     }
     try {
-      let attachmentPath = confirmation.confirmationPdfPath || "";
+      let attachmentPath = options.confirmationAttachmentPath || "";
       if (!attachmentPath) {
-        setConfirmationEmailMessage({ ascKey: group.key, text: "Opening this ASC's Confirmation folder. Select the saved PDF to attach; Haudy will remember it.", tone: "warning" });
-        const confirmationFolders = storageFoldersForDetails(storageDetailsFromAsc({
-          year: (confirmation.startDate || new Date().toISOString()).slice(0, 4),
-          ascName: group.ascName,
-          cityState: "",
-          psn: profile.psn || group.psn,
-          folder: "Confirmation",
-          fileName: "Confirmation",
-        }));
-        attachmentPath = (await chooseConfirmationPdf(confirmationFolders)) || "";
-        if (!attachmentPath) {
-          setConfirmationEmailMessage({ ascKey: group.key, text: "Email preparation canceled. No confirmation PDF was selected.", tone: "warning" });
-          return;
-        }
-        const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationPdfPath: attachmentPath });
-        setAscDocuments(next);
+        setConfirmationEmailMessage({ ascKey: group.key, text: "Attach the confirmation letter before opening the Outlook draft.", tone: "warning" });
+        return false;
       }
       const start = emailDate(confirmation.startDate);
       const end = emailDate(confirmation.endDate || confirmation.startDate);
@@ -507,7 +494,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {confirmationSaved && documents?.confirmation ? (
                   <>
-                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", attachments: [] })}>
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", attachments: [] })}>
                       <UploadCloud size={16} /> {documents.confirmation.confirmationEmailSentAt ? "Resend Confirmation Email" : documents.confirmation.confirmationEmailPreparedAt ? "Prepare Confirmation Email Again" : "Confirmation Email"}
                     </button>
                     {documents.confirmation.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
@@ -657,6 +644,18 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           editor={confirmationEmailEditor}
           onClose={() => setConfirmationEmailEditor(null)}
           onChange={setConfirmationEmailEditor}
+          onChooseConfirmation={async () => {
+            try {
+              const folders = storageFoldersForDetails(storageDetailsFromAsc({ year: (confirmationEmailEditor.confirmation.startDate || new Date().toISOString()).slice(0, 4), ascName: confirmationEmailEditor.group.ascName, cityState: "", psn: confirmationEmailEditor.profile.psn || confirmationEmailEditor.group.psn, folder: "Confirmation", fileName: "Confirmation" }));
+              const path = await chooseConfirmationPdf(folders);
+              if (!path) return;
+              const next = saveAscDocument(confirmationEmailEditor.group.key, "confirmation", { ...confirmationEmailEditor.confirmation, confirmationPdfPath: path });
+              setAscDocuments(next);
+              setConfirmationEmailEditor((current) => current ? { ...current, confirmationAttachmentPath: path, confirmation: next[current.group.key]?.confirmation || current.confirmation } : null);
+            } catch (error) {
+              setConfirmationEmailMessage({ ascKey: confirmationEmailEditor.group.key, text: error instanceof Error ? error.message : "Could not select the confirmation letter.", tone: "error" });
+            }
+          }}
           onAddAttachments={async () => {
             try {
               const folders = storageFoldersForDetails(storageDetailsFromAsc({ year: (confirmationEmailEditor.confirmation.startDate || new Date().toISOString()).slice(0, 4), ascName: confirmationEmailEditor.group.ascName, cityState: "", psn: confirmationEmailEditor.profile.psn || confirmationEmailEditor.group.psn, folder: "Confirmation", fileName: "Confirmation" }));
@@ -1147,7 +1146,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
   );
 }
 
-function ConfirmationEmailDialog({ editor, onClose, onChange, onAddAttachments, onPrepare }: { editor: ConfirmationEmailEditorState; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void> }) {
+function ConfirmationEmailDialog({ editor, onClose, onChange, onChooseConfirmation, onAddAttachments, onPrepare }: { editor: ConfirmationEmailEditorState; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void> }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 py-6">
       <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Confirmation email">
@@ -1176,11 +1175,16 @@ function ConfirmationEmailDialog({ editor, onClose, onChange, onAddAttachments, 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="font-bold text-navy">Attachments</h3>
-              <p className="text-sm text-slate-600">The confirmation PDF is always attached. Add checklists or other supporting documents if needed.</p>
+              <p className="text-sm text-slate-600">Attach the confirmation letter, then add a preparation checklist or other supporting documents if needed.</p>
             </div>
-            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50" onClick={() => void onAddAttachments()}><UploadCloud size={16} /> Add documents</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-50" onClick={() => void onChooseConfirmation()}><FileText size={16} /> Attach Confirmation Letter</button>
+              <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50" onClick={() => void onAddAttachments()}><UploadCloud size={16} /> Add Preparation Checklist</button>
+            </div>
           </div>
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">Confirmation letter PDF</div>
+          <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${editor.confirmationAttachmentPath ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+            {editor.confirmationAttachmentPath ? <><FileText className="mr-2 inline" size={16} />{editor.confirmationAttachmentPath.split(/[/\\]/).pop()}</> : "Confirmation letter not attached yet"}
+          </div>
           {editor.attachments.map((path) => (
             <div key={path} className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
               <span className="min-w-0 truncate"><FileText className="mr-2 inline text-sky-700" size={16} />{path.split(/[/\\]/).pop()}</span>
