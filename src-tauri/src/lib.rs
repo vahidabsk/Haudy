@@ -365,9 +365,15 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
 }
 
 #[tauri::command]
-fn choose_confirmation_pdf() -> Result<Option<String>, String> {
+fn choose_confirmation_pdf(base_path: String, folders: Vec<String>) -> Result<Option<String>, String> {
+    let mut directory = PathBuf::from(base_path).join("Haudy Database");
+    for folder in folders {
+        directory.push(safe_path_part(&folder));
+    }
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
     let selected = rfd::FileDialog::new()
         .set_title("Select saved confirmation PDF")
+        .set_directory(&directory)
         .add_filter("PDF document", &["pdf"])
         .pick_file();
     Ok(selected.map(|path| path.to_string_lossy().to_string()))

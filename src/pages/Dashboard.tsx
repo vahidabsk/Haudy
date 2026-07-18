@@ -13,7 +13,7 @@ import { chooseConfirmationPdf, openAuditTracker, openCustomerContactList, prepa
 import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { exportHaudyBackup } from "../lib/haudy-data-transfer";
-import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
+import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAsc, storageDetailsFromAudit, storageFoldersForDetails } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { formatUsPhone, relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
@@ -289,8 +289,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     try {
       let attachmentPath = confirmation.confirmationPdfPath || "";
       if (!attachmentPath) {
-        setConfirmationEmailMessage({ ascKey: group.key, text: "Select the saved confirmation PDF to attach. Haudy will remember it for this ASC.", tone: "warning" });
-        attachmentPath = (await chooseConfirmationPdf()) || "";
+        setConfirmationEmailMessage({ ascKey: group.key, text: "Opening this ASC's Confirmation folder. Select the saved PDF to attach; Haudy will remember it.", tone: "warning" });
+        const confirmationFolders = storageFoldersForDetails(storageDetailsFromAsc({
+          year: (confirmation.startDate || new Date().toISOString()).slice(0, 4),
+          ascName: group.ascName,
+          cityState: "",
+          psn: profile.psn || group.psn,
+          folder: "Confirmation",
+          fileName: "Confirmation",
+        }));
+        attachmentPath = (await chooseConfirmationPdf(confirmationFolders)) || "";
         if (!attachmentPath) {
           setConfirmationEmailMessage({ ascKey: group.key, text: "Email preparation canceled. No confirmation PDF was selected.", tone: "warning" });
           return;
@@ -488,7 +496,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 {confirmationSaved && documents?.confirmation ? (
                   <>
                     <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => void prepareConfirmationEmail(group, profile, documents.confirmation!)}>
-                      <UploadCloud size={16} /> {documents.confirmation.confirmationEmailSentAt ? "Resend Email" : documents.confirmation.confirmationEmailPreparedAt ? "Prepare Again" : "Prepare Email"}
+                      <UploadCloud size={16} /> {documents.confirmation.confirmationEmailSentAt ? "Resend Confirmation Email" : documents.confirmation.confirmationEmailPreparedAt ? "Prepare Confirmation Email Again" : "Confirmation Email"}
                     </button>
                     {documents.confirmation.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
                       <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-emerald-200/50 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400/25" onClick={() => markConfirmationEmailSent(group, documents.confirmation!)}>
