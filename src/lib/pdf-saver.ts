@@ -37,8 +37,14 @@ export async function savePrintablePagesAsPdfWithResult(fileName: string, folder
     const pdf = buildImagePdf(images);
     const savedPath = await saveDesktopBinaryFileWithDialog(folders, `${safeName(fileName)}.pdf`, pdf);
     return savedPath ? { message: "PDF saved.", path: savedPath } : { message: "PDF save canceled.", path: "" };
-  } catch (error) {
-    throw error instanceof Error ? error : new Error("Could not save PDF.");
+  } catch {
+    // Some Windows WebView builds cannot rasterize complex office-style pages.
+    // The native print dialog remains reliable and lets the auditor choose Microsoft Print to PDF.
+    window.print();
+    return {
+      message: "Windows print dialog opened. Select Microsoft Print to PDF, save the confirmation, then choose that PDF when preparing the email.",
+      path: "",
+    };
   }
 }
 
