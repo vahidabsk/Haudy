@@ -358,8 +358,15 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         powershell_quote(&body),
         attachments,
     );
-    let status = Command::new("powershell")
-        .args(["-NoProfile", "-Sta", "-ExecutionPolicy", "Bypass", "-Command", &command])
+    let mut powershell = Command::new("powershell");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        // Keep the email helper invisible; the auditor only sees the Outlook draft.
+        powershell.creation_flags(0x08000000);
+    }
+    let status = powershell
+        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Sta", "-ExecutionPolicy", "Bypass", "-Command", &command])
         .status()
         .map_err(|error| format!("Could not open Outlook: {error}"))?;
     if !status.success() {
