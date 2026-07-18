@@ -36,3 +36,4 @@ For production-grade certificate intake, add `pdfjs-dist` for PDF text extractio
 
 - [User Operation Manual](docs/HAUDY_USER_OPERATION_MANUAL.md)
 - [IT And Engineering Handbook](docs/HAUDY_IT_ENGINEERING_HANDBOOK.md)
+- [Windows Standalone Build](docs/windows-standalone-build.md)

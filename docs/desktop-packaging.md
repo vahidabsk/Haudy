@@ -1,6 +1,6 @@
 # Haudy Desktop Packaging
 
-Haudy now has a Tauri desktop wrapper for Windows.
+Haudy uses a Tauri desktop wrapper for Windows. It packages the application as a native Windows installer that opens in its own desktop window, not a browser tab.
 
 ## Build in GitHub
 
@@ -24,14 +24,7 @@ Tagged desktop builds also publish a GitHub Release. Haudy's Patch button opens 
 
 ## Build on Windows
 
-Local desktop builds require Rust and Tauri dependencies:
-
-```sh
-pnpm install
-pnpm tauri:build
-```
-
-The Tauri command is downloaded only when you run a desktop build, so the normal Render web deployment stays separate from desktop packaging.
+For the local standalone installer, use `build_windows.bat`. The Windows build computer needs Node.js LTS, Rustup with the MSVC toolchain, and Microsoft C++ Build Tools with **Desktop development with C++**. See [Windows Standalone Build](windows-standalone-build.md) for the full procedure.
 
 The Windows package will be created under:
 
@@ -43,4 +36,4 @@ src-tauri/target/release/bundle/
 
 - The normal Render web deployment is still supported.
 - The desktop app uses the same Haudy user interface and local browser storage behavior.
-- Windows packages should be built through the GitHub workflow.
+- Windows packages can be built through the GitHub workflow or locally with `build_windows.bat`.
