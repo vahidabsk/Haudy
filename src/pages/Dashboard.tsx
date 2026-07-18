@@ -34,6 +34,7 @@ interface ConfirmationEmailEditorState {
   meetingLocation: string;
   confirmationAttachmentPath: string;
   attachments: string[];
+  emailType: "confirmation" | "report" | "reminder";
 }
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
@@ -492,12 +493,12 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {confirmationSaved && documents?.confirmation ? (
+                {readyForDocuments ? (
                   <>
-                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", attachments: [] })}>
-                      <UploadCloud size={16} /> {documents.confirmation.confirmationEmailSentAt ? "Resend Confirmation Email" : documents.confirmation.confirmationEmailPreparedAt ? "Prepare Confirmation Email Again" : "Confirmation Email"}
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents?.confirmation || { saved: false, pocName: profile.pocName, scn: profile.scn, psn: profile.psn, updatedAt: "" }, startTime: documents?.confirmation?.startTime || "", meetingLocation: documents?.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents?.confirmation?.confirmationPdfPath || "", attachments: [], emailType: "confirmation" })}>
+                      <UploadCloud size={16} /> Prepare Email
                     </button>
-                    {documents.confirmation.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
+                    {documents?.confirmation?.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
                       <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-emerald-200/50 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400/25" onClick={() => markConfirmationEmailSent(group, documents.confirmation!)}>
                         <CheckCircle2 size={16} /> Mark Sent
                       </button>
@@ -1152,8 +1153,8 @@ function ConfirmationEmailDialog({ editor, onClose, onChange, onChooseConfirmati
       <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Confirmation email">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-xl font-bold text-navy">Confirmation Email</h2>
-            <p className="mt-1 text-sm text-slate-600">Review the schedule and attachments before Haudy opens the Outlook draft.</p>
+            <h2 className="text-xl font-bold text-navy">Prepare Email</h2>
+            <p className="mt-1 text-sm text-slate-600">Choose the email type, then review its details and attachments before Haudy opens Outlook.</p>
           </div>
           <button type="button" className="grid h-10 w-10 place-items-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50" onClick={onClose} aria-label="Close confirmation email"><X size={18} /></button>
         </div>
@@ -1161,6 +1162,20 @@ function ConfirmationEmailDialog({ editor, onClose, onChange, onChooseConfirmati
           <p><span className="font-semibold text-navy">To:</span> {editor.profile.pocName} &lt;{editor.profile.pocEmail}&gt;</p>
           <p className="mt-1"><span className="font-semibold text-navy">ASC:</span> {editor.group.ascName} <span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">PSN:</span> {editor.profile.psn || editor.group.psn}</p>
         </div>
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          Email type
+          <select className="min-h-11 rounded-md border border-slate-300 bg-white px-3 font-semibold text-navy" value={editor.emailType} onChange={(event) => onChange({ ...editor, emailType: event.target.value as ConfirmationEmailEditorState["emailType"] })}>
+            <option value="confirmation">Confirmation Email</option>
+            <option value="report">Report Email — coming next</option>
+            <option value="reminder">Reminder Email — coming next</option>
+          </select>
+        </label>
+        {editor.emailType !== "confirmation" ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-bold">{editor.emailType === "report" ? "Report Email" : "Reminder Email"} workflow is being prepared.</p>
+            <p className="mt-1">Confirmation Email is complete and available now. The next step will add the correct report or reminder content, recipient rules, and attachments for this ASC.</p>
+          </div>
+        ) : <>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit start time
@@ -1192,9 +1207,10 @@ function ConfirmationEmailDialog({ editor, onClose, onChange, onChooseConfirmati
             </div>
           ))}
         </section>
+        </>}
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
           <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancel</button>
-          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" onClick={() => void onPrepare()}><UploadCloud size={16} /> Open Outlook Draft</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={editor.emailType !== "confirmation"} onClick={() => void onPrepare()}><UploadCloud size={16} /> Open Outlook Draft</button>
         </div>
       </section>
     </div>
