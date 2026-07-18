@@ -28,10 +28,11 @@ export interface DesktopTrackerAssignment {
 
 export interface DesktopCustomerContact {
   psn: string;
+  company: string;
   name: string;
   phone: string;
   email: string;
-  type: string;
+  contactType: string;
 }
 
 export function hasDesktopBridge() {

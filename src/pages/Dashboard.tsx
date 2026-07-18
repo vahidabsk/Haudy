@@ -10,11 +10,11 @@ import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loa
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
 import { openAuditTracker, openCustomerContactList } from "../lib/desktop-bridge";
-import { CustomerContact, contactsForPsn, saveCustomerContacts } from "../lib/customer-contacts";
+import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
-import { relativeTime } from "../lib/utils";
+import { formatUsPhone, relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
 import { isProtectedAreaAudit } from "../lib/audit-program";
 
@@ -49,6 +49,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [poolSearch, setPoolSearch] = useState("");
   const [focusAscKey, setFocusAscKey] = useState("");
   const [showProgressDashboard, setShowProgressDashboard] = useState(false);
+  const [showCustomerPhoneBook, setShowCustomerPhoneBook] = useState(false);
   const restoredAscRoute = useRef("");
   const jobCards = groups.map((group) => {
     const documents = ascDocuments[group.key];
@@ -133,6 +134,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         setTransferMessage("");
         return;
       }
+      saveTrackerDirectory(rows.map((row) => ({ psn: row.psn, ascName: row.ascName, city: row.city, state: row.state, auditorName: row.auditorName })));
       const result = importTrackerAssignments(rows, auditorName);
       setAssignments(result.assignments);
       const nextProfiles = { ...loadAscProfiles() };
@@ -175,7 +177,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         setTransferMessage("No healthy contacts were found. The list must use the SigmaSight contact format: Primary, Secondary, Site Contact, or Oracle — Name, Phone, Email.");
         return;
       }
-      saveCustomerContacts(contacts);
+      saveCustomerContacts(contacts.map((contact) => ({ ...contact, phone: formatUsPhone(contact.phone), type: contact.contactType })));
       setTransferMessage(`${contacts.length} healthy contact${contacts.length === 1 ? "" : "s"} imported. Select a POC from the related ASC card.`);
     } catch (error) {
       setTransferMessage(error instanceof Error ? error.message : "Could not import the customer contact list.");
@@ -185,13 +187,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   useEffect(() => {
     const handleImport = () => void importTracker();
     const handleContactImport = () => void importCustomerContactList();
+    const handleOpenPhoneBook = () => setShowCustomerPhoneBook(true);
     const handleChooseDatabase = () => void chooseDatabase();
     window.addEventListener("haudy:import-audit-tracker", handleImport);
     window.addEventListener("haudy:import-customer-contact-list", handleContactImport);
+    window.addEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
     window.addEventListener("haudy:choose-database", handleChooseDatabase);
     return () => {
       window.removeEventListener("haudy:import-audit-tracker", handleImport);
       window.removeEventListener("haudy:import-customer-contact-list", handleContactImport);
+      window.removeEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
       window.removeEventListener("haudy:choose-database", handleChooseDatabase);
     };
   });
@@ -444,7 +449,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <div className="haudy-asc-detail-panel flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2">
                 <div className="text-sm text-slate-700">
                   <span className="font-semibold text-navy">POC:</span> {profile.pocName}
-                  {profile.pocPhone ? <><span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">Phone:</span> {profile.pocPhone}</> : null}
+                  {profile.pocPhone ? <><span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">Phone:</span> {formatUsPhone(profile.pocPhone)}</> : null}
                   {profile.pocEmail ? <><span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">Email:</span> {profile.pocEmail}</> : null}
                   <span className="mx-2 text-slate-300">|</span>
                   <span className="font-semibold text-navy">SCN:</span> {profile.scn}
@@ -549,6 +554,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
+      {showCustomerPhoneBook ? <CustomerPhoneBook auditorName={auditorName} onClose={() => setShowCustomerPhoneBook(false)} /> : null}
       {confirmationGroup ? (
         <ConfirmationDialog
           group={confirmationGroup}
@@ -785,6 +791,58 @@ function shouldShowIosInstallHelp() {
   return isiOS && !isStandalone;
 }
 
+function CustomerPhoneBook({ auditorName, onClose }: { auditorName: string; onClose: () => void }) {
+  const [search, setSearch] = useState("");
+  const contacts = loadCustomerContacts();
+  const trackerDirectory = loadTrackerDirectory();
+  const query = search.trim().toLowerCase();
+  const matchingContacts = contacts.filter((contact) => !query || [contact.psn, contact.company, contact.name, contact.email].some((value) => value.toLowerCase().includes(query))).slice(0, 150);
+  const matchingAssignments = new Map(trackerDirectory.map((entry) => [entry.psn, entry]));
+
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/55 px-4 py-6">
+      <section className="grid max-h-full w-full max-w-4xl gap-4 overflow-hidden rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="customer-phone-book-title">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="customer-phone-book-title" className="text-xl font-bold text-navy">Customer Phone Book</h2>
+            <p className="mt-1 text-sm text-slate-600">United States customer contacts imported from the approved customer contact list.</p>
+          </div>
+          <button type="button" className="grid h-10 w-10 place-items-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50" onClick={onClose} aria-label="Close customer phone book"><X size={19} /></button>
+        </div>
+        <label className="flex min-h-12 items-center gap-3 rounded-md border border-slate-300 bg-slate-50 px-3 focus-within:border-navy focus-within:ring-2 focus-within:ring-navy/15">
+          <Search size={19} className="text-slate-500" />
+          <input className="min-w-0 flex-1 bg-transparent text-base font-medium text-navy outline-none placeholder:text-slate-400" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search PSN, company, contact name, or email" autoFocus />
+        </label>
+        <div className="max-h-[58vh] overflow-y-auto rounded-lg border border-slate-200">
+          {!contacts.length ? <p className="p-5 text-sm text-slate-600">No customer contacts have been imported. Use the hamburger menu to import the Customer Contact List.</p> : null}
+          {contacts.length && !matchingContacts.length ? <p className="p-5 text-sm text-slate-600">No United States customer contacts match this search.</p> : null}
+          {matchingContacts.map((contact) => {
+            const assignment = matchingAssignments.get(contact.psn);
+            const assignedToYou = assignment?.auditorName.trim().toLowerCase() === auditorName.trim().toLowerCase();
+            return (
+              <article key={`${contact.psn}|${contact.email}|${contact.name}`} className="grid gap-2 border-b border-slate-200 p-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold text-navy">{contact.company || assignment?.ascName || "Customer"}</h3>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">PSN {contact.psn}</span>
+                    {assignedToYou ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">In your assigned pool</span> : null}
+                  </div>
+                  <p className="mt-1 text-sm font-semibold text-slate-800">{contact.name} <span className="font-normal text-slate-500">({contact.type})</span></p>
+                  <p className="mt-1 text-sm text-slate-600">{formatUsPhone(contact.phone)} <span className="mx-1 text-slate-300">|</span> {contact.email}</p>
+                </div>
+                <div className="text-sm sm:text-right">
+                  {assignment ? <><p className="font-semibold text-navy">Assigned to {assignedToYou ? "you" : assignment.auditorName}</p><p className="mt-1 text-slate-500">{[assignment.city, assignment.state].filter(Boolean).join(", ")}</p></> : <p className="font-medium text-amber-800">No matching audit-tracker assignment</p>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {matchingContacts.length >= 150 ? <p className="text-xs font-medium text-slate-500">Showing the first 150 matches. Refine your search to narrow the phone book.</p> : null}
+      </section>
+    </div>
+  );
+}
+
 function DeleteAscDialog({ group, onCancel, onDelete }: { group: AscGroup; onCancel: () => void; onDelete: () => void }) {
   const [confirmation, setConfirmation] = useState("");
   const ready = confirmation.trim().toUpperCase() === "DELETE";
@@ -912,7 +970,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
   function selectContact(contact: CustomerContact | null) {
     if (!contact) return;
     setPocName(contact.name);
-    setPocPhone(contact.phone);
+    setPocPhone(formatUsPhone(contact.phone));
     setPocEmail(contact.email);
     setPocType(contact.type);
   }
@@ -923,7 +981,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
         className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          if (ready) onSave({ pocName: pocName.trim(), pocPhone: pocPhone.trim(), pocEmail: pocEmail.trim(), pocType: pocType.trim(), scn: scn.trim(), psn: psn.trim(), updatedAt: new Date().toISOString() });
+          if (ready) onSave({ pocName: pocName.trim(), pocPhone: formatUsPhone(pocPhone), pocEmail: pocEmail.trim(), pocType: pocType.trim(), scn: scn.trim(), psn: psn.trim(), updatedAt: new Date().toISOString() });
         }}
       >
         <div>
@@ -944,7 +1002,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
           <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name" autoFocus />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm font-medium text-slate-700">POC phone<input className="min-h-11 rounded-md border px-3" value={pocPhone} onChange={(event) => setPocPhone(event.target.value)} placeholder="(123) 456-7890" /></label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">POC phone<input className="min-h-11 rounded-md border px-3" inputMode="tel" value={pocPhone} onChange={(event) => setPocPhone(formatUsPhone(event.target.value))} placeholder="(123) 456-7890" /></label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">POC email<input className="min-h-11 rounded-md border px-3" type="email" value={pocEmail} onChange={(event) => setPocEmail(event.target.value)} placeholder="name@example.com" /></label>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
