@@ -63,6 +63,7 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:open-customer-phone-book")}><BookOpen size={18} /> Customer Phone Book</button>
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:open-audit-dashboard")}><ChartNoAxesCombined size={18} /> Dashboard</button>
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:choose-database")}><Database size={18} /> Choose Haudy Database</button>
+                <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:backup-workspace")}><DownloadCloud size={18} /> Back Up Workspace</button>
                 <div className="my-2 border-t border-white/15" />
                 <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onHelp(); }}><HelpCircle size={18} /> Help</button>
                 <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onPatch(); }}><DownloadCloud size={18} /> Patch &amp; Updates</button>

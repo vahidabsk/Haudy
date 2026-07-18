@@ -145,6 +145,12 @@ export async function prepareOutlookConfirmationEmail(recipient: string, subject
   return invoke<string>("prepare_outlook_confirmation_email", { recipient, subject, body, attachmentPath });
 }
 
+export async function chooseConfirmationPdf() {
+  const invoke = getTauriInvoke();
+  if (!invoke) throw new Error("Choose a confirmation PDF in the Windows desktop app.");
+  return invoke<string | null>("choose_confirmation_pdf");
+}
+
 function getTauriInvoke() {
   return (window as Window & { __TAURI__?: TauriGlobal }).__TAURI__?.core?.invoke;
 }

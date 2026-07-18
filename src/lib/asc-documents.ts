@@ -13,6 +13,7 @@ export interface SavedDocumentStatus {
   letterDate?: string;
   confirmationPdfPath?: string;
   confirmationEmailPreparedAt?: string;
+  confirmationEmailSentAt?: string;
   serviceCenterHasComment?: boolean;
   serviceCenterDone?: boolean;
   serviceCenterComments?: ServiceCenterComment[];

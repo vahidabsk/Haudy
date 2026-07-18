@@ -6,7 +6,7 @@ import { groupAssignmentsAndAudits, loadAuditAssignments } from "../lib/audit-as
 import { loadAscDocuments, saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
-import { canSavePdfDirectly, savePrintablePagesAsPdf, savePrintablePagesAsPdfToFolder } from "../lib/pdf-saver";
+import { canSavePdfDirectly, savePrintablePagesAsPdfToFolder, savePrintablePagesAsPdfWithResult } from "../lib/pdf-saver";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
 
 export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
@@ -88,8 +88,40 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
         setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
         setFolderMessage("Confirmation and PDF saved to Haudy Database.");
       } catch (error) {
-        setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
+        setFolderMessage(`Confirmation saved, but its PDF attachment could not be created: ${error instanceof Error ? error.message : "Unknown error"}. Use Save as PDF to select and save the attachment.`);
       }
+    }
+  }
+
+  async function saveConfirmationPdf() {
+    if (!canSavePdfDirectly()) {
+      window.print();
+      return;
+    }
+    try {
+      const result = await savePrintablePagesAsPdfWithResult(confirmationFileName, storageFoldersForDetails(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName })));
+      if (!result.path) {
+        setFolderMessage(result.message);
+        return;
+      }
+      const next = saveAscDocument(ascKey, "confirmation", {
+        ...(loadAscDocuments()[ascKey]?.confirmation || {}),
+        pocName,
+        scn,
+        psn,
+        startDate: auditStartDate,
+        endDate: auditEndDate,
+        startTime: auditStartTime,
+        meetingLocation: auditMeetingLocation,
+        conversationDate: scheduleConversationDate,
+        letterDate: confirmationLetterDate,
+        confirmationPdfPath: result.path,
+      });
+      setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
+      setSavedSnapshot(currentSnapshot);
+      setFolderMessage("PDF saved and linked to this confirmation email.");
+    } catch (error) {
+      setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
     }
   }
 
@@ -145,17 +177,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
             <button
               type="button"
               className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
-              onClick={async () => {
-                if (!canSavePdfDirectly()) {
-                  window.print();
-                  return;
-                }
-                try {
-                  setFolderMessage(await savePrintablePagesAsPdf(confirmationFileName, storageFoldersForDetails(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }))));
-                } catch (error) {
-                  setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
-                }
-              }}
+              onClick={() => void saveConfirmationPdf()}
             >
               {canSavePdfDirectly() ? "Save as PDF" : "Print PDF"}
             </button>

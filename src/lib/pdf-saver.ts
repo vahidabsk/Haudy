@@ -15,7 +15,16 @@ export function canSavePdfDirectly() {
   return isDesktopApp() && hasDesktopBridge();
 }
 
+export interface PdfSaveResult {
+  message: string;
+  path: string;
+}
+
 export async function savePrintablePagesAsPdf(fileName: string, folders: string[]) {
+  return (await savePrintablePagesAsPdfWithResult(fileName, folders)).message;
+}
+
+export async function savePrintablePagesAsPdfWithResult(fileName: string, folders: string[]): Promise<PdfSaveResult> {
   if (!canSavePdfDirectly()) {
     throw new Error("Save as PDF is available in the Windows desktop app.");
   }
@@ -27,10 +36,9 @@ export async function savePrintablePagesAsPdf(fileName: string, folders: string[
     const images = await renderPagesToJpegs(pages);
     const pdf = buildImagePdf(images);
     const savedPath = await saveDesktopBinaryFileWithDialog(folders, `${safeName(fileName)}.pdf`, pdf);
-    return savedPath ? "PDF saved." : "PDF save canceled.";
-  } catch {
-    window.print();
-    return "Windows PDF save opened. Choose Save as PDF or Microsoft Print to PDF.";
+    return savedPath ? { message: "PDF saved.", path: savedPath } : { message: "PDF save canceled.", path: "" };
+  } catch (error) {
+    throw error instanceof Error ? error : new Error("Could not save PDF.");
   }
 }
 

@@ -9,9 +9,10 @@ import type { AscDocumentState } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
-import { openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
+import { chooseConfirmationPdf, openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
 import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
+import { exportHaudyBackup } from "../lib/haudy-data-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { formatUsPhone, relativeTime } from "../lib/utils";
@@ -191,17 +192,24 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const handleOpenPhoneBook = () => setShowCustomerPhoneBook(true);
     const handleOpenDashboard = () => setShowProgressDashboard(true);
     const handleChooseDatabase = () => void chooseDatabase();
+    const handleBackupWorkspace = () => {
+      void exportHaudyBackup({ includePhotos: true })
+        .then(() => setTransferMessage("Workspace backup downloaded, including stored photos."))
+        .catch(() => setTransferMessage("Could not create the workspace backup."));
+    };
     window.addEventListener("haudy:import-audit-tracker", handleImport);
     window.addEventListener("haudy:import-customer-contact-list", handleContactImport);
     window.addEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
     window.addEventListener("haudy:open-audit-dashboard", handleOpenDashboard);
     window.addEventListener("haudy:choose-database", handleChooseDatabase);
+    window.addEventListener("haudy:backup-workspace", handleBackupWorkspace);
     return () => {
       window.removeEventListener("haudy:import-audit-tracker", handleImport);
       window.removeEventListener("haudy:import-customer-contact-list", handleContactImport);
       window.removeEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
       window.removeEventListener("haudy:open-audit-dashboard", handleOpenDashboard);
       window.removeEventListener("haudy:choose-database", handleChooseDatabase);
+      window.removeEventListener("haudy:backup-workspace", handleBackupWorkspace);
     };
   });
 
@@ -278,11 +286,18 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       setConfirmationEmailMessage({ ascKey: group.key, text: "Add a POC email address before preparing the confirmation email.", tone: "warning" });
       return;
     }
-    if (!confirmation.confirmationPdfPath) {
-      setConfirmationEmailMessage({ ascKey: group.key, text: "Open the confirmation and select Save Confirmation once to create its PDF attachment.", tone: "warning" });
-      return;
-    }
     try {
+      let attachmentPath = confirmation.confirmationPdfPath || "";
+      if (!attachmentPath) {
+        setConfirmationEmailMessage({ ascKey: group.key, text: "Select the saved confirmation PDF to attach. Haudy will remember it for this ASC.", tone: "warning" });
+        attachmentPath = (await chooseConfirmationPdf()) || "";
+        if (!attachmentPath) {
+          setConfirmationEmailMessage({ ascKey: group.key, text: "Email preparation canceled. No confirmation PDF was selected.", tone: "warning" });
+          return;
+        }
+        const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationPdfPath: attachmentPath });
+        setAscDocuments(next);
+      }
       const start = emailDate(confirmation.startDate);
       const end = emailDate(confirmation.endDate || confirmation.startDate);
       const range = start === end ? start : `${start} to ${end}`;
@@ -290,13 +305,19 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       const location = (confirmation.meetingLocation || "").trim() || "the first location you will arrange (TBD)";
       const subject = `***UL Audit - ${emailShortDate(confirmation.startDate)}${confirmation.endDate && confirmation.endDate !== confirmation.startDate ? ` to ${emailShortDate(confirmation.endDate)}` : ""} - ${group.ascName} - ${group.location || "Location TBD"} - PSN#${profile.psn || group.psn}`;
       const body = `Hi ${profile.pocName},\n\nThank you for helping coordinate the upcoming audit. This email confirms that the audit is scheduled to start at ${startTime} on ${start}, at ${location}.\n\nAttached is the confirmation letter to assist with your preparation. Please ensure your technician is available with the necessary keys, ladders, and tools to access the systems being audited. Additional tests or access may be required during the audit, so please inform your clients about possible adjustments depending on time and travel constraints.\n\nThe audit dates are ${range}. If you have any questions or need further clarification, feel free to contact me.\n\nBest regards`;
-      await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, confirmation.confirmationPdfPath);
-      const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationEmailPreparedAt: new Date().toISOString() });
+      await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, attachmentPath);
+      const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationPdfPath: attachmentPath, confirmationEmailPreparedAt: new Date().toISOString() });
       setAscDocuments(next);
-      setConfirmationEmailMessage({ ascKey: group.key, text: "Outlook email draft opened with the confirmation PDF attached.", tone: "success" });
+      setConfirmationEmailMessage({ ascKey: group.key, text: "Outlook email draft opened with the confirmation PDF attached. Review and send it in Outlook.", tone: "success" });
     } catch (error) {
       setConfirmationEmailMessage({ ascKey: group.key, text: error instanceof Error ? error.message : "Could not prepare the Outlook email.", tone: "error" });
     }
+  }
+
+  function markConfirmationEmailSent(group: AssignmentGroup, confirmation: NonNullable<AscDocumentState["confirmation"]>) {
+    const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationEmailSentAt: new Date().toISOString() });
+    setAscDocuments(next);
+    setConfirmationEmailMessage({ ascKey: group.key, text: "Confirmation email marked as sent.", tone: "success" });
   }
 
   return (
@@ -465,9 +486,16 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {confirmationSaved && documents?.confirmation ? (
-                  <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => void prepareConfirmationEmail(group, profile, documents.confirmation!)}>
-                    <UploadCloud size={16} /> {documents.confirmation.confirmationEmailPreparedAt ? "Resend Email" : "Prepare Email"}
-                  </button>
+                  <>
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => void prepareConfirmationEmail(group, profile, documents.confirmation!)}>
+                      <UploadCloud size={16} /> {documents.confirmation.confirmationEmailSentAt ? "Resend Email" : documents.confirmation.confirmationEmailPreparedAt ? "Prepare Again" : "Prepare Email"}
+                    </button>
+                    {documents.confirmation.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
+                      <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-emerald-200/50 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400/25" onClick={() => markConfirmationEmailSent(group, documents.confirmation!)}>
+                        <CheckCircle2 size={16} /> Mark Sent
+                      </button>
+                    ) : null}
+                  </>
                 ) : null}
                 <div>
                   <UploadDialog compact compactLabel="Add Certificate" onParsed={(certificates) => addCertificatesToGroup(group, certificates)} />

@@ -355,13 +355,22 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         powershell_quote(&attachment_path),
     );
     let status = Command::new("powershell")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command])
+        .args(["-NoProfile", "-Sta", "-ExecutionPolicy", "Bypass", "-Command", &command])
         .status()
         .map_err(|error| format!("Could not open Outlook: {error}"))?;
     if !status.success() {
         return Err("Outlook could not create the email draft. Confirm that Outlook desktop is installed and configured.".to_string());
     }
     Ok("Outlook email draft opened.".to_string())
+}
+
+#[tauri::command]
+fn choose_confirmation_pdf() -> Result<Option<String>, String> {
+    let selected = rfd::FileDialog::new()
+        .set_title("Select saved confirmation PDF")
+        .add_filter("PDF document", &["pdf"])
+        .pick_file();
+    Ok(selected.map(|path| path.to_string_lossy().to_string()))
 }
 
 #[tauri::command]
@@ -455,6 +464,7 @@ pub fn run() {
             open_customer_contact_list,
             open_certificate_pdfs,
             prepare_outlook_confirmation_email,
+            choose_confirmation_pdf,
             save_haudy_binary_file,
             save_haudy_binary_file_with_dialog,
             save_haudy_text_file,
