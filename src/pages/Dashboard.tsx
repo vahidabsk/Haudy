@@ -831,6 +831,7 @@ function CustomerPhoneBook({ auditorName, onClose }: { auditorName: string; onCl
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">PSN {contact.psn}</span>
                     {assignedToYou ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">In your assigned pool</span> : null}
                   </div>
+                  {contact.address ? <p className="mt-1 text-xs font-medium text-slate-500">{contact.address}</p> : null}
                   <p className="mt-1 text-sm font-semibold text-slate-800">{contact.name} <span className="font-normal text-slate-500">({contact.type})</span></p>
                   <p className="mt-1 text-sm text-slate-600">{formatUsPhone(contact.phone)} <span className="mx-1 text-slate-300">|</span> {contact.email}</p>
                 </div>
@@ -889,9 +890,9 @@ function DeleteAscDialog({ group, onCancel, onDelete }: { group: AscGroup; onCan
 function ReportSentDialog({ group, report, onCancel, onConfirm }: { group: AssignmentGroup; report?: AscDocumentState["report"]; onCancel: () => void; onConfirm: (clearanceStartDate: string) => void }) {
   const [clearanceStartDate, setClearanceStartDate] = useState(report?.clearanceStartDate || report?.letterDate || todayInputValue());
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4">
       <form
-        className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl"
+        className="grid w-full max-w-2xl gap-5 rounded-xl bg-white p-5 shadow-2xl sm:p-6"
         onSubmit={(event) => {
           event.preventDefault();
           if (clearanceStartDate) onConfirm(clearanceStartDate);
@@ -987,35 +988,38 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
           if (ready) onSave({ pocName: pocName.trim(), pocPhone: formatUsPhone(pocPhone), pocEmail: pocEmail.trim(), pocType: pocType.trim(), scn: scn.trim(), psn: psn.trim(), updatedAt: new Date().toISOString() });
         }}
       >
-        <div>
+        <div className="min-w-0 border-b border-slate-200 pb-4">
           <h2 className="text-xl font-bold text-navy">ASC Document Information</h2>
           <p className="mt-1 text-sm text-slate-600">{group.ascName} - saved for confirmation letters and reports</p>
         </div>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
-          Select POC
+        <section className="grid gap-2 rounded-lg border border-sky-200 bg-sky-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-navy">Select an imported POC</h3>
+            <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-600">PSN {contactPsn || "not set"}</span>
+          </div>
           {availableContacts.length ? (
-            <select className="min-h-11 rounded-md border px-3" value={availableContacts.some((contact) => contact.name === pocName && contact.email === pocEmail) ? `${pocName}|${pocEmail}` : ""} onChange={(event) => selectContact(availableContacts.find((contact) => `${contact.name}|${contact.email}` === event.target.value) || null)}>
-              <option value="">Select a healthy contact for PSN {contactPsn}</option>
+            <select className="min-h-11 w-full min-w-0 rounded-md border border-sky-200 bg-white px-3 text-sm font-semibold text-navy" value={availableContacts.some((contact) => contact.name === pocName && contact.email === pocEmail) ? `${pocName}|${pocEmail}` : ""} onChange={(event) => selectContact(availableContacts.find((contact) => `${contact.name}|${contact.email}` === event.target.value) || null)}>
+              <option value="">Choose a healthy contact for this ASC</option>
               {availableContacts.map((contact) => <option key={`${contact.psn}|${contact.email}|${contact.name}`} value={`${contact.name}|${contact.email}`}>{contact.name} — {contact.type} — {contact.email}</option>)}
             </select>
-          ) : <span className="text-xs font-medium text-amber-800">No imported healthy contacts match this PSN. Enter the POC manually.</span>}
-        </label>
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          ) : <p className="text-sm font-medium text-amber-900">No imported healthy contacts match this PSN. You can enter a POC manually below.</p>}
+        </section>
+        <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
           POC name
-          <input className="min-h-11 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name" autoFocus />
+          <input className="min-h-11 w-full min-w-0 rounded-md border px-3" value={pocName} onChange={(event) => setPocName(event.target.value)} placeholder="Contact name" autoFocus />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm font-medium text-slate-700">POC phone<input className="min-h-11 rounded-md border px-3" inputMode="tel" value={pocPhone} onChange={(event) => setPocPhone(formatUsPhone(event.target.value))} placeholder="(123) 456-7890" /></label>
-          <label className="grid gap-1 text-sm font-medium text-slate-700">POC email<input className="min-h-11 rounded-md border px-3" type="email" value={pocEmail} onChange={(event) => setPocEmail(event.target.value)} placeholder="name@example.com" /></label>
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+          <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">POC phone<input className="min-h-11 w-full min-w-0 rounded-md border px-3" inputMode="tel" value={pocPhone} onChange={(event) => setPocPhone(formatUsPhone(event.target.value))} placeholder="(123) 456-7890" /></label>
+          <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">POC email<input className="min-h-11 w-full min-w-0 rounded-md border px-3" type="email" value={pocEmail} onChange={(event) => setPocEmail(event.target.value)} placeholder="name@example.com" /></label>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-sm font-medium text-slate-700">
+        <div className="grid min-w-0 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2">
+          <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
             SCN number
-            <input className="min-h-11 rounded-md border px-3" value={scn} onChange={(event) => setScn(event.target.value)} placeholder="Example: 1" />
+            <input className="min-h-11 w-full min-w-0 rounded-md border px-3" value={scn} onChange={(event) => setScn(event.target.value)} placeholder="Example: 1" />
           </label>
-          <label className="grid gap-1 text-sm font-medium text-slate-700">
+          <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
             PSN number
-            <input className="min-h-11 rounded-md border px-3" value={psn} onChange={(event) => setPsn(event.target.value)} placeholder="Example: 634867" />
+            <input className="min-h-11 w-full min-w-0 rounded-md border px-3" value={psn} onChange={(event) => setPsn(event.target.value)} placeholder="Example: 634867" />
           </label>
         </div>
         <div className="flex flex-wrap justify-end gap-2">

@@ -29,6 +29,7 @@ export interface DesktopTrackerAssignment {
 export interface DesktopCustomerContact {
   psn: string;
   company: string;
+  address: string;
   name: string;
   phone: string;
   email: string;

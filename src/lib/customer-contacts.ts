@@ -4,6 +4,7 @@ const TRACKER_DIRECTORY_KEY = "haudy.trackerDirectory";
 export interface CustomerContact {
   psn: string;
   company: string;
+  address: string;
   name: string;
   phone: string;
   email: string;
