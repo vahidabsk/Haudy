@@ -9,7 +9,7 @@ import type { AscDocumentState } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
-import { chooseConfirmationPdf, openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
+import { chooseConfirmationPdf, chooseEmailAttachments, openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
 import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { exportHaudyBackup } from "../lib/haudy-data-transfer";
@@ -24,6 +24,15 @@ interface DuplicateUploadReview {
   duplicates: Array<{ certificate: ParsedCertificate; audit: Audit }>;
   hasProgress: boolean;
   group?: AssignmentGroup;
+}
+
+interface ConfirmationEmailEditorState {
+  group: AssignmentGroup;
+  profile: AscProfile;
+  confirmation: NonNullable<AscDocumentState["confirmation"]>;
+  startTime: string;
+  meetingLocation: string;
+  attachments: string[];
 }
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
@@ -44,6 +53,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [storageReady, setStorageReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
   const [confirmationEmailMessage, setConfirmationEmailMessage] = useState<{ ascKey: string; text: string; tone: "success" | "warning" | "error" } | null>(null);
+  const [confirmationEmailEditor, setConfirmationEmailEditor] = useState<ConfirmationEmailEditorState | null>(null);
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
@@ -281,7 +291,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     setReportSentGroup(null);
   }
 
-  async function prepareConfirmationEmail(group: AssignmentGroup, profile: AscProfile, confirmation: NonNullable<AscDocumentState["confirmation"]>) {
+  async function prepareConfirmationEmail(group: AssignmentGroup, profile: AscProfile, confirmation: NonNullable<AscDocumentState["confirmation"]>, options: Pick<ConfirmationEmailEditorState, "startTime" | "meetingLocation" | "attachments">) {
     if (!(profile.pocEmail || "").trim()) {
       setConfirmationEmailMessage({ ascKey: group.key, text: "Add a POC email address before preparing the confirmation email.", tone: "warning" });
       return;
@@ -309,16 +319,18 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       const start = emailDate(confirmation.startDate);
       const end = emailDate(confirmation.endDate || confirmation.startDate);
       const range = start === end ? start : `${start} to ${end}`;
-      const startTime = confirmation.startTime || "8:00 AM";
-      const location = (confirmation.meetingLocation || "").trim() || "the first location you will arrange (TBD)";
+      const startTime = options.startTime || confirmation.startTime || "8:00 AM";
+      const location = options.meetingLocation.trim() || confirmation.meetingLocation?.trim() || "the first location you will arrange (TBD)";
       const subject = `***UL Audit - ${emailShortDate(confirmation.startDate)}${confirmation.endDate && confirmation.endDate !== confirmation.startDate ? ` to ${emailShortDate(confirmation.endDate)}` : ""} - ${group.ascName} - ${group.location || "Location TBD"} - PSN#${profile.psn || group.psn}`;
       const body = `Hi ${profile.pocName},\n\nThank you for helping coordinate the upcoming audit. This email confirms that the audit is scheduled to start at ${startTime} on ${start}, at ${location}.\n\nAttached is the confirmation letter to assist with your preparation. Please ensure your technician is available with the necessary keys, ladders, and tools to access the systems being audited. Additional tests or access may be required during the audit, so please inform your clients about possible adjustments depending on time and travel constraints.\n\nThe audit dates are ${range}. If you have any questions or need further clarification, feel free to contact me.\n\nBest regards`;
-      await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, attachmentPath);
+      await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, [attachmentPath, ...options.attachments]);
       const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationPdfPath: attachmentPath, confirmationEmailPreparedAt: new Date().toISOString() });
       setAscDocuments(next);
-      setConfirmationEmailMessage({ ascKey: group.key, text: "Outlook email draft opened with the confirmation PDF attached. Review and send it in Outlook.", tone: "success" });
+      setConfirmationEmailMessage({ ascKey: group.key, text: `Outlook email draft opened with the confirmation PDF${options.attachments.length ? ` and ${options.attachments.length} additional attachment${options.attachments.length === 1 ? "" : "s"}` : ""}. Review and send it in Outlook.`, tone: "success" });
+      return true;
     } catch (error) {
       setConfirmationEmailMessage({ ascKey: group.key, text: error instanceof Error ? error.message : "Could not prepare the Outlook email.", tone: "error" });
+      return false;
     }
   }
 
@@ -495,7 +507,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {confirmationSaved && documents?.confirmation ? (
                   <>
-                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => void prepareConfirmationEmail(group, profile, documents.confirmation!)}>
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", attachments: [] })}>
                       <UploadCloud size={16} /> {documents.confirmation.confirmationEmailSentAt ? "Resend Confirmation Email" : documents.confirmation.confirmationEmailPreparedAt ? "Prepare Confirmation Email Again" : "Confirmation Email"}
                     </button>
                     {documents.confirmation.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
@@ -637,6 +649,26 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             setAscDocuments(updateAscDocumentDraft(confirmationGroup.key, "confirmation", { pocName: profile.pocName, scn: profile.scn, psn: profile.psn, startDate: details.start, endDate: details.end, startTime: details.time, meetingLocation: details.location, conversationDate: details.conversation, letterDate: details.letter }));
             const params = new URLSearchParams({ ...details, poc: profile.pocName, scn: profile.scn, psn: profile.psn });
             navigate(`/asc/${encodeURIComponent(confirmationGroup.key)}/confirmation?${params.toString()}`);
+          }}
+        />
+      ) : null}
+      {confirmationEmailEditor ? (
+        <ConfirmationEmailDialog
+          editor={confirmationEmailEditor}
+          onClose={() => setConfirmationEmailEditor(null)}
+          onChange={setConfirmationEmailEditor}
+          onAddAttachments={async () => {
+            try {
+              const folders = storageFoldersForDetails(storageDetailsFromAsc({ year: (confirmationEmailEditor.confirmation.startDate || new Date().toISOString()).slice(0, 4), ascName: confirmationEmailEditor.group.ascName, cityState: "", psn: confirmationEmailEditor.profile.psn || confirmationEmailEditor.group.psn, folder: "Confirmation", fileName: "Confirmation" }));
+              const attachments = await chooseEmailAttachments(folders);
+              setConfirmationEmailEditor((current) => current ? { ...current, attachments: Array.from(new Set([...current.attachments, ...attachments])) } : null);
+            } catch (error) {
+              setConfirmationEmailMessage({ ascKey: confirmationEmailEditor.group.key, text: error instanceof Error ? error.message : "Could not select additional attachments.", tone: "error" });
+            }
+          }}
+          onPrepare={async () => {
+            const didOpen = await prepareConfirmationEmail(confirmationEmailEditor.group, confirmationEmailEditor.profile, confirmationEmailEditor.confirmation, confirmationEmailEditor);
+            if (didOpen) setConfirmationEmailEditor(null);
           }}
         />
       ) : null}
@@ -1111,6 +1143,56 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function ConfirmationEmailDialog({ editor, onClose, onChange, onAddAttachments, onPrepare }: { editor: ConfirmationEmailEditorState; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void> }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 py-6">
+      <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Confirmation email">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-navy">Confirmation Email</h2>
+            <p className="mt-1 text-sm text-slate-600">Review the schedule and attachments before Haudy opens the Outlook draft.</p>
+          </div>
+          <button type="button" className="grid h-10 w-10 place-items-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50" onClick={onClose} aria-label="Close confirmation email"><X size={18} /></button>
+        </div>
+        <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
+          <p><span className="font-semibold text-navy">To:</span> {editor.profile.pocName} &lt;{editor.profile.pocEmail}&gt;</p>
+          <p className="mt-1"><span className="font-semibold text-navy">ASC:</span> {editor.group.ascName} <span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">PSN:</span> {editor.profile.psn || editor.group.psn}</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Audit start time
+            <input className="min-h-11 rounded-md border border-slate-300 px-3" type="time" value={editor.startTime} onChange={(event) => onChange({ ...editor, startTime: event.target.value })} />
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Meeting location
+            <input className="min-h-11 rounded-md border border-slate-300 px-3" value={editor.meetingLocation} onChange={(event) => onChange({ ...editor, meetingLocation: event.target.value })} placeholder="First location or service center" />
+          </label>
+        </div>
+        <section className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="font-bold text-navy">Attachments</h3>
+              <p className="text-sm text-slate-600">The confirmation PDF is always attached. Add checklists or other supporting documents if needed.</p>
+            </div>
+            <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50" onClick={() => void onAddAttachments()}><UploadCloud size={16} /> Add documents</button>
+          </div>
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">Confirmation letter PDF</div>
+          {editor.attachments.map((path) => (
+            <div key={path} className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+              <span className="min-w-0 truncate"><FileText className="mr-2 inline text-sky-700" size={16} />{path.split(/[/\\]/).pop()}</span>
+              <button type="button" className="text-sm font-semibold text-red-700 hover:text-red-900" onClick={() => onChange({ ...editor, attachments: editor.attachments.filter((item) => item !== path) })}>Remove</button>
+            </div>
+          ))}
+        </section>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onClose}>Cancel</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" onClick={() => void onPrepare()}><UploadCloud size={16} /> Open Outlook Draft</button>
+        </div>
+      </section>
     </div>
   );
 }

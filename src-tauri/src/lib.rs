@@ -337,22 +337,26 @@ fn save_haudy_binary_file_with_dialog(base_path: String, folders: Vec<String>, f
 }
 
 #[tauri::command]
-fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: String, attachment_path: String) -> Result<String, String> {
+fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: String, attachment_paths: Vec<String>) -> Result<String, String> {
     if !cfg!(target_os = "windows") {
         return Err("Confirmation email preparation is available in the Windows desktop app.".to_string());
     }
-    if recipient.trim().is_empty() || attachment_path.trim().is_empty() {
+    if recipient.trim().is_empty() || attachment_paths.is_empty() {
         return Err("A POC email address and confirmation PDF are required.".to_string());
     }
-    if !Path::new(&attachment_path).is_file() {
-        return Err("The saved confirmation PDF could not be found. Open the confirmation and save it again.".to_string());
+    if attachment_paths.iter().any(|path| !Path::new(path).is_file()) {
+        return Err("One or more email attachments could not be found. Select the files again.".to_string());
     }
+    let attachments = attachment_paths.iter()
+        .map(|path| format!("[void]$mail.Attachments.Add('{}');", powershell_quote(path)))
+        .collect::<Vec<_>>()
+        .join(" ");
     let command = format!(
-        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.To = '{}'; $mail.Subject = '{}'; $mail.Body = '{}'; [void]$mail.Attachments.Add('{}'); $mail.Display()",
+        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.To = '{}'; $mail.Subject = '{}'; $mail.Body = '{}'; {}; $mail.Display()",
         powershell_quote(&recipient),
         powershell_quote(&subject),
         powershell_quote(&body),
-        powershell_quote(&attachment_path),
+        attachments,
     );
     let status = Command::new("powershell")
         .args(["-NoProfile", "-Sta", "-ExecutionPolicy", "Bypass", "-Command", &command])
@@ -377,6 +381,22 @@ fn choose_confirmation_pdf(base_path: String, folders: Vec<String>) -> Result<Op
         .add_filter("PDF document", &["pdf"])
         .pick_file();
     Ok(selected.map(|path| path.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+fn choose_email_attachments(base_path: String, folders: Vec<String>) -> Result<Vec<String>, String> {
+    let mut directory = PathBuf::from(base_path).join("Haudy Database");
+    for folder in folders {
+        directory.push(safe_path_part(&folder));
+    }
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    let selected = rfd::FileDialog::new()
+        .set_title("Attach additional confirmation files")
+        .set_directory(&directory)
+        .add_filter("Supported files", &["pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"])
+        .pick_files()
+        .unwrap_or_default();
+    Ok(selected.into_iter().map(|path| path.to_string_lossy().to_string()).collect())
 }
 
 #[tauri::command]
@@ -471,6 +491,7 @@ pub fn run() {
             open_certificate_pdfs,
             prepare_outlook_confirmation_email,
             choose_confirmation_pdf,
+            choose_email_attachments,
             save_haudy_binary_file,
             save_haudy_binary_file_with_dialog,
             save_haudy_text_file,

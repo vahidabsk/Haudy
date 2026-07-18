@@ -139,10 +139,10 @@ export async function installDesktopPatch(downloadUrl: string, fileName: string)
   });
 }
 
-export async function prepareOutlookConfirmationEmail(recipient: string, subject: string, body: string, attachmentPath: string) {
+export async function prepareOutlookConfirmationEmail(recipient: string, subject: string, body: string, attachmentPaths: string[]) {
   const invoke = getTauriInvoke();
   if (!invoke) throw new Error("Email preparation is available in the Windows desktop app.");
-  return invoke<string>("prepare_outlook_confirmation_email", { recipient, subject, body, attachmentPath });
+  return invoke<string>("prepare_outlook_confirmation_email", { recipient, subject, body, attachmentPaths });
 }
 
 export async function chooseConfirmationPdf(folders: string[]) {
@@ -151,6 +151,13 @@ export async function chooseConfirmationPdf(folders: string[]) {
   const basePath = storedHaudyDatabaseRoot();
   if (!basePath) throw new Error("Choose the Haudy Database location first.");
   return invoke<string | null>("choose_confirmation_pdf", { basePath, folders });
+}
+
+export async function chooseEmailAttachments(folders: string[]) {
+  const invoke = getTauriInvoke();
+  const basePath = storedHaudyDatabaseRoot();
+  if (!invoke || !basePath) throw new Error("Choose the Haudy Database location first.");
+  return invoke<string[]>("choose_email_attachments", { basePath, folders });
 }
 
 function getTauriInvoke() {
