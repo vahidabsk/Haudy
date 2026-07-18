@@ -11,6 +11,7 @@ import { AuditPage } from "./pages/Audit";
 import { ExportPage } from "./pages/Export";
 import { ConfirmationPage } from "./pages/Confirmation";
 import { ReportPage } from "./pages/Report";
+import { isDesktopApp } from "./lib/desktop-runtime";
 
 export default function App() {
   const auditor = useAuditor();
@@ -23,6 +24,14 @@ export default function App() {
 
   useEffect(() => {
     if (location.pathname !== "/") navigate("/", { replace: true });
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+
+    const suppressWebViewMenu = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("contextmenu", suppressWebViewMenu);
+    return () => document.removeEventListener("contextmenu", suppressWebViewMenu);
   }, []);
 
   useEffect(() => {
