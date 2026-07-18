@@ -797,10 +797,13 @@ function CustomerPhoneBook({ auditorName, onClose }: { auditorName: string; onCl
   const trackerDirectory = loadTrackerDirectory();
   const query = search.trim().toLowerCase();
   const matchingAssignments = new Map(trackerDirectory.map((entry) => [entry.psn, entry]));
-  const matchingContacts = contacts.filter((contact) => {
+  const contactsByPsn = new Map<string, CustomerContact[]>();
+  for (const contact of contacts) contactsByPsn.set(contact.psn, [...(contactsByPsn.get(contact.psn) || []), contact]);
+  const matchingGroups = Array.from(contactsByPsn.entries()).filter(([psn, psnContacts]) => {
     if (!query) return true;
-    const assignment = matchingAssignments.get(contact.psn);
-    return [contact.psn, assignment?.ascName, contact.company, contact.name, contact.email].some((value) => String(value || "").toLowerCase().includes(query));
+    const assignment = matchingAssignments.get(psn);
+    return [psn, assignment?.ascName, ...psnContacts.flatMap((contact) => [contact.company, contact.name, contact.email, contact.address])]
+      .some((value) => String(value || "").toLowerCase().includes(query));
   });
 
   return (
@@ -819,21 +822,23 @@ function CustomerPhoneBook({ auditorName, onClose }: { auditorName: string; onCl
         </label>
         <div className="max-h-[58vh] overflow-y-auto rounded-lg border border-slate-200">
           {!contacts.length ? <p className="p-5 text-sm text-slate-600">No customer contacts have been imported. Use the hamburger menu to import the Customer Contact List.</p> : null}
-          {contacts.length && !matchingContacts.length ? <p className="p-5 text-sm text-slate-600">No United States customer contacts match this search.</p> : null}
-          {matchingContacts.map((contact) => {
-            const assignment = matchingAssignments.get(contact.psn);
+          {contacts.length && !matchingGroups.length ? <p className="p-5 text-sm text-slate-600">No United States customer contacts match this search.</p> : null}
+          {matchingGroups.map(([psn, psnContacts]) => {
+            const primaryContact = psnContacts[0];
+            const assignment = matchingAssignments.get(psn);
             const assignedToYou = assignment?.auditorName.trim().toLowerCase() === auditorName.trim().toLowerCase();
             return (
-              <article key={`${contact.psn}|${contact.email}|${contact.name}`} className="grid gap-2 border-b border-slate-200 p-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center">
+              <article key={psn} className="grid gap-3 border-b border-slate-200 p-4 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-start">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-bold text-navy">{assignment?.ascName || contact.company || "ASC name unavailable"}</h3>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">PSN {contact.psn}</span>
+                    <h3 className="font-bold text-navy">{assignment?.ascName || primaryContact.company || "ASC name unavailable"}</h3>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">PSN {psn}</span>
                     {assignedToYou ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">In your assigned pool</span> : null}
                   </div>
-                  {contact.address ? <p className="mt-1 text-xs font-medium text-slate-500">{contact.address}</p> : null}
-                  <p className="mt-1 text-sm font-semibold text-slate-800">{contact.name} <span className="font-normal text-slate-500">({contact.type})</span></p>
-                  <p className="mt-1 text-sm text-slate-600">{formatUsPhone(contact.phone)} <span className="mx-1 text-slate-300">|</span> {contact.email}</p>
+                  {primaryContact.address ? <p className="mt-1 text-xs font-medium text-slate-500">{primaryContact.address}</p> : null}
+                  <div className="mt-3 grid gap-2">
+                    {psnContacts.map((contact) => <div key={`${contact.email}|${contact.name}`} className="rounded-md bg-slate-50 px-3 py-2 text-sm"><span className="font-semibold text-slate-800">{contact.name}</span> <span className="text-slate-500">({contact.type})</span><span className="mx-2 text-slate-300">|</span><span className="text-slate-600">{formatUsPhone(contact.phone)} <span className="mx-1 text-slate-300">|</span> {contact.email}</span></div>)}
+                  </div>
                 </div>
                 <div className="text-sm sm:text-right">
                   {assignment ? <><p className="font-semibold text-navy">Assigned to {assignedToYou ? "you" : assignment.auditorName}</p><p className="mt-1 text-slate-500">{[assignment.city, assignment.state].filter(Boolean).join(", ")}</p></> : <p className="font-medium text-amber-800">No matching audit-tracker assignment</p>}

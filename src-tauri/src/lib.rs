@@ -178,7 +178,7 @@ fn open_customer_contact_list() -> Result<Vec<CustomerContact>, String> {
     let sheet_name = workbook.sheet_names().first().cloned().ok_or_else(|| "The contact list workbook has no worksheets.".to_string())?;
     let range = workbook.worksheet_range(&sheet_name).map_err(|error| format!("Could not read contact list: {error}"))?;
     let rows = range.rows().collect::<Vec<_>>();
-    let Some((header_index, psn_index, company_index, address_index, country_index, details_index)) = find_contact_list_columns(&rows) else {
+    let Some((header_index, psn_index, company_index, address_index, city_index, state_index, country_index, details_index)) = find_contact_list_columns(&rows) else {
         return Err("The customer contact list must include PSN, Company Name, Country, and Contact Details columns.".to_string());
     };
     let mut contacts = Vec::new();
@@ -186,7 +186,11 @@ fn open_customer_contact_list() -> Result<Vec<CustomerContact>, String> {
     for row in rows.into_iter().skip(header_index + 1) {
         let psn = row_cell_text(row, psn_index);
         let company = row_cell_text(row, company_index);
-        let address = address_index.map(|index| row_cell_text(row, index)).unwrap_or_default();
+        let address = [
+            address_index.map(|index| row_cell_text(row, index)).unwrap_or_default(),
+            city_index.map(|index| row_cell_text(row, index)).unwrap_or_default(),
+            state_index.map(|index| row_cell_text(row, index)).unwrap_or_default(),
+        ].into_iter().filter(|value| !value.is_empty()).collect::<Vec<_>>().join(", ");
         let country = row_cell_text(row, country_index).to_uppercase();
         let details = row_cell_text(row, details_index);
         if psn.is_empty() || details.is_empty() || !["UNITED STATES", "USA", "US"].contains(&country.as_str()) {
@@ -203,17 +207,19 @@ fn open_customer_contact_list() -> Result<Vec<CustomerContact>, String> {
     Ok(contacts)
 }
 
-fn find_contact_list_columns(rows: &[&[Data]]) -> Option<(usize, usize, usize, Option<usize>, usize, usize)> {
+fn find_contact_list_columns(rows: &[&[Data]]) -> Option<(usize, usize, usize, Option<usize>, Option<usize>, Option<usize>, usize, usize)> {
     for (row_index, row) in rows.iter().take(20).enumerate() {
         let headers = row.iter().map(|cell| normalize_header(&cell_text(cell))).collect::<Vec<_>>();
         let find = |names: &[&str]| names.iter().find_map(|name| headers.iter().position(|header| header == name));
         let psn = find(&["psn"]);
         let company = find(&["companyname", "company", "customername", "customercompanyname"]);
         let address = find(&["address", "streetaddress", "customeraddress"]);
+        let city = find(&["city"]);
+        let state = find(&["state", "province", "stateprovince"]);
         let country = find(&["country", "countryname", "countryregion"]);
         let details = find(&["contactdetails", "contactdetail", "contacts", "customercontactdetails", "customercontacts", "contactinformation"]);
         if let (Some(psn), Some(company), Some(country), Some(details)) = (psn, company, country, details) {
-            return Some((row_index, psn, company, address, country, details));
+            return Some((row_index, psn, company, address, city, state, country, details));
         }
     }
     None
