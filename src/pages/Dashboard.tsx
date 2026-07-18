@@ -503,11 +503,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents?.confirmation || { saved: false, pocName: profile.pocName, scn: profile.scn, psn: profile.psn, updatedAt: "" }, startTime: documents?.confirmation?.startTime || "", meetingLocation: documents?.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents?.confirmation?.confirmationPdfPath || "", attachments: [], emailType: "confirmation" })}>
                       <UploadCloud size={16} /> Prepare Email
                     </button>
-                    {documents?.confirmation?.confirmationEmailPreparedAt && !documents.confirmation.confirmationEmailSentAt ? (
-                      <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-emerald-200/50 bg-emerald-400/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400/25" onClick={() => markConfirmationEmailSent(group, documents.confirmation!)}>
-                        <CheckCircle2 size={16} /> Mark Sent
-                      </button>
-                    ) : null}
                   </>
                 ) : null}
                 <div>
@@ -543,11 +538,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     {documents?.report?.reportCreated ? <span className="ml-2 font-semibold text-sky-700">PDF created</span> : null}
                     {documents?.crzhReport?.reportCreated ? <span className="ml-2 font-semibold text-violet-700">CRZH PDF created</span> : null}
                   </div>
-                  {confirmationEmailMessage?.ascKey === group.key ? (
-                    <div className={`mt-2 rounded-md border px-2 py-1.5 text-xs font-semibold ${confirmationEmailMessage.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : confirmationEmailMessage.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>
-                      {confirmationEmailMessage.text}
-                    </div>
-                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button className="haudy-card-action" onClick={() => setProfileGroup(group)}>
@@ -651,6 +641,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           onClose={() => setConfirmationEmailEditor(null)}
           onChange={setConfirmationEmailEditor}
           preparing={preparingConfirmationEmail}
+          message={confirmationEmailMessage?.ascKey === confirmationEmailEditor.group.key ? confirmationEmailMessage : null}
           onChooseConfirmation={async () => {
             try {
               const folders = storageFoldersForDetails(storageDetailsFromAsc({ year: (confirmationEmailEditor.confirmation.startDate || new Date().toISOString()).slice(0, 4), ascName: confirmationEmailEditor.group.ascName, cityState: "", psn: confirmationEmailEditor.profile.psn || confirmationEmailEditor.group.psn, folder: "Confirmation", fileName: "Confirmation" }));
@@ -675,11 +666,15 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           onPrepare={async () => {
             setPreparingConfirmationEmail(true);
             try {
-              const didOpen = await prepareConfirmationEmail(confirmationEmailEditor.group, confirmationEmailEditor.profile, confirmationEmailEditor.confirmation, confirmationEmailEditor);
-              if (didOpen) setConfirmationEmailEditor(null);
+              await prepareConfirmationEmail(confirmationEmailEditor.group, confirmationEmailEditor.profile, confirmationEmailEditor.confirmation, confirmationEmailEditor);
             } finally {
               setPreparingConfirmationEmail(false);
             }
+          }}
+          onMarkSent={() => {
+            markConfirmationEmailSent(confirmationEmailEditor.group, confirmationEmailEditor.confirmation);
+            const next = loadAscDocuments()[confirmationEmailEditor.group.key]?.confirmation;
+            if (next) setConfirmationEmailEditor((current) => current ? { ...current, confirmation: next } : null);
           }}
         />
       ) : null}
@@ -1158,7 +1153,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
   );
 }
 
-function ConfirmationEmailDialog({ editor, preparing, onClose, onChange, onChooseConfirmation, onAddAttachments, onPrepare }: { editor: ConfirmationEmailEditorState; preparing: boolean; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void> }) {
+function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange, onChooseConfirmation, onAddAttachments, onPrepare, onMarkSent }: { editor: ConfirmationEmailEditorState; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 py-6">
       <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Confirmation email">
@@ -1173,6 +1168,7 @@ function ConfirmationEmailDialog({ editor, preparing, onClose, onChange, onChoos
           <p><span className="font-semibold text-navy">To:</span> {editor.profile.pocName} &lt;{editor.profile.pocEmail}&gt;</p>
           <p className="mt-1"><span className="font-semibold text-navy">ASC:</span> {editor.group.ascName} <span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">PSN:</span> {editor.profile.psn || editor.group.psn}</p>
         </div>
+        {message ? <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${message.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div> : null}
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           Email type
           <select className="min-h-11 rounded-md border border-slate-300 bg-white px-3 font-semibold text-navy" value={editor.emailType} onChange={(event) => onChange({ ...editor, emailType: event.target.value as ConfirmationEmailEditorState["emailType"] })}>
@@ -1221,7 +1217,8 @@ function ConfirmationEmailDialog({ editor, preparing, onClose, onChange, onChoos
         </>}
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
           {preparing ? <span className="mr-auto inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-sky-800"><span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-200 border-t-sky-700" /> Creating Outlook draft…</span> : null}
-          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={onClose} disabled={preparing}>Cancel</button>
+          {editor.confirmation.confirmationEmailPreparedAt && !editor.confirmation.confirmationEmailSentAt && editor.emailType === "confirmation" ? <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-50" onClick={onMarkSent} disabled={preparing}><CheckCircle2 size={16} /> Mark Sent</button> : null}
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={onClose} disabled={preparing}>Close</button>
           <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={editor.emailType !== "confirmation" || preparing} onClick={() => void onPrepare()}><UploadCloud size={16} /> {preparing ? "Preparing…" : "Open Outlook Draft"}</button>
         </div>
       </section>
