@@ -77,7 +77,24 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
   };
 
   async function saveConfirmation() {
-    let next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
+    const revised = hasUnsavedChanges;
+    let next = saveAscDocument(ascKey, "confirmation", {
+      pocName,
+      scn,
+      psn,
+      startDate: auditStartDate,
+      endDate: auditEndDate,
+      startTime: auditStartTime,
+      meetingLocation: auditMeetingLocation,
+      conversationDate: scheduleConversationDate,
+      letterDate: confirmationLetterDate,
+      ...(revised ? {
+        confirmationPdfPath: undefined,
+        confirmationEmailPreparedAt: undefined,
+        confirmationEmailSentAt: undefined,
+        confirmationEmailDrafts: undefined,
+      } : {}),
+    });
     setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
     if (canSaveDocumentsToFolder()) {

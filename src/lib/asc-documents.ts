@@ -14,6 +14,7 @@ export interface SavedDocumentStatus {
   confirmationPdfPath?: string;
   confirmationEmailPreparedAt?: string;
   confirmationEmailSentAt?: string;
+  confirmationEmailDrafts?: string[];
   serviceCenterHasComment?: boolean;
   serviceCenterDone?: boolean;
   serviceCenterComments?: ServiceCenterComment[];

@@ -317,7 +317,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         : "Please ensure the assigned technician has the required test equipment available.";
       const body = `Dear ${profile.pocName},\n\nThank you for your assistance in coordinating the upcoming UL audit.\n\nThis email confirms that your UL audit is scheduled for ${range}, beginning at ${startTime}, at ${location}. If the audit is scheduled for multiple days, it will continue on the scheduled dates.\n\nPlease find attached the following:\n\n${attachmentList}\n\n${checklistGuidance} We also recommend notifying the selected site(s) in advance, as portions of the audit may require functional testing that could temporarily activate audible or visual notification appliances.\n\nPlease note that arrival times may vary slightly due to travel conditions between audit locations. We appreciate your flexibility and cooperation.\n\nIf you have any questions before the audit, please do not hesitate to contact me.\n\nThank you, and I look forward to working with you.\n\nKind regards,`;
       await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, [attachmentPath, ...options.attachments]);
-      const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationPdfPath: attachmentPath, confirmationEmailPreparedAt: new Date().toISOString() });
+      const preparedAt = new Date().toISOString();
+      const next = saveAscDocument(group.key, "confirmation", {
+        ...confirmation,
+        confirmationPdfPath: attachmentPath,
+        confirmationEmailPreparedAt: preparedAt,
+        confirmationEmailDrafts: [...(confirmation.confirmationEmailDrafts || []), preparedAt],
+      });
       setAscDocuments(next);
       setConfirmationEmailMessage({ ascKey: group.key, text: `Outlook email draft opened with the confirmation PDF${options.attachments.length ? ` and ${options.attachments.length} additional attachment${options.attachments.length === 1 ? "" : "s"}` : ""}. Review and send it in Outlook.`, tone: "success" });
       return true;
@@ -667,6 +673,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             setPreparingConfirmationEmail(true);
             try {
               await prepareConfirmationEmail(confirmationEmailEditor.group, confirmationEmailEditor.profile, confirmationEmailEditor.confirmation, confirmationEmailEditor);
+              const next = loadAscDocuments()[confirmationEmailEditor.group.key]?.confirmation;
+              if (next) setConfirmationEmailEditor((current) => current ? { ...current, confirmation: next } : null);
             } finally {
               setPreparingConfirmationEmail(false);
             }
@@ -1154,6 +1162,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
 }
 
 function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange, onChooseConfirmation, onAddAttachments, onPrepare, onMarkSent }: { editor: ConfirmationEmailEditorState; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
+  const draftHistory = editor.confirmation.confirmationEmailDrafts?.length ? editor.confirmation.confirmationEmailDrafts : editor.confirmation.confirmationEmailPreparedAt ? [editor.confirmation.confirmationEmailPreparedAt] : [];
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 py-6">
       <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Confirmation email">
@@ -1168,6 +1177,16 @@ function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange
           <p><span className="font-semibold text-navy">To:</span> {editor.profile.pocName} &lt;{editor.profile.pocEmail}&gt;</p>
           <p className="mt-1"><span className="font-semibold text-navy">ASC:</span> {editor.group.ascName} <span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">PSN:</span> {editor.profile.psn || editor.group.psn}</p>
         </div>
+        <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <h3 className="text-sm font-bold text-navy">Email activity</h3>
+          {draftHistory.length || editor.confirmation.confirmationEmailSentAt ? (
+            <ul className="mt-2 grid gap-1 text-sm text-slate-700">
+              {draftHistory.map((timestamp, index) => <li key={`${timestamp}-${index}`}><span className="font-semibold text-sky-800">Confirmation email draft created</span> — {formatEmailActivityTime(timestamp)}</li>)}
+              {editor.confirmation.confirmationEmailSentAt ? <li><span className="font-semibold text-emerald-800">Confirmation email marked sent</span> — {formatEmailActivityTime(editor.confirmation.confirmationEmailSentAt)}</li> : null}
+            </ul>
+          ) : <p className="mt-1 text-sm text-slate-500">No confirmation email activity yet.</p>}
+          <p className="mt-2 text-xs text-slate-500">This record remains with the confirmation until the letter is revised.</p>
+        </section>
         {message ? <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${message.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div> : null}
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           Email type
@@ -1574,6 +1593,18 @@ function emailTime(value: string) {
   const suffix = hours >= 12 ? "PM" : "AM";
   const displayHour = hours % 12 || 12;
   return `${displayHour}:${minutes} ${suffix}`;
+}
+
+function formatEmailActivityTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function jobTabStyle(status: HomeJobStatus, active: boolean) {

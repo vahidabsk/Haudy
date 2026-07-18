@@ -1,1 +1,1 @@
-export const HAUDY_VERSION = "1.4.4";
+export const HAUDY_VERSION = "1.4.5";
