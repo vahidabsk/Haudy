@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, ContactRound, Database, DownloadCloud, Flame, HelpCircle, LogOut, Menu, UploadCloud, UserCog, UserRound, X } from "lucide-react";
+import { BookOpen, ChartNoAxesCombined, ContactRound, Database, DownloadCloud, Flame, HelpCircle, LogOut, Menu, UploadCloud, UserCog, UserRound, X } from "lucide-react";
 import { Auditor } from "../lib/types";
 import { HAUDY_VERSION } from "../lib/version";
 
@@ -61,6 +61,7 @@ export function UlHeader({ auditor, localUsername, onChange, onHelp, onPatch, on
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:import-audit-tracker")}><UploadCloud size={18} /> Import Audit Tracker</button>
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:import-customer-contact-list")}><ContactRound size={18} /> Import Customer Contact List</button>
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:open-customer-phone-book")}><BookOpen size={18} /> Customer Phone Book</button>
+                <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:open-audit-dashboard")}><ChartNoAxesCombined size={18} /> Dashboard</button>
                 <button className={menuItem} role="menuitem" onClick={() => runDashboardAction("haudy:choose-database")}><Database size={18} /> Choose Haudy Database</button>
                 <div className="my-2 border-t border-white/15" />
                 <button className={menuItem} role="menuitem" onClick={() => { setOpen(false); onHelp(); }}><HelpCircle size={18} /> Help</button>

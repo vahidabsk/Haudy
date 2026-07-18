@@ -188,15 +188,18 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const handleImport = () => void importTracker();
     const handleContactImport = () => void importCustomerContactList();
     const handleOpenPhoneBook = () => setShowCustomerPhoneBook(true);
+    const handleOpenDashboard = () => setShowProgressDashboard(true);
     const handleChooseDatabase = () => void chooseDatabase();
     window.addEventListener("haudy:import-audit-tracker", handleImport);
     window.addEventListener("haudy:import-customer-contact-list", handleContactImport);
     window.addEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
+    window.addEventListener("haudy:open-audit-dashboard", handleOpenDashboard);
     window.addEventListener("haudy:choose-database", handleChooseDatabase);
     return () => {
       window.removeEventListener("haudy:import-audit-tracker", handleImport);
       window.removeEventListener("haudy:import-customer-contact-list", handleContactImport);
       window.removeEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
+      window.removeEventListener("haudy:open-audit-dashboard", handleOpenDashboard);
       window.removeEventListener("haudy:choose-database", handleChooseDatabase);
     };
   });
@@ -315,16 +318,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           </div>
         </section>
       ) : null}
-      {groups.length ? (
-        showProgressDashboard ? (
-          <AuditorProgressDashboard metrics={dashboardMetrics} onHide={() => setShowProgressDashboard(false)} onOpenGroup={openAscFromDashboard} />
-        ) : (
-          <CollapsedAuditDashboard metrics={dashboardMetrics} onShow={() => setShowProgressDashboard(true)} />
-        )
-      ) : null}
+      {groups.length && showProgressDashboard ? <AuditorProgressDashboard metrics={dashboardMetrics} onHide={() => setShowProgressDashboard(false)} onOpenGroup={openAscFromDashboard} /> : null}
       <section className="grid gap-4">
         {groups.length ? (
-          <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+          <div className="sticky top-[4.75rem] z-40 grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
             <div className="flex flex-wrap gap-2">
               {jobTabs.map((tab) => (
                 <button
