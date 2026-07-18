@@ -1,5 +1,6 @@
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { Auditor } from "../lib/types";
+import { formatUsPhone } from "../lib/utils";
 
 type AuditorProfileInput = Omit<Auditor, "since" | "updatedAt">;
 
@@ -64,7 +65,7 @@ export function AuditorGate({ auditor, editing, onSave, onCancel, children }: { 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Phone
-                <input className="min-h-11 rounded-md border border-slate-300 px-3" inputMode="tel" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: formatPhone(event.target.value) })} placeholder="(123) 456-7890" />
+                <input className="min-h-11 rounded-md border border-slate-300 px-3" inputMode="tel" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: formatUsPhone(event.target.value) })} placeholder="(123) 456-7890" />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Email
@@ -96,18 +97,9 @@ function trimProfile(profile: AuditorProfileInput): AuditorProfileInput {
     name: profile.name.trim(),
     title: profile.title.trim() || auditorTitles[0],
     department: defaultDepartment,
-    phone: formatPhone(profile.phone),
+    phone: formatUsPhone(profile.phone),
     email: profile.email.trim(),
   };
-}
-
-function formatPhone(value: string) {
-  const rawDigits = value.replace(/\D/g, "");
-  const digits = (rawDigits.length === 11 && rawDigits.startsWith("1") ? rawDigits.slice(1) : rawDigits).slice(0, 10);
-  if (!digits) return "";
-  if (digits.length <= 3) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 function validUlEmail(value?: string) {

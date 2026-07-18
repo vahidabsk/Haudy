@@ -1,7 +1,7 @@
 import { Audit, AuditRow, Auditor, GuardServiceResult, GuardServiceSignalType, GuardServiceTest, ParsedCertificate, SignalHandlingStatus, SignalType } from "./types";
 import { auditProgram, certificateProgram } from "./audit-program";
 import { cityStateFromAddress } from "./certificate-parser";
-import { nowIso, uid } from "./utils";
+import { formatUsPhone, nowIso, uid } from "./utils";
 
 const AUDITOR_KEY = "haudy.auditor";
 const AUDITS_KEY = "haudy.audits";
@@ -183,12 +183,7 @@ function normalizeAuditorDepartment(value: string | undefined) {
 }
 
 function normalizePhone(value: string | undefined) {
-  const rawDigits = String(value || "").replace(/\D/g, "");
-  const digits = (rawDigits.length === 11 && rawDigits.startsWith("1") ? rawDigits.slice(1) : rawDigits).slice(0, 10);
-  if (!digits) return "";
-  if (digits.length <= 3) return `(${digits}`;
-  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return formatUsPhone(value);
 }
 
 export function loadAudits(): Audit[] {

@@ -32,6 +32,7 @@ struct TrackerAssignment {
 #[serde(rename_all = "camelCase")]
 struct CustomerContact {
     psn: String,
+    company: String,
     name: String,
     phone: String,
     email: String,
@@ -179,12 +180,14 @@ fn open_customer_contact_list() -> Result<Vec<CustomerContact>, String> {
 
     for row in range.rows() {
         let psn = row_cell_text(row, 0);
+        let company = row_cell_text(row, 1);
+        let country = row_cell_text(row, 5).to_uppercase();
         let details = row_cell_text(row, 8);
-        if psn.is_empty() || psn.eq_ignore_ascii_case("psn") || details.is_empty() {
+        if psn.is_empty() || psn.eq_ignore_ascii_case("psn") || details.is_empty() || !["UNITED STATES", "USA", "US"].contains(&country.as_str()) {
             continue;
         }
         for section in contact_sections(&details) {
-            let Some(contact) = parse_contact_section(&psn, &section) else { continue };
+            let Some(contact) = parse_contact_section(&psn, &company, &section) else { continue };
             contacts.push(contact);
         }
     }
@@ -213,7 +216,7 @@ fn contact_sections(details: &str) -> Vec<String> {
     }).collect()
 }
 
-fn parse_contact_section(psn: &str, section: &str) -> Option<CustomerContact> {
+fn parse_contact_section(psn: &str, company: &str, section: &str) -> Option<CustomerContact> {
     let (contact_type, value) = section.split_once('|')?;
     let value = value.split_once('-').map(|(_, tail)| tail).unwrap_or(value).trim();
     let parts = value.splitn(3, ',').map(str::trim).collect::<Vec<_>>();
@@ -224,7 +227,7 @@ fn parse_contact_section(psn: &str, section: &str) -> Option<CustomerContact> {
     let valid_name = !name.is_empty() && !["na", "n/a", "none"].iter().any(|empty| name.eq_ignore_ascii_case(empty));
     let valid_email = email.contains('@') && email.rsplit_once('.').map(|(_, suffix)| !suffix.trim().is_empty()).unwrap_or(false);
     if !valid_name || normalized_phone < 7 || !valid_email { return None; }
-    Some(CustomerContact { psn: psn.to_string(), name: name.to_string(), phone: phone.to_string(), email: email.to_string(), contact_type: contact_type.to_string() })
+    Some(CustomerContact { psn: psn.to_string(), company: company.to_string(), name: name.to_string(), phone: phone.to_string(), email: email.to_string(), contact_type: contact_type.to_string() })
 }
 
 fn row_cell_text(row: &[Data], index: usize) -> String {
