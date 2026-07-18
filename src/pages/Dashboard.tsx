@@ -42,6 +42,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [ascDocuments, setAscDocuments] = useState(() => loadAscDocuments());
   const [storageReady, setStorageReady] = useState(false);
   const [storageMessage, setStorageMessage] = useState("");
+  const [confirmationEmailMessage, setConfirmationEmailMessage] = useState<{ ascKey: string; text: string; tone: "success" | "warning" | "error" } | null>(null);
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
@@ -274,11 +275,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
 
   async function prepareConfirmationEmail(group: AssignmentGroup, profile: AscProfile, confirmation: NonNullable<AscDocumentState["confirmation"]>) {
     if (!(profile.pocEmail || "").trim()) {
-      setStorageMessage("Add a POC email address before preparing the confirmation email.");
+      setConfirmationEmailMessage({ ascKey: group.key, text: "Add a POC email address before preparing the confirmation email.", tone: "warning" });
       return;
     }
     if (!confirmation.confirmationPdfPath) {
-      setStorageMessage("Open the confirmation and select Save Confirmation once to create its PDF attachment.");
+      setConfirmationEmailMessage({ ascKey: group.key, text: "Open the confirmation and select Save Confirmation once to create its PDF attachment.", tone: "warning" });
       return;
     }
     try {
@@ -292,9 +293,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, confirmation.confirmationPdfPath);
       const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationEmailPreparedAt: new Date().toISOString() });
       setAscDocuments(next);
-      setStorageMessage("Outlook email draft opened with the confirmation PDF attached.");
+      setConfirmationEmailMessage({ ascKey: group.key, text: "Outlook email draft opened with the confirmation PDF attached.", tone: "success" });
     } catch (error) {
-      setStorageMessage(error instanceof Error ? error.message : "Could not prepare the Outlook email.");
+      setConfirmationEmailMessage({ ascKey: group.key, text: error instanceof Error ? error.message : "Could not prepare the Outlook email.", tone: "error" });
     }
   }
 
@@ -462,8 +463,13 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   ) : null}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="min-w-[128px]">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {confirmationSaved && documents?.confirmation ? (
+                  <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => void prepareConfirmationEmail(group, profile, documents.confirmation!)}>
+                    <UploadCloud size={16} /> {documents.confirmation.confirmationEmailPreparedAt ? "Resend Email" : "Prepare Email"}
+                  </button>
+                ) : null}
+                <div>
                   <UploadDialog compact compactLabel="Add Certificate" onParsed={(certificates) => addCertificatesToGroup(group, certificates)} />
                 </div>
                 <ShieldCheck className="hidden text-emerald-600 sm:block" size={24} />
@@ -496,6 +502,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     {documents?.report?.reportCreated ? <span className="ml-2 font-semibold text-sky-700">PDF created</span> : null}
                     {documents?.crzhReport?.reportCreated ? <span className="ml-2 font-semibold text-violet-700">CRZH PDF created</span> : null}
                   </div>
+                  {confirmationEmailMessage?.ascKey === group.key ? (
+                    <div className={`mt-2 rounded-md border px-2 py-1.5 text-xs font-semibold ${confirmationEmailMessage.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : confirmationEmailMessage.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>
+                      {confirmationEmailMessage.text}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button className="haudy-card-action" onClick={() => setProfileGroup(group)}>
@@ -524,11 +535,6 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   }}>
                     <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : "Create Confirmation"}
                   </button>
-                  {confirmationSaved && documents?.confirmation ? (
-                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-100" onClick={() => prepareConfirmationEmail(group, profile, documents.confirmation!)}>
-                      <UploadCloud size={16} /> {documents.confirmation.confirmationEmailPreparedAt ? "Resend Confirmation Email" : "Prepare Confirmation Email"}
-                    </button>
-                  ) : null}
                   {hasNonCrzhCertificates ? (
                     <button className="haudy-card-action" onClick={() => {
                       const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });

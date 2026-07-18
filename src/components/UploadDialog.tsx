@@ -50,12 +50,12 @@ export function UploadDialog({ onParsed, compact = false, compactLabel = "Upload
   }
 
   const compactButton = desktopPdfUpload ? (
-    <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100 disabled:cursor-wait disabled:opacity-70" onClick={uploadDesktopPdfs} disabled={busy}>
+    <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-70" onClick={uploadDesktopPdfs} disabled={busy}>
       <UploadCloud size={16} />
       <span>{busy ? "Reading..." : compactLabel}</span>
     </button>
   ) : (
-    <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900 transition hover:bg-sky-100">
+    <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20">
       <UploadCloud size={16} />
       <span>{busy ? "Reading..." : "Upload Certificate"}</span>
       <input className="hidden" type="file" accept=".docx" multiple onChange={upload} disabled={busy} />
