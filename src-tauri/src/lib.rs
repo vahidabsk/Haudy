@@ -255,10 +255,15 @@ fn parse_contact_section(psn: &str, company: &str, address: &str, section: &str)
     let name = parts.first().copied().unwrap_or("");
     let phone = parts.get(1).copied().unwrap_or("");
     let email = parts.get(2).copied().unwrap_or("");
-    let normalized_phone = phone.chars().filter(|character| character.is_ascii_digit()).count();
+    let raw_phone = phone.chars().filter(|character| character.is_ascii_digit()).collect::<String>();
+    let normalized_phone = if raw_phone.len() == 11 && raw_phone.starts_with('1') { &raw_phone[1..] } else { raw_phone.as_str() };
     let valid_name = !name.is_empty() && !["na", "n/a", "none"].iter().any(|empty| name.eq_ignore_ascii_case(empty));
     let valid_email = email.contains('@') && email.rsplit_once('.').map(|(_, suffix)| !suffix.trim().is_empty()).unwrap_or(false);
-    if !valid_name || normalized_phone < 7 || !valid_email { return None; }
+    let valid_phone = normalized_phone.len() == 10
+        && normalized_phone.as_bytes()[0].is_ascii_digit() && normalized_phone.as_bytes()[0] >= b'2'
+        && normalized_phone.as_bytes()[3].is_ascii_digit() && normalized_phone.as_bytes()[3] >= b'2'
+        && !normalized_phone.chars().all(|digit| digit == normalized_phone.chars().next().unwrap_or('0'));
+    if !valid_name || !valid_phone || !valid_email { return None; }
     Some(CustomerContact { psn: psn.to_string(), company: company.to_string(), address: address.to_string(), name: name.to_string(), phone: phone.to_string(), email: email.to_string(), contact_type: contact_type.to_string() })
 }
 

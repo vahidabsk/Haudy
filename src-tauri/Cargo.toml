@@ -1,6 +1,6 @@
 [package]
 name = "haudy"
-version = "1.1.7"
+version = "1.1.8"
 description = "Haudy Audit Suite desktop app"
 authors = ["Haudy"]
 edition = "2021"
