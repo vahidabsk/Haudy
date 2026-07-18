@@ -327,11 +327,12 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 <button
                   key={tab.id}
                   type="button"
-                  className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition ${activeJobTab === tab.id ? "border-navy bg-white text-navy ring-2 ring-navy/15" : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition ${jobTabStyle(tab.id, activeJobTab === tab.id).button}`}
                   onClick={() => setActiveJobTab(tab.id)}
+                  aria-pressed={activeJobTab === tab.id}
                 >
                   {tab.label}
-                  <span className={`rounded-full px-2 py-0.5 text-xs ${activeJobTab === tab.id ? "bg-navy text-white" : "bg-white text-slate-600"}`}>{tab.count}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${jobTabStyle(tab.id, activeJobTab === tab.id).badge}`}>{tab.count}</span>
                 </button>
               ))}
             </div>
@@ -1366,6 +1367,52 @@ function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
     return totals;
   }, { pool: 0, scheduled: 0, reportDue: 0, reportCreated: 0, clearance: 0, done: 0 });
   return (Object.keys(labels) as HomeJobStatus[]).map((id) => ({ id, label: labels[id], count: counts[id] }));
+}
+
+function jobTabStyle(status: HomeJobStatus, active: boolean) {
+  const styles: Record<HomeJobStatus, { active: string; idle: string; activeBadge: string; idleBadge: string }> = {
+    pool: {
+      active: "border-navy bg-navy text-white shadow-sm ring-2 ring-navy/20",
+      idle: "border-navy/20 bg-navy/5 text-navy hover:bg-navy/10",
+      activeBadge: "bg-white/20 text-white",
+      idleBadge: "bg-navy/10 text-navy",
+    },
+    scheduled: {
+      active: "border-sky-700 bg-sky-700 text-white shadow-sm ring-2 ring-sky-200",
+      idle: "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100",
+      activeBadge: "bg-white/20 text-white",
+      idleBadge: "bg-sky-200/70 text-sky-950",
+    },
+    reportDue: {
+      active: "border-red-700 bg-red-700 text-white shadow-sm ring-2 ring-red-200",
+      idle: "border-red-200 bg-red-50 text-red-800 hover:bg-red-100",
+      activeBadge: "bg-white/20 text-white",
+      idleBadge: "bg-red-200/70 text-red-900",
+    },
+    reportCreated: {
+      active: "border-violet-700 bg-violet-700 text-white shadow-sm ring-2 ring-violet-200",
+      idle: "border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100",
+      activeBadge: "bg-white/20 text-white",
+      idleBadge: "bg-violet-200/70 text-violet-950",
+    },
+    clearance: {
+      active: "border-amber-600 bg-amber-500 text-slate-950 shadow-sm ring-2 ring-amber-200",
+      idle: "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+      activeBadge: "bg-white/45 text-amber-950",
+      idleBadge: "bg-amber-200/80 text-amber-950",
+    },
+    done: {
+      active: "border-emerald-700 bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-200",
+      idle: "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+      activeBadge: "bg-white/20 text-white",
+      idleBadge: "bg-emerald-200/70 text-emerald-950",
+    },
+  };
+  const palette = styles[status];
+  return {
+    button: active ? palette.active : palette.idle,
+    badge: active ? palette.activeBadge : palette.idleBadge,
+  };
 }
 
 function auditProgressMetrics(groups: AssignmentGroup[], documents: Record<string, AscDocumentState>): AuditProgressMetrics {
