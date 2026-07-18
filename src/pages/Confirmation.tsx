@@ -6,7 +6,7 @@ import { groupAssignmentsAndAudits, loadAuditAssignments } from "../lib/audit-as
 import { loadAscDocuments, saveAscDocument } from "../lib/asc-documents";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
-import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
+import { canSavePdfDirectly, savePrintablePagesAsPdf, savePrintablePagesAsPdfToFolder } from "../lib/pdf-saver";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
 
 export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
@@ -77,13 +77,16 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
   };
 
   async function saveConfirmation() {
-    const next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
+    let next = saveAscDocument(ascKey, "confirmation", { pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
     setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
     if (canSaveDocumentsToFolder()) {
       try {
         await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName }));
-        setFolderMessage("Saved to Haudy Database.");
+        const confirmationPdfPath = await savePrintablePagesAsPdfToFolder(confirmationFileName, storageFoldersForDetails(storageDetailsFromAsc({ year: scheduledYear, ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Confirmation", fileName: confirmationFileName })));
+        next = saveAscDocument(ascKey, "confirmation", { ...next[ascKey]?.confirmation, pocName, scn, psn, startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate, confirmationPdfPath });
+        setSavedAt(next[ascKey]?.confirmation?.updatedAt || "");
+        setFolderMessage("Confirmation and PDF saved to Haudy Database.");
       } catch (error) {
         setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
       }

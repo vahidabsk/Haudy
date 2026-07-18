@@ -337,6 +337,34 @@ fn save_haudy_binary_file_with_dialog(base_path: String, folders: Vec<String>, f
 }
 
 #[tauri::command]
+fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: String, attachment_path: String) -> Result<String, String> {
+    if !cfg!(target_os = "windows") {
+        return Err("Confirmation email preparation is available in the Windows desktop app.".to_string());
+    }
+    if recipient.trim().is_empty() || attachment_path.trim().is_empty() {
+        return Err("A POC email address and confirmation PDF are required.".to_string());
+    }
+    if !Path::new(&attachment_path).is_file() {
+        return Err("The saved confirmation PDF could not be found. Open the confirmation and save it again.".to_string());
+    }
+    let command = format!(
+        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.To = '{}'; $mail.Subject = '{}'; $mail.Body = '{}'; [void]$mail.Attachments.Add('{}'); $mail.Display()",
+        powershell_quote(&recipient),
+        powershell_quote(&subject),
+        powershell_quote(&body),
+        powershell_quote(&attachment_path),
+    );
+    let status = Command::new("powershell")
+        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &command])
+        .status()
+        .map_err(|error| format!("Could not open Outlook: {error}"))?;
+    if !status.success() {
+        return Err("Outlook could not create the email draft. Confirm that Outlook desktop is installed and configured.".to_string());
+    }
+    Ok("Outlook email draft opened.".to_string())
+}
+
+#[tauri::command]
 fn create_haudy_folders(base_path: String, folder_sets: Vec<Vec<String>>) -> Result<(), String> {
     let base = PathBuf::from(base_path);
     for folders in folder_sets {
@@ -426,6 +454,7 @@ pub fn run() {
             open_audit_tracker,
             open_customer_contact_list,
             open_certificate_pdfs,
+            prepare_outlook_confirmation_email,
             save_haudy_binary_file,
             save_haudy_binary_file_with_dialog,
             save_haudy_text_file,

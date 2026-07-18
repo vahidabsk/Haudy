@@ -4,12 +4,12 @@ import { ArrowLeft, Building2, CalendarCheck, CalendarDays, CheckCircle2, Clock3
 import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
-import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, updateAscDocumentDraft } from "../lib/asc-documents";
+import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
 import type { AscDocumentState } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
-import { openAuditTracker, openCustomerContactList } from "../lib/desktop-bridge";
+import { openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
 import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAudit } from "../lib/local-document-storage";
@@ -272,6 +272,32 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     setReportSentGroup(null);
   }
 
+  async function prepareConfirmationEmail(group: AssignmentGroup, profile: AscProfile, confirmation: NonNullable<AscDocumentState["confirmation"]>) {
+    if (!(profile.pocEmail || "").trim()) {
+      setStorageMessage("Add a POC email address before preparing the confirmation email.");
+      return;
+    }
+    if (!confirmation.confirmationPdfPath) {
+      setStorageMessage("Open the confirmation and select Save Confirmation once to create its PDF attachment.");
+      return;
+    }
+    try {
+      const start = emailDate(confirmation.startDate);
+      const end = emailDate(confirmation.endDate || confirmation.startDate);
+      const range = start === end ? start : `${start} to ${end}`;
+      const startTime = confirmation.startTime || "8:00 AM";
+      const location = (confirmation.meetingLocation || "").trim() || "the first location you will arrange (TBD)";
+      const subject = `***UL Audit - ${emailShortDate(confirmation.startDate)}${confirmation.endDate && confirmation.endDate !== confirmation.startDate ? ` to ${emailShortDate(confirmation.endDate)}` : ""} - ${group.ascName} - ${group.location || "Location TBD"} - PSN#${profile.psn || group.psn}`;
+      const body = `Hi ${profile.pocName},\n\nThank you for helping coordinate the upcoming audit. This email confirms that the audit is scheduled to start at ${startTime} on ${start}, at ${location}.\n\nAttached is the confirmation letter to assist with your preparation. Please ensure your technician is available with the necessary keys, ladders, and tools to access the systems being audited. Additional tests or access may be required during the audit, so please inform your clients about possible adjustments depending on time and travel constraints.\n\nThe audit dates are ${range}. If you have any questions or need further clarification, feel free to contact me.\n\nBest regards`;
+      await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, confirmation.confirmationPdfPath);
+      const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationEmailPreparedAt: new Date().toISOString() });
+      setAscDocuments(next);
+      setStorageMessage("Outlook email draft opened with the confirmation PDF attached.");
+    } catch (error) {
+      setStorageMessage(error instanceof Error ? error.message : "Could not prepare the Outlook email.");
+    }
+  }
+
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       {storageMessage || transferMessage ? (
@@ -498,6 +524,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   }}>
                     <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : "Create Confirmation"}
                   </button>
+                  {confirmationSaved && documents?.confirmation ? (
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-900 hover:bg-emerald-100" onClick={() => prepareConfirmationEmail(group, profile, documents.confirmation!)}>
+                      <UploadCloud size={16} /> {documents.confirmation.confirmationEmailPreparedAt ? "Resend Confirmation Email" : "Prepare Confirmation Email"}
+                    </button>
+                  ) : null}
                   {hasNonCrzhCertificates ? (
                     <button className="haudy-card-action" onClick={() => {
                       const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
@@ -1367,6 +1398,18 @@ function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
     return totals;
   }, { pool: 0, scheduled: 0, reportDue: 0, reportCreated: 0, clearance: 0, done: 0 });
   return (Object.keys(labels) as HomeJobStatus[]).map((id) => ({ id, label: labels[id], count: counts[id] }));
+}
+
+function emailDate(value?: string) {
+  if (!value) return "the scheduled audit date";
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(date);
+}
+
+function emailShortDate(value?: string) {
+  if (!value) return "TBD";
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).format(date);
 }
 
 function jobTabStyle(status: HomeJobStatus, active: boolean) {

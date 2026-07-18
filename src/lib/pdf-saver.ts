@@ -1,5 +1,5 @@
 import { isDesktopApp } from "./desktop-runtime";
-import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopBinaryFileWithDialog, storedHaudyDatabaseRoot } from "./desktop-bridge";
+import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopBinaryFile, saveDesktopBinaryFileWithDialog, storedHaudyDatabaseRoot } from "./desktop-bridge";
 
 const LETTER_WIDTH_PT = 612;
 const LETTER_HEIGHT_PT = 792;
@@ -32,6 +32,16 @@ export async function savePrintablePagesAsPdf(fileName: string, folders: string[
     window.print();
     return "Windows PDF save opened. Choose Save as PDF or Microsoft Print to PDF.";
   }
+}
+
+export async function savePrintablePagesAsPdfToFolder(fileName: string, folders: string[]) {
+  if (!canSavePdfDirectly()) throw new Error("PDF saving is available in the Windows desktop app.");
+  if (!storedHaudyDatabaseRoot()) await chooseHaudyDatabaseRoot();
+  const pages = Array.from(document.querySelectorAll<HTMLElement>(".print-page"));
+  if (!pages.length) throw new Error("No printable pages were found.");
+  const images = await renderPagesToJpegs(pages);
+  const pdf = buildImagePdf(images);
+  return saveDesktopBinaryFile(folders, `${safeName(fileName)}.pdf`, pdf);
 }
 
 async function renderPagesToJpegs(pages: HTMLElement[]) {

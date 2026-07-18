@@ -139,6 +139,12 @@ export async function installDesktopPatch(downloadUrl: string, fileName: string)
   });
 }
 
+export async function prepareOutlookConfirmationEmail(recipient: string, subject: string, body: string, attachmentPath: string) {
+  const invoke = getTauriInvoke();
+  if (!invoke) throw new Error("Email preparation is available in the Windows desktop app.");
+  return invoke<string>("prepare_outlook_confirmation_email", { recipient, subject, body, attachmentPath });
+}
+
 function getTauriInvoke() {
   return (window as Window & { __TAURI__?: TauriGlobal }).__TAURI__?.core?.invoke;
 }

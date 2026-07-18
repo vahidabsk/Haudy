@@ -11,6 +11,8 @@ export interface SavedDocumentStatus {
   meetingLocation?: string;
   conversationDate?: string;
   letterDate?: string;
+  confirmationPdfPath?: string;
+  confirmationEmailPreparedAt?: string;
   serviceCenterHasComment?: boolean;
   serviceCenterDone?: boolean;
   serviceCenterComments?: ServiceCenterComment[];
