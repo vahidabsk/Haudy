@@ -45,7 +45,6 @@ jobs:
         with:
           name: haudy-windows-desktop-package
           path: |
-            src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
           if-no-files-found: error
 
@@ -56,5 +55,4 @@ jobs:
           name: "Haudy Patch ${{ github.ref_name }}"
           body: "Haudy desktop patch build. Download the Windows installer package, close Haudy, and run the installer to update."
           files: |
-            src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
