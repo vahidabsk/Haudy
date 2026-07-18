@@ -307,10 +307,14 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       const start = emailDate(confirmation.startDate);
       const end = emailDate(confirmation.endDate || confirmation.startDate);
       const range = start === end ? start : `${start} to ${end}`;
-      const startTime = options.startTime || confirmation.startTime || "8:00 AM";
+      const startTime = emailTime(options.startTime || confirmation.startTime || "8:00 AM");
       const location = options.meetingLocation.trim() || confirmation.meetingLocation?.trim() || "the first location you will arrange (TBD)";
       const subject = `***UL Audit - ${emailShortDate(confirmation.startDate)}${confirmation.endDate && confirmation.endDate !== confirmation.startDate ? ` to ${emailShortDate(confirmation.endDate)}` : ""} - ${group.ascName} - ${group.location || "Location TBD"} - PSN#${profile.psn || group.psn}`;
-      const body = `Hi ${profile.pocName},\n\nThank you for helping coordinate the upcoming audit. This email confirms that the audit is scheduled to start at ${startTime} on ${start}, at ${location}.\n\nAttached is the confirmation letter to assist with your preparation. Please ensure your technician is available with the necessary keys, ladders, and tools to access the systems being audited. Additional tests or access may be required during the audit, so please inform your clients about possible adjustments depending on time and travel constraints.\n\nThe audit dates are ${range}. If you have any questions or need further clarification, feel free to contact me.\n\nBest regards`;
+      const attachmentList = ["• Official UL Audit Confirmation Letter", ...(options.attachments.length ? ["• Audit Preparation Checklist"] : [])].join("\n");
+      const checklistGuidance = options.attachments.length
+        ? "Please review the preparation checklist and ensure the assigned technician has the required test equipment available."
+        : "Please ensure the assigned technician has the required test equipment available.";
+      const body = `Dear ${profile.pocName},\n\nThank you for your assistance in coordinating the upcoming UL audit.\n\nThis email confirms that your UL audit is scheduled for ${range}, beginning at ${startTime}, at ${location}. If the audit is scheduled for multiple days, it will continue on the dates listed above.\n\nPlease find attached the following:\n\n${attachmentList}\n\n${checklistGuidance} We also recommend notifying the selected site(s) in advance, as portions of the audit may require functional testing that could temporarily activate audible or visual notification appliances.\n\nPlease note that arrival times may vary slightly due to travel conditions between audit locations. We appreciate your flexibility and cooperation.\n\nIf you have any questions before the audit, please do not hesitate to contact me.\n\nThank you, and I look forward to working with you.\n\nKind regards,`;
       await prepareOutlookConfirmationEmail(profile.pocEmail || "", subject, body, [attachmentPath, ...options.attachments]);
       const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationPdfPath: attachmentPath, confirmationEmailPreparedAt: new Date().toISOString() });
       setAscDocuments(next);
@@ -1554,6 +1558,17 @@ function emailShortDate(value?: string) {
   if (!value) return "TBD";
   const date = new Date(`${value}T12:00:00`);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).format(date);
+}
+
+function emailTime(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value;
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  if (!Number.isFinite(hours) || hours > 23) return value;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 || 12;
+  return `${displayHour}:${minutes} ${suffix}`;
 }
 
 function jobTabStyle(status: HomeJobStatus, active: boolean) {
