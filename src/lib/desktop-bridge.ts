@@ -36,6 +36,11 @@ export interface DesktopCustomerContact {
   contactType: string;
 }
 
+export interface DesktopDatabaseRestore {
+  backupContents: string;
+  restoredFiles: number;
+}
+
 export function hasDesktopBridge() {
   return Boolean(getTauriInvoke());
 }
@@ -81,6 +86,20 @@ export async function saveDesktopTextFile(folders: string[], fileName: string, c
     fileName,
     contents,
   });
+}
+
+export async function createHaudyDatabaseSnapshot(backupId: string) {
+  const invoke = getTauriInvoke();
+  const basePath = storedHaudyDatabaseRoot();
+  if (!invoke || !basePath) throw new Error("Choose the Haudy Database location first.");
+  return invoke<string>("create_haudy_database_snapshot", { basePath, backupId });
+}
+
+export async function restoreHaudyDatabaseSnapshot() {
+  const invoke = getTauriInvoke();
+  const basePath = storedHaudyDatabaseRoot();
+  if (!invoke || !basePath) throw new Error("Choose the Haudy Database location first.");
+  return invoke<DesktopDatabaseRestore | null>("restore_haudy_database_snapshot", { basePath });
 }
 
 export async function saveDesktopBinaryFile(folders: string[], fileName: string, contents: Uint8Array) {

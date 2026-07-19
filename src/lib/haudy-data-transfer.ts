@@ -1,4 +1,4 @@
-import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
+import { chooseHaudyDatabaseRoot, createHaudyDatabaseSnapshot, hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
 import { isDesktopApp } from "./desktop-runtime";
 
 const BACKUP_VERSION = 1;
@@ -31,12 +31,14 @@ export async function exportHaudyBackup({ includePhotos = false } = {}) {
     includesPhotos: includePhotos,
     entries: await readHaudyEntries(includePhotos),
   };
-  const fileName = `Haudy_Data_${includePhotos ? "With_Photos" : "Without_Photos"}_${fileTimestamp()}.haudy-data.json`;
+  const backupId = fileTimestamp();
+  const fileName = `Haudy_Data_${includePhotos ? "With_Photos" : "Without_Photos"}_${backupId}.haudy-data.json`;
   const contents = JSON.stringify(backup, null, 2);
   if (isDesktopApp() && hasDesktopBridge()) {
     if (!storedHaudyDatabaseRoot()) await chooseHaudyDatabaseRoot();
-    const path = await saveDesktopTextFile(["Backup"], fileName, contents);
-    return `Workspace backup saved to ${path}.`;
+    const snapshotPath = await createHaudyDatabaseSnapshot(backupId);
+    await saveDesktopTextFile(["Backup", backupId], fileName, contents);
+    return `Complete workspace backup saved to ${snapshotPath}.`;
   }
   const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -64,7 +66,11 @@ function fileTimestamp() {
 }
 
 export async function importHaudyBackupFile(file: File) {
-  const backup = parseHaudyBackup(await readFileText(file));
+  return importHaudyBackupText(await readFileText(file));
+}
+
+export async function importHaudyBackupText(contents: string) {
+  const backup = parseHaudyBackup(contents);
   if (backup.app !== "Haudy" || !backup.entries || typeof backup.entries !== "object") {
     throw new Error("This does not look like a Haudy data file.");
   }

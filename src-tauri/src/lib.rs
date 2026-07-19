@@ -46,6 +46,13 @@ struct AppVersion {
     version: String,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DatabaseRestoreResult {
+    backup_contents: String,
+    restored_files: usize,
+}
+
 #[tauri::command]
 fn get_haudy_version() -> AppVersion {
     AppVersion {
@@ -302,6 +309,48 @@ fn save_haudy_text_file(base_path: String, folders: Vec<String>, file_name: Stri
 }
 
 #[tauri::command]
+fn create_haudy_database_snapshot(base_path: String, backup_id: String) -> Result<String, String> {
+    let database = PathBuf::from(base_path).join("Haudy Database");
+    fs::create_dir_all(&database).map_err(|error| error.to_string())?;
+    let snapshot_root = database.join("Backup").join(safe_path_part(&backup_id));
+    let snapshot_database = snapshot_root.join("Haudy Database");
+    if snapshot_database.exists() {
+        fs::remove_dir_all(&snapshot_database).map_err(|error| error.to_string())?;
+    }
+    fs::create_dir_all(&snapshot_root).map_err(|error| error.to_string())?;
+    copy_directory(&database, &snapshot_database, true)?;
+    Ok(snapshot_root.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn restore_haudy_database_snapshot(base_path: String) -> Result<Option<DatabaseRestoreResult>, String> {
+    let database = PathBuf::from(base_path).join("Haudy Database");
+    let backup_directory = database.join("Backup");
+    fs::create_dir_all(&backup_directory).map_err(|error| error.to_string())?;
+    let Some(snapshot_root) = rfd::FileDialog::new()
+        .set_title("Select a dated Haudy backup folder to restore")
+        .set_directory(&backup_directory)
+        .pick_folder()
+    else {
+        return Ok(None);
+    };
+    let snapshot_database = snapshot_root.join("Haudy Database");
+    if !snapshot_database.is_dir() {
+        return Err("Select the dated backup folder inside Haudy Database/Backup. It must contain a Haudy Database folder.".to_string());
+    }
+    let backup_file = fs::read_dir(&snapshot_root)
+        .map_err(|error| error.to_string())?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| path.is_file() && path.file_name().and_then(|name| name.to_str()).is_some_and(|name| name.ends_with(".haudy-data.json")))
+        .ok_or_else(|| "This backup is missing its Haudy data file.".to_string())?;
+    let backup_contents = fs::read_to_string(backup_file).map_err(|error| error.to_string())?;
+    clear_database_contents_except_backup(&database)?;
+    let restored_files = copy_directory(&snapshot_database, &database, false)?;
+    Ok(Some(DatabaseRestoreResult { backup_contents, restored_files }))
+}
+
+#[tauri::command]
 fn save_haudy_binary_file(base_path: String, folders: Vec<String>, file_name: String, contents: Vec<u8>) -> Result<String, String> {
     let base = PathBuf::from(base_path);
     let mut directory = base.join("Haudy Database");
@@ -461,6 +510,44 @@ fn powershell_quote(value: &str) -> String {
     value.replace('\'', "''")
 }
 
+fn copy_directory(source: &Path, destination: &Path, skip_backup_directory: bool) -> Result<usize, String> {
+    fs::create_dir_all(destination).map_err(|error| error.to_string())?;
+    let mut copied_files = 0;
+    for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let name = entry.file_name();
+        if skip_backup_directory && name.to_string_lossy().eq_ignore_ascii_case("Backup") {
+            continue;
+        }
+        let source_path = entry.path();
+        let destination_path = destination.join(&name);
+        if source_path.is_dir() {
+            copied_files += copy_directory(&source_path, &destination_path, false)?;
+        } else if source_path.is_file() {
+            fs::copy(&source_path, &destination_path).map_err(|error| error.to_string())?;
+            copied_files += 1;
+        }
+    }
+    Ok(copied_files)
+}
+
+fn clear_database_contents_except_backup(database: &Path) -> Result<(), String> {
+    fs::create_dir_all(database).map_err(|error| error.to_string())?;
+    for entry in fs::read_dir(database).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        if entry.file_name().to_string_lossy().eq_ignore_ascii_case("Backup") {
+            continue;
+        }
+        let path = entry.path();
+        if path.is_dir() {
+            fs::remove_dir_all(path).map_err(|error| error.to_string())?;
+        } else {
+            fs::remove_file(path).map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 fn safe_path_part(value: &str) -> String {
     let cleaned = value
         .chars()
@@ -502,6 +589,8 @@ pub fn run() {
             save_haudy_binary_file,
             save_haudy_binary_file_with_dialog,
             save_haudy_text_file,
+            create_haudy_database_snapshot,
+            restore_haudy_database_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Haudy");

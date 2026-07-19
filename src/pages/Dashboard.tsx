@@ -9,10 +9,11 @@ import type { AscDocumentState } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
-import { chooseConfirmationPdf, chooseEmailAttachments, openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
+import { chooseConfirmationPdf, chooseEmailAttachments, openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail, restoreHaudyDatabaseSnapshot } from "../lib/desktop-bridge";
 import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
-import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
+import { exportHaudyBackup, importHaudyBackupFile, importHaudyBackupText } from "../lib/haudy-data-transfer";
+import { isDesktopApp } from "../lib/desktop-runtime";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAsc, storageDetailsFromAudit, storageFoldersForDetails } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { formatUsPhone, relativeTime } from "../lib/utils";
@@ -213,6 +214,22 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         .catch(() => setTransferMessage("Could not create the workspace backup."));
     };
     const handleRestoreWorkspace = () => {
+      if (isDesktopApp()) {
+        if (!window.confirm("Restore a complete Haudy backup? The current workspace and Haudy Database files will be replaced.")) return;
+        setTransferMessage("Restoring complete workspace backup...");
+        void restoreHaudyDatabaseSnapshot()
+          .then(async (snapshot) => {
+            if (!snapshot) {
+              setTransferMessage("Workspace restore cancelled.");
+              return;
+            }
+            const restored = await importHaudyBackupText(snapshot.backupContents) || { imported: 0, skippedPhotos: 0 };
+            setTransferMessage(`Workspace restored (${restored.imported} data items and ${snapshot.restoredFiles} Haudy Database files). Reloading Haudy...`);
+            window.setTimeout(() => window.location.reload(), 900);
+          })
+          .catch((error) => setTransferMessage(error instanceof Error ? error.message : "Could not restore the workspace backup."));
+        return;
+      }
       const input = document.createElement("input");
       input.type = "file";
       input.accept = ".haudy-data.json,application/json,text/plain";
