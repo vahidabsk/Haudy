@@ -12,7 +12,7 @@ import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/aud
 import { chooseConfirmationPdf, chooseEmailAttachments, openAuditTracker, openCustomerContactList, prepareOutlookConfirmationEmail } from "../lib/desktop-bridge";
 import { CustomerContact, contactsForPsn, loadCustomerContacts, loadTrackerDirectory, saveCustomerContacts, saveTrackerDirectory } from "../lib/customer-contacts";
 import { exportFieldNotesForIHaudy, IHAUDY_FIELD_NOTES_ACCEPT, importFieldNotesFromIHaudy } from "../lib/ihaudy-transfer";
-import { exportHaudyBackup } from "../lib/haudy-data-transfer";
+import { exportHaudyBackup, importHaudyBackupFile } from "../lib/haudy-data-transfer";
 import { canSaveDocumentsToFolder, chooseStorageRoot, hasStorageRoot, prepareStorageFolders, storageDetailsFromAsc, storageDetailsFromAudit, storageFoldersForDetails } from "../lib/local-document-storage";
 import { Audit, ParsedCertificate } from "../lib/types";
 import { formatUsPhone, relativeTime } from "../lib/utils";
@@ -212,12 +212,32 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         .then(() => setTransferMessage("Workspace backup downloaded, including stored photos."))
         .catch(() => setTransferMessage("Could not create the workspace backup."));
     };
+    const handleRestoreWorkspace = () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".haudy-data.json,application/json,text/plain";
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (!window.confirm("Restore this Haudy backup? The current workspace on this computer will be replaced.")) return;
+        setTransferMessage("Restoring workspace backup...");
+        void importHaudyBackupFile(file)
+          .then((result) => {
+            const restored = result || { imported: 0, skippedPhotos: 0 };
+            setTransferMessage(`Workspace restored (${restored.imported} data items${restored.skippedPhotos ? `; ${restored.skippedPhotos} photo item${restored.skippedPhotos === 1 ? "" : "s"} could not be restored` : ""}). Reloading Haudy...`);
+            window.setTimeout(() => window.location.reload(), 900);
+          })
+          .catch((error) => setTransferMessage(error instanceof Error ? error.message : "Could not restore the workspace backup."));
+      };
+      input.click();
+    };
     window.addEventListener("haudy:import-audit-tracker", handleImport);
     window.addEventListener("haudy:import-customer-contact-list", handleContactImport);
     window.addEventListener("haudy:open-customer-phone-book", handleOpenPhoneBook);
     window.addEventListener("haudy:open-audit-dashboard", handleOpenDashboard);
     window.addEventListener("haudy:choose-database", handleChooseDatabase);
     window.addEventListener("haudy:backup-workspace", handleBackupWorkspace);
+    window.addEventListener("haudy:restore-workspace", handleRestoreWorkspace);
     return () => {
       window.removeEventListener("haudy:import-audit-tracker", handleImport);
       window.removeEventListener("haudy:import-customer-contact-list", handleContactImport);
@@ -225,6 +245,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       window.removeEventListener("haudy:open-audit-dashboard", handleOpenDashboard);
       window.removeEventListener("haudy:choose-database", handleChooseDatabase);
       window.removeEventListener("haudy:backup-workspace", handleBackupWorkspace);
+      window.removeEventListener("haudy:restore-workspace", handleRestoreWorkspace);
     };
   });
 
