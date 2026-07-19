@@ -1,3 +1,6 @@
+import { chooseHaudyDatabaseRoot, hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
+import { isDesktopApp } from "./desktop-runtime";
+
 const BACKUP_VERSION = 1;
 const HAUDY_PREFIX = "haudy.";
 const PHOTO_PREFIX = "haudy.photos.";
@@ -28,15 +31,23 @@ export async function exportHaudyBackup({ includePhotos = false } = {}) {
     includesPhotos: includePhotos,
     entries: await readHaudyEntries(includePhotos),
   };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "text/plain;charset=utf-8" });
+  const fileName = `Haudy_Data_${includePhotos ? "With_Photos" : "Without_Photos"}_${fileTimestamp()}.haudy-data.json`;
+  const contents = JSON.stringify(backup, null, 2);
+  if (isDesktopApp() && hasDesktopBridge()) {
+    if (!storedHaudyDatabaseRoot()) await chooseHaudyDatabaseRoot();
+    const path = await saveDesktopTextFile(["Backup"], fileName, contents);
+    return `Workspace backup saved to ${path}.`;
+  }
+  const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `Haudy_Data_${includePhotos ? "With_Photos" : "Without_Photos"}_${fileTimestamp()}.haudy-data.json`;
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  return "Workspace backup downloaded.";
 }
 
 function fileTimestamp() {

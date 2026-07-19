@@ -209,7 +209,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const handleChooseDatabase = () => void chooseDatabase();
     const handleBackupWorkspace = () => {
       void exportHaudyBackup({ includePhotos: true })
-        .then(() => setTransferMessage("Workspace backup downloaded, including stored photos."))
+        .then((message) => setTransferMessage(message))
         .catch(() => setTransferMessage("Could not create the workspace backup."));
     };
     const handleRestoreWorkspace = () => {
