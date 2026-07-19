@@ -35,6 +35,8 @@ interface ConfirmationEmailEditorState {
   confirmationAttachmentPath: string;
   attachments: string[];
   emailType: "confirmation" | "report" | "reminder";
+  reportCreated: boolean;
+  reportSent: boolean;
 }
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
@@ -504,9 +506,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {readyForDocuments ? (
+                {confirmationSaved && documents?.confirmation ? (
                   <>
-                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents?.confirmation || { saved: false, pocName: profile.pocName, scn: profile.scn, psn: profile.psn, updatedAt: "" }, startTime: documents?.confirmation?.startTime || "", meetingLocation: documents?.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents?.confirmation?.confirmationPdfPath || "", attachments: [], emailType: "confirmation" })}>
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", attachments: [], emailType: "confirmation", reportCreated: Boolean(dashboardReport?.reportCreated), reportSent: Boolean(dashboardReport?.sentToClient) })}>
                       <UploadCloud size={16} /> Prepare Email
                     </button>
                   </>
@@ -1198,8 +1200,11 @@ function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange
         </label>
         {editor.emailType !== "confirmation" ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="font-bold">{editor.emailType === "report" ? "Report Email" : "Reminder Email"} workflow is being prepared.</p>
-            <p className="mt-1">Confirmation Email is complete and available now. The next step will add the correct report or reminder content, recipient rules, and attachments for this ASC.</p>
+            {editor.emailType === "report" && !editor.reportCreated ? <><p className="font-bold">No report has been created yet.</p><p className="mt-1">Create and save the report for this ASC before preparing a report email.</p></> : null}
+            {editor.emailType === "reminder" && !editor.reportCreated ? <><p className="font-bold">No report has been created yet.</p><p className="mt-1">Create and send the report before preparing a reminder email.</p></> : null}
+            {editor.emailType === "reminder" && editor.reportCreated && !editor.reportSent ? <><p className="font-bold">The report has not been marked as sent.</p><p className="mt-1">Mark the report as sent to the customer before preparing a reminder email.</p></> : null}
+            {editor.emailType === "report" && editor.reportCreated ? <><p className="font-bold">Report Email workflow is next.</p><p className="mt-1">The report is ready. The dedicated report email content and attachment workflow will be added next.</p></> : null}
+            {editor.emailType === "reminder" && editor.reportCreated && editor.reportSent ? <><p className="font-bold">Reminder Email workflow is next.</p><p className="mt-1">The report was sent. The dedicated reminder content and response-tracking workflow will be added next.</p></> : null}
           </div>
         ) : <>
         <div className="grid gap-4 sm:grid-cols-2">
