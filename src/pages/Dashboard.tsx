@@ -192,11 +192,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       setTransferMessage("Reading customer contact list...");
       const contacts = await openCustomerContactList();
       if (!contacts.length) {
-        setTransferMessage("No healthy contacts were found. The list must use the SigmaSight contact format: Primary, Secondary, Site Contact, or Oracle — Name, Phone, Email.");
+        setTransferMessage("No customer contacts were imported from the selected file.");
         return;
       }
       saveCustomerContacts(contacts.map((contact) => ({ ...contact, phone: formatUsPhone(contact.phone), type: contact.contactType })));
-      setTransferMessage(`${contacts.length} healthy contact${contacts.length === 1 ? "" : "s"} imported. Select a POC from the related ASC card.`);
+      setTransferMessage(`${contacts.length} customer contact${contacts.length === 1 ? "" : "s"} imported.`);
     } catch (error) {
       setTransferMessage(error instanceof Error ? error.message : "Could not import the customer contact list.");
     }
@@ -1167,10 +1167,10 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
           </div>
           {availableContacts.length ? (
             <select className="min-h-11 w-full min-w-0 rounded-md border border-sky-200 bg-white px-3 text-sm font-semibold text-navy" value={availableContacts.some((contact) => contact.name === pocName && contact.email === pocEmail) ? `${pocName}|${pocEmail}` : ""} onChange={(event) => selectContact(availableContacts.find((contact) => `${contact.name}|${contact.email}` === event.target.value) || null)}>
-              <option value="">Choose a healthy contact for this ASC</option>
+              <option value="">Choose a contact for this ASC</option>
               {availableContacts.map((contact) => <option key={`${contact.psn}|${contact.email}|${contact.name}`} value={`${contact.name}|${contact.email}`}>{contact.name} — {contact.type} — {contact.email}</option>)}
             </select>
-          ) : <p className="text-sm font-medium text-amber-900">No imported healthy contacts match this PSN. You can enter a POC manually below.</p>}
+          ) : <p className="text-sm font-medium text-amber-900">No imported contacts match this PSN. You can enter a POC manually below.</p>}
         </section>
         <label className="grid min-w-0 gap-1 text-sm font-medium text-slate-700">
           POC name
