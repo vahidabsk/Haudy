@@ -7,7 +7,7 @@ import { loadAscDocuments, saveAscDocument, ServiceCenterComment } from "../lib/
 import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
-import { canSavePdfDirectly, savePrintablePagesAsPdf } from "../lib/pdf-saver";
+import { canSavePdfDirectly, savePrintablePagesAsPdfWithResult } from "../lib/pdf-saver";
 import { loadPhoto } from "../lib/photo-store";
 import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } from "../lib/report-reference";
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
@@ -142,7 +142,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
     }
   }
 
-  function markReportCreated() {
+  function markReportCreated(reportPdfPath = "") {
     const next = saveAscDocument(ascKey, reportDocumentKey, {
       pocName,
       scn,
@@ -153,6 +153,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
       serviceCenterComments,
       reportCreated: true,
       reportCreatedAt: new Date().toISOString(),
+      reportPdfPath: reportPdfPath || savedReportDraft?.reportPdfPath,
       sentToClient: savedReportDraft?.sentToClient,
       reportSentAt: savedReportDraft?.reportSentAt,
       clearanceStartDate: savedReportDraft?.clearanceStartDate,
@@ -213,9 +214,9 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
                 try {
                   await saveReport();
                   const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
-                  const message = await savePrintablePagesAsPdf(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName })));
-                  setFolderMessage(message);
-                  if (message !== "PDF save canceled.") markReportCreated();
+                  const result = await savePrintablePagesAsPdfWithResult(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName })));
+                  setFolderMessage(result.message);
+                  if (result.message !== "PDF save canceled.") markReportCreated(result.path);
                 } catch (error) {
                   setFolderMessage(error instanceof Error ? error.message : "Could not save PDF.");
                 }

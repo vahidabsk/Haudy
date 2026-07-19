@@ -34,10 +34,12 @@ interface ConfirmationEmailEditorState {
   startTime: string;
   meetingLocation: string;
   confirmationAttachmentPath: string;
+  reportAttachmentPath: string;
   attachments: string[];
   emailType: "confirmation" | "report" | "reminder";
   reportCreated: boolean;
   reportSent: boolean;
+  report?: NonNullable<AscDocumentState["report"]>;
 }
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
@@ -379,6 +381,83 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     setConfirmationEmailMessage({ ascKey: group.key, text: "Confirmation email marked as sent.", tone: "success" });
   }
 
+  function markSelectedEmailSent(editor: ConfirmationEmailEditorState) {
+    const sentAt = new Date().toISOString();
+    if (editor.emailType === "confirmation") {
+      markConfirmationEmailSent(editor.group, editor.confirmation);
+      const confirmation = loadAscDocuments()[editor.group.key]?.confirmation;
+      if (confirmation) setConfirmationEmailEditor((current) => current ? { ...current, confirmation } : null);
+      return;
+    }
+    if (!editor.report) return;
+    const documentKey = dashboardReportKey(editor.group);
+    const next = saveAscDocument(editor.group.key, documentKey, {
+      ...editor.report,
+      ...(editor.emailType === "report" ? {
+        reportEmailSentAt: sentAt,
+        sentToClient: true,
+        reportSentAt: editor.report.reportSentAt || sentAt,
+        clearanceStartDate: editor.report.clearanceStartDate || sentAt.slice(0, 10),
+      } : {
+        reminderEmailSentAt: sentAt,
+      }),
+    });
+    const report = next[editor.group.key]?.[documentKey];
+    setAscDocuments(next);
+    setConfirmationEmailEditor((current) => current ? { ...current, report, reportSent: Boolean(report?.sentToClient) } : null);
+    setConfirmationEmailMessage({ ascKey: editor.group.key, text: `${editor.emailType === "report" ? "Report" : "Reminder"} email marked as sent.`, tone: "success" });
+  }
+
+  async function prepareReportOrReminderEmail(editor: ConfirmationEmailEditorState) {
+    const report = editor.report;
+    if (!report || !(editor.profile.pocEmail || "").trim()) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Add a POC email address before preparing this email.", tone: "warning" });
+      return false;
+    }
+    if (editor.emailType === "report" && !editor.reportAttachmentPath) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Attach the saved audit report before opening the Outlook draft.", tone: "warning" });
+      return false;
+    }
+    if (editor.emailType === "reminder" && !editor.reportSent) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Mark the report as sent to the customer before preparing a reminder.", tone: "warning" });
+      return false;
+    }
+    try {
+      const deadline = addDays(parseLocalDate(report.clearanceStartDate || report.letterDate || report.reportSentAt?.slice(0, 10) || "") || startOfLocalDay(new Date()), 30);
+      const remaining = daysBetween(startOfLocalDay(new Date()), deadline);
+      const dueDate = formatDisplayDate(localDateKey(deadline));
+      const reminder = reminderDetails(remaining);
+      const subject = editor.emailType === "report"
+        ? `UL Annual Audit Report – ${editor.group.ascName}`
+        : `${reminder.subjectPrefix}: UL Audit Corrective Action Response Due – ${editor.group.ascName}`;
+      const body = editor.emailType === "report"
+        ? `Dear ${editor.profile.pocName},\n\nPlease find attached the UL Annual Audit Report for ${editor.group.ascName}.\n\nPlease review the report carefully and complete the required corrective actions identified in the report.\n\nThe deadline to submit your official response and supporting documentation is ${dueDate}.\n\nSupporting documentation may include photographs, records, or other evidence demonstrating that the identified deficiencies have been corrected.\n\nImportant: Failure to submit the required response and supporting documentation by the stated deadline may result in cancellation of the affected UL Certificates.\n\nIf you have any questions regarding the report or the corrective action process, please do not hesitate to contact me.\n\nThank you for your cooperation.\n\nKind regards,`
+        : `Dear ${editor.profile.pocName},\n\nThis is a ${reminder.label.toLowerCase()} reminder regarding the UL Annual Audit Report issued for ${editor.group.ascName}.\n\n${reminder.remainingText} to submit your official response and supporting documentation. The submission deadline is ${dueDate}.\n\nPlease ensure your response includes all required supporting documentation, such as photographs, records, or other evidence demonstrating that the identified deficiencies have been corrected.\n\nImportant: Failure to submit the required response and supporting documentation by the deadline may result in cancellation of the affected UL Certificates.\n\nIf you have any questions or require assistance, please do not hesitate to contact me.\n\nThank you for your prompt attention to this matter.\n\nKind regards,`;
+      await prepareOutlookConfirmationEmail(editor.profile.pocEmail || "", subject, body, editor.emailType === "report" ? [editor.reportAttachmentPath] : []);
+      const preparedAt = new Date().toISOString();
+      const type = dashboardReportKey(editor.group);
+      const next = saveAscDocument(editor.group.key, type, {
+        ...report,
+        reportPdfPath: editor.reportAttachmentPath || report.reportPdfPath,
+        ...(editor.emailType === "report" ? {
+          reportEmailPreparedAt: preparedAt,
+          reportEmailDrafts: [...(report.reportEmailDrafts || []), preparedAt],
+        } : {
+          reminderEmailPreparedAt: preparedAt,
+          reminderEmailDrafts: [...(report.reminderEmailDrafts || []), preparedAt],
+        }),
+      });
+      const savedReport = next[editor.group.key]?.[type];
+      setAscDocuments(next);
+      setConfirmationEmailEditor((current) => current ? { ...current, report: savedReport, reportAttachmentPath: savedReport?.reportPdfPath || current.reportAttachmentPath } : null);
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: `Outlook ${editor.emailType} email draft opened. Review and send it in Outlook.`, tone: "success" });
+      return true;
+    } catch (error) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: error instanceof Error ? error.message : "Could not prepare the Outlook email.", tone: "error" });
+      return false;
+    }
+  }
+
   return (
     <main className="mx-auto grid max-w-7xl gap-5 px-4 py-5">
       {storageMessage || transferMessage ? (
@@ -552,7 +631,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {confirmationSaved && documents?.confirmation ? (
                   <>
-                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", attachments: [], emailType: "confirmation", reportCreated: Boolean(dashboardReport?.reportCreated), reportSent: Boolean(dashboardReport?.sentToClient) })}>
+                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", reportAttachmentPath: dashboardReport?.reportPdfPath || "", attachments: [], emailType: "confirmation", reportCreated: Boolean(dashboardReport?.reportCreated), reportSent: Boolean(dashboardReport?.sentToClient), report: dashboardReport })}>
                       <UploadCloud size={16} /> Prepare Email
                     </button>
                   </>
@@ -715,21 +794,29 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               setConfirmationEmailMessage({ ascKey: confirmationEmailEditor.group.key, text: error instanceof Error ? error.message : "Could not select additional attachments.", tone: "error" });
             }
           }}
+          onChooseReport={async () => {
+            try {
+              const folders = storageFoldersForDetails(storageDetailsFromAsc({ year: new Date().getFullYear().toString(), ascName: confirmationEmailEditor.group.ascName, cityState: "", psn: confirmationEmailEditor.profile.psn || confirmationEmailEditor.group.psn, folder: "Report", fileName: "Report" }));
+              const attachments = await chooseEmailAttachments(folders);
+              const path = attachments[0];
+              if (!path) return;
+              setConfirmationEmailEditor((current) => current ? { ...current, reportAttachmentPath: path } : null);
+            } catch (error) {
+              setConfirmationEmailMessage({ ascKey: confirmationEmailEditor.group.key, text: error instanceof Error ? error.message : "Could not select the audit report.", tone: "error" });
+            }
+          }}
           onPrepare={async () => {
             setPreparingConfirmationEmail(true);
             try {
-              await prepareConfirmationEmail(confirmationEmailEditor.group, confirmationEmailEditor.profile, confirmationEmailEditor.confirmation, confirmationEmailEditor);
+              if (confirmationEmailEditor.emailType === "confirmation") await prepareConfirmationEmail(confirmationEmailEditor.group, confirmationEmailEditor.profile, confirmationEmailEditor.confirmation, confirmationEmailEditor);
+              else await prepareReportOrReminderEmail(confirmationEmailEditor);
               const next = loadAscDocuments()[confirmationEmailEditor.group.key]?.confirmation;
               if (next) setConfirmationEmailEditor((current) => current ? { ...current, confirmation: next } : null);
             } finally {
               setPreparingConfirmationEmail(false);
             }
           }}
-          onMarkSent={() => {
-            markConfirmationEmailSent(confirmationEmailEditor.group, confirmationEmailEditor.confirmation);
-            const next = loadAscDocuments()[confirmationEmailEditor.group.key]?.confirmation;
-            if (next) setConfirmationEmailEditor((current) => current ? { ...current, confirmation: next } : null);
-          }}
+          onMarkSent={() => markSelectedEmailSent(confirmationEmailEditor)}
         />
       ) : null}
       {reportSentGroup ? (
@@ -1207,8 +1294,10 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
   );
 }
 
-function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange, onChooseConfirmation, onAddAttachments, onPrepare, onMarkSent }: { editor: ConfirmationEmailEditorState; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
+function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange, onChooseConfirmation, onAddAttachments, onChooseReport, onPrepare, onMarkSent }: { editor: ConfirmationEmailEditorState; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onChooseReport: () => void | Promise<void>; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
   const draftHistory = editor.confirmation.confirmationEmailDrafts?.length ? editor.confirmation.confirmationEmailDrafts : editor.confirmation.confirmationEmailPreparedAt ? [editor.confirmation.confirmationEmailPreparedAt] : [];
+  const reportDraftHistory = editor.report?.reportEmailDrafts?.length ? editor.report.reportEmailDrafts : editor.report?.reportEmailPreparedAt ? [editor.report.reportEmailPreparedAt] : [];
+  const reminderDraftHistory = editor.report?.reminderEmailDrafts?.length ? editor.report.reminderEmailDrafts : editor.report?.reminderEmailPreparedAt ? [editor.report.reminderEmailPreparedAt] : [];
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 py-6">
       <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Confirmation email">
@@ -1225,32 +1314,36 @@ function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange
         </div>
         <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <h3 className="text-sm font-bold text-navy">Email activity</h3>
-          {draftHistory.length || editor.confirmation.confirmationEmailSentAt ? (
+          {draftHistory.length || editor.confirmation.confirmationEmailSentAt || reportDraftHistory.length || editor.report?.reportEmailSentAt || reminderDraftHistory.length || editor.report?.reminderEmailSentAt ? (
             <ul className="mt-2 grid gap-1 text-sm text-slate-700">
               {draftHistory.map((timestamp, index) => <li key={`${timestamp}-${index}`}><span className="font-semibold text-sky-800">Confirmation email draft created</span> — {formatEmailActivityTime(timestamp)}</li>)}
               {editor.confirmation.confirmationEmailSentAt ? <li><span className="font-semibold text-emerald-800">Confirmation email marked sent</span> — {formatEmailActivityTime(editor.confirmation.confirmationEmailSentAt)}</li> : null}
+              {reportDraftHistory.map((timestamp, index) => <li key={`report-${timestamp}-${index}`}><span className="font-semibold text-sky-800">Report email draft created</span> — {formatEmailActivityTime(timestamp)}</li>)}
+              {editor.report?.reportEmailSentAt ? <li><span className="font-semibold text-emerald-800">Report email marked sent</span> — {formatEmailActivityTime(editor.report.reportEmailSentAt)}</li> : null}
+              {reminderDraftHistory.map((timestamp, index) => <li key={`reminder-${timestamp}-${index}`}><span className="font-semibold text-amber-800">Reminder email draft created</span> — {formatEmailActivityTime(timestamp)}</li>)}
+              {editor.report?.reminderEmailSentAt ? <li><span className="font-semibold text-emerald-800">Reminder email marked sent</span> — {formatEmailActivityTime(editor.report.reminderEmailSentAt)}</li> : null}
             </ul>
-          ) : <p className="mt-1 text-sm text-slate-500">No confirmation email activity yet.</p>}
-          <p className="mt-2 text-xs text-slate-500">This record remains with the confirmation until the letter is revised.</p>
+          ) : <p className="mt-1 text-sm text-slate-500">No email activity yet.</p>}
+          <p className="mt-2 text-xs text-slate-500">This activity remains with the related confirmation or report record.</p>
         </section>
         {message ? <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${message.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div> : null}
         <label className="grid gap-1 text-sm font-medium text-slate-700">
           Email type
           <select className="min-h-11 rounded-md border border-slate-300 bg-white px-3 font-semibold text-navy" value={editor.emailType} onChange={(event) => onChange({ ...editor, emailType: event.target.value as ConfirmationEmailEditorState["emailType"] })}>
             <option value="confirmation">Confirmation Email</option>
-            <option value="report">Report Email — coming next</option>
-            <option value="reminder">Reminder Email — coming next</option>
+            <option value="report">Report Email</option>
+            <option value="reminder">Reminder Email</option>
           </select>
         </label>
-        {editor.emailType !== "confirmation" ? (
+        {editor.emailType === "report" && !editor.reportCreated ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            {editor.emailType === "report" && !editor.reportCreated ? <><p className="font-bold">No report has been created yet.</p><p className="mt-1">Create and save the report for this ASC before preparing a report email.</p></> : null}
-            {editor.emailType === "reminder" && !editor.reportCreated ? <><p className="font-bold">No report has been created yet.</p><p className="mt-1">Create and send the report before preparing a reminder email.</p></> : null}
-            {editor.emailType === "reminder" && editor.reportCreated && !editor.reportSent ? <><p className="font-bold">The report has not been marked as sent.</p><p className="mt-1">Mark the report as sent to the customer before preparing a reminder email.</p></> : null}
-            {editor.emailType === "report" && editor.reportCreated ? <><p className="font-bold">Report Email workflow is next.</p><p className="mt-1">The report is ready. The dedicated report email content and attachment workflow will be added next.</p></> : null}
-            {editor.emailType === "reminder" && editor.reportCreated && editor.reportSent ? <><p className="font-bold">Reminder Email workflow is next.</p><p className="mt-1">The report was sent. The dedicated reminder content and response-tracking workflow will be added next.</p></> : null}
+            <p className="font-bold">No report PDF has been created yet.</p><p className="mt-1">Create and save the report PDF for this ASC before preparing a report email.</p>
           </div>
-        ) : <>
+        ) : editor.emailType === "reminder" && (!editor.reportCreated || !editor.reportSent) ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-bold">The report has not been marked as sent.</p><p className="mt-1">Create the report PDF and mark the report sent to the customer before preparing a reminder.</p>
+          </div>
+        ) : editor.emailType === "confirmation" ? <>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium text-slate-700">
             Audit start time
@@ -1282,12 +1375,19 @@ function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange
             </div>
           ))}
         </section>
-        </>}
+        </> : editor.emailType === "report" ? (
+          <section className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-bold text-navy">Audit report attachment</h3><p className="text-sm text-slate-600">Attach the saved audit report before opening the Outlook draft.</p></div><button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50" onClick={() => void onChooseReport()}><FileText size={16} /> Attach Audit Report</button></div>
+            <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${editor.reportAttachmentPath ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{editor.reportAttachmentPath ? <><FileText className="mr-2 inline" size={16} />{editor.reportAttachmentPath.split(/[/\\]/).pop()}</> : "Audit report not attached yet"}</div>
+          </section>
+        ) : (
+          <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-bold">Reminder email</p><p className="mt-1">Haudy selects the reminder level and due date from the report’s clearance timeline.</p></section>
+        )}
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
           {preparing ? <span className="mr-auto inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-sky-800"><span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-200 border-t-sky-700" /> Creating Outlook draft…</span> : null}
-          {editor.confirmation.confirmationEmailPreparedAt && !editor.confirmation.confirmationEmailSentAt && editor.emailType === "confirmation" ? <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-50" onClick={onMarkSent} disabled={preparing}><CheckCircle2 size={16} /> Mark Sent</button> : null}
+          {((editor.emailType === "confirmation" && editor.confirmation.confirmationEmailPreparedAt && !editor.confirmation.confirmationEmailSentAt) || (editor.emailType === "report" && editor.report?.reportEmailPreparedAt && !editor.report?.reportEmailSentAt) || (editor.emailType === "reminder" && editor.report?.reminderEmailPreparedAt && !editor.report?.reminderEmailSentAt)) ? <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:opacity-50" onClick={onMarkSent} disabled={preparing}><CheckCircle2 size={16} /> Mark Sent</button> : null}
           <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={onClose} disabled={preparing}>Close</button>
-          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={editor.emailType !== "confirmation" || preparing} onClick={() => void onPrepare()}><UploadCloud size={16} /> {preparing ? "Preparing…" : "Open Outlook Draft"}</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={(editor.emailType === "report" && !editor.reportCreated) || (editor.emailType === "reminder" && (!editor.reportCreated || !editor.reportSent)) || preparing} onClick={() => void onPrepare()}><UploadCloud size={16} /> {preparing ? "Preparing…" : "Open Outlook Draft"}</button>
         </div>
       </section>
     </div>
@@ -1663,6 +1763,15 @@ function emailTime(value: string) {
   const suffix = hours >= 12 ? "PM" : "AM";
   const displayHour = hours % 12 || 12;
   return `${displayHour}:${minutes} ${suffix}`;
+}
+
+function reminderDetails(daysRemaining: number) {
+  if (daysRemaining < 0) return { label: "Past Due", subjectPrefix: "Past Due Notice", remainingText: `The response is ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? "" : "s"} overdue` };
+  if (daysRemaining === 0) return { label: "Due Today", subjectPrefix: "Action Required: Due Today", remainingText: "The response is due today" };
+  if (daysRemaining === 1) return { label: "Final", subjectPrefix: "Final Reminder", remainingText: "1 day remains" };
+  if (daysRemaining <= 6) return { label: "Urgent", subjectPrefix: "Urgent Reminder", remainingText: `${daysRemaining} days remain` };
+  if (daysRemaining <= 14) return { label: "Important", subjectPrefix: "Important Reminder", remainingText: `${daysRemaining} days remain` };
+  return { label: "Friendly", subjectPrefix: "Reminder", remainingText: `${daysRemaining} days remain` };
 }
 
 function formatEmailActivityTime(value: string) {

@@ -22,6 +22,13 @@ export interface SavedDocumentStatus {
   serviceCenterReportRequiredAction?: string;
   reportCreated?: boolean;
   reportCreatedAt?: string;
+  reportPdfPath?: string;
+  reportEmailPreparedAt?: string;
+  reportEmailSentAt?: string;
+  reportEmailDrafts?: string[];
+  reminderEmailPreparedAt?: string;
+  reminderEmailSentAt?: string;
+  reminderEmailDrafts?: string[];
   sentToClient?: boolean;
   reportSentAt?: string;
   clearanceStartDate?: string;
