@@ -499,6 +499,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const hasCrzhCertificates = group.audits.some(isProtectedAreaAudit);
           const hasNonCrzhCertificates = group.audits.some((audit) => !isProtectedAreaAudit(audit));
           const dashboardReport = documents?.[dashboardReportKey(group)];
+          const nextAction = nextAuditAction(group, profile, documents);
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
           <section id={ascCardDomId(group.key)} key={group.key} className={`haudy-asc-card grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName} ${focusAscKey === group.key ? "ring-2 ring-sky-300" : ""}`}>
@@ -520,6 +521,11 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   <div className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${status.className}`}>
                     {status.label}
                     {status.detail ? <span className="ml-2 font-medium opacity-80">{status.detail}</span> : null}
+                  </div>
+                  <div className={`mt-2 flex w-fit items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${nextAction.className}`}>
+                    <Target size={15} aria-hidden="true" />
+                    <span className="font-semibold">Next action:</span>
+                    <span>{nextAction.label}</span>
                   </div>
                   {shouldShowClearanceToggle(group, documents) ? (
                     <label className="mt-3 flex w-fit items-center gap-3 rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700">
@@ -1597,6 +1603,27 @@ interface HomeJobStatusDetails {
   detail: string;
   className: string;
   cardClassName: string;
+}
+
+interface AscNextAction {
+  label: string;
+  className: string;
+}
+
+function nextAuditAction(group: AssignmentGroup, profile: AscProfile, documents?: AscDocumentState): AscNextAction {
+  const confirmation = documents?.confirmation;
+  const report = documents?.[dashboardReportKey(group)];
+  if (!profile.pocName.trim()) return { label: "Select or add the POC", className: "border-amber-200 bg-amber-50 text-amber-950" };
+  if (!confirmation?.saved) return { label: "Create confirmation letter", className: "border-sky-200 bg-sky-50 text-sky-900" };
+  if (!confirmation.confirmationEmailPreparedAt) return { label: "Prepare confirmation email", className: "border-sky-200 bg-sky-50 text-sky-900" };
+  if (!group.audits.some(auditHasProgress)) return { label: "Complete field notes", className: "border-violet-200 bg-violet-50 text-violet-900" };
+  if (!report?.saved) return { label: "Create audit report", className: "border-violet-200 bg-violet-50 text-violet-900" };
+  if (!report.reportCreated) return { label: "Create report PDF", className: "border-violet-200 bg-violet-50 text-violet-900" };
+  if (!report.sentToClient) return { label: "Mark report sent to customer", className: "border-sky-200 bg-sky-50 text-sky-900" };
+  if (groupDeficiencyCount(group, documents) > 0 && !report.clearanceResponseReceived) {
+    return { label: "Await customer response", className: "border-amber-200 bg-amber-50 text-amber-950" };
+  }
+  return { label: "Audit closed", className: "border-emerald-200 bg-emerald-50 text-emerald-900" };
 }
 
 function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {
