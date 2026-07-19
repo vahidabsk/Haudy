@@ -309,17 +309,27 @@ fn save_haudy_text_file(base_path: String, folders: Vec<String>, file_name: Stri
 }
 
 #[tauri::command]
-fn create_haudy_database_snapshot(base_path: String, backup_id: String) -> Result<String, String> {
+fn create_haudy_database_snapshot(base_path: String, backup_id: String, file_name: String, contents: String) -> Result<Option<String>, String> {
     let database = PathBuf::from(base_path).join("Haudy Database");
     fs::create_dir_all(&database).map_err(|error| error.to_string())?;
-    let snapshot_root = database.join("Backup").join(safe_path_part(&backup_id));
+    let default_location = database.join("Backup");
+    fs::create_dir_all(&default_location).map_err(|error| error.to_string())?;
+    let Some(location) = rfd::FileDialog::new()
+        .set_title("Choose where to save this complete Haudy backup")
+        .set_directory(&default_location)
+        .pick_folder()
+    else {
+        return Ok(None);
+    };
+    let snapshot_root = location.join(format!("Haudy Backup {}", safe_path_part(&backup_id)));
     let snapshot_database = snapshot_root.join("Haudy Database");
     if snapshot_database.exists() {
         fs::remove_dir_all(&snapshot_database).map_err(|error| error.to_string())?;
     }
     fs::create_dir_all(&snapshot_root).map_err(|error| error.to_string())?;
     copy_directory(&database, &snapshot_database, true)?;
-    Ok(snapshot_root.to_string_lossy().to_string())
+    fs::write(snapshot_root.join(safe_file_name(&file_name)), contents).map_err(|error| error.to_string())?;
+    Ok(Some(snapshot_root.to_string_lossy().to_string()))
 }
 
 #[tauri::command]
@@ -336,7 +346,7 @@ fn restore_haudy_database_snapshot(base_path: String) -> Result<Option<DatabaseR
     };
     let snapshot_database = snapshot_root.join("Haudy Database");
     if !snapshot_database.is_dir() {
-        return Err("Select the dated backup folder inside Haudy Database/Backup. It must contain a Haudy Database folder.".to_string());
+        return Err("Select a complete Haudy backup folder. It must contain a Haudy Database folder.".to_string());
     }
     let backup_file = fs::read_dir(&snapshot_root)
         .map_err(|error| error.to_string())?

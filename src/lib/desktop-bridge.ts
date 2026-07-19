@@ -88,11 +88,11 @@ export async function saveDesktopTextFile(folders: string[], fileName: string, c
   });
 }
 
-export async function createHaudyDatabaseSnapshot(backupId: string) {
+export async function createHaudyDatabaseSnapshot(backupId: string, fileName: string, contents: string) {
   const invoke = getTauriInvoke();
   const basePath = storedHaudyDatabaseRoot();
   if (!invoke || !basePath) throw new Error("Choose the Haudy Database location first.");
-  return invoke<string>("create_haudy_database_snapshot", { basePath, backupId });
+  return invoke<string | null>("create_haudy_database_snapshot", { basePath, backupId, fileName, contents });
 }
 
 export async function restoreHaudyDatabaseSnapshot() {

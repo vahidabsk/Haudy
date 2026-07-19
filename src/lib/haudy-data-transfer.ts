@@ -1,4 +1,4 @@
-import { chooseHaudyDatabaseRoot, createHaudyDatabaseSnapshot, hasDesktopBridge, saveDesktopTextFile, storedHaudyDatabaseRoot } from "./desktop-bridge";
+import { chooseHaudyDatabaseRoot, createHaudyDatabaseSnapshot, hasDesktopBridge, storedHaudyDatabaseRoot } from "./desktop-bridge";
 import { isDesktopApp } from "./desktop-runtime";
 
 const BACKUP_VERSION = 1;
@@ -36,8 +36,8 @@ export async function exportHaudyBackup({ includePhotos = false } = {}) {
   const contents = JSON.stringify(backup, null, 2);
   if (isDesktopApp() && hasDesktopBridge()) {
     if (!storedHaudyDatabaseRoot()) await chooseHaudyDatabaseRoot();
-    const snapshotPath = await createHaudyDatabaseSnapshot(backupId);
-    await saveDesktopTextFile(["Backup", backupId], fileName, contents);
+    const snapshotPath = await createHaudyDatabaseSnapshot(backupId, fileName, contents);
+    if (!snapshotPath) return "Workspace backup cancelled.";
     return `Complete workspace backup saved to ${snapshotPath}.`;
   }
   const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
