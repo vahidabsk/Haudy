@@ -577,6 +577,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const crzhReportSaved = documents?.crzhReport?.saved;
           const hasCrzhCertificates = group.audits.some(isProtectedAreaAudit);
           const hasNonCrzhCertificates = group.audits.some((audit) => !isProtectedAreaAudit(audit));
+          const hasCertificates = group.audits.length > 0;
           const dashboardReport = documents?.[dashboardReportKey(group)];
           const nextAction = nextAuditAction(group, profile, documents);
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
@@ -677,7 +678,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   <button className="haudy-card-action" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
                     <Building2 size={16} /> Field Notes
                   </button>
-                  <button className="haudy-card-action" onClick={() => {
+                  <button className="haudy-card-action disabled:cursor-not-allowed disabled:opacity-50" disabled={!confirmationSaved && !hasCertificates} title={!confirmationSaved && !hasCertificates ? "Add a certificate before creating a confirmation letter." : undefined} onClick={() => {
+                    if (!confirmationSaved && !hasCertificates) return;
                     if (confirmationSaved && documents?.confirmation) {
                       const params = new URLSearchParams({
                         poc: profile.pocName,
@@ -695,7 +697,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     }
                     setConfirmationGroup(group);
                   }}>
-                    <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : "Create Confirmation"}
+                    <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : hasCertificates ? "Create Confirmation" : "Add Certificate First"}
                   </button>
                   {hasNonCrzhCertificates ? (
                     <button className="haudy-card-action" onClick={() => {

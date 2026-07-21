@@ -28,6 +28,19 @@ export function ConfirmationPage({ auditor }: { auditor: Auditor | null }) {
   const psn = searchParams.get("psn") || "";
 
   if (!group) return <main className="p-6">ASC not found.</main>;
+  if (!group.audits.length) {
+    return (
+      <main className="mx-auto grid max-w-2xl gap-4 px-4 py-8">
+        <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-950 shadow-sm">
+          <h1 className="text-xl font-bold">Add a certificate first</h1>
+          <p className="mt-2">A confirmation letter can only be created after at least one certificate has been added to this ASC.</p>
+          <button type="button" className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-100" onClick={() => window.history.back()}>
+            <ArrowLeft size={16} /> Back to ASCs
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return <ConfirmationDocument ascKey={decodeURIComponent(ascKey)} group={group} auditor={auditor} pocName={pocName} startDate={startDate} endDate={endDate} startTime={startTime} meetingLocation={meetingLocation} conversationDate={conversationDate} letterDate={letterDate} scn={scn} psn={psn} />;
 }
