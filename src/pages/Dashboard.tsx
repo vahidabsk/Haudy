@@ -1715,6 +1715,7 @@ interface AscNextAction {
 function nextAuditAction(group: AssignmentGroup, profile: AscProfile, documents?: AscDocumentState): AscNextAction {
   const confirmation = documents?.confirmation;
   const report = documents?.[dashboardReportKey(group)];
+  if (!group.audits.length) return { label: "Add certificate", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!profile.pocName.trim()) return { label: "Select or add the POC", className: "border-amber-200 bg-amber-50 text-amber-950" };
   if (!confirmation?.saved) return { label: "Create confirmation letter", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!confirmation.confirmationEmailPreparedAt) return { label: "Prepare confirmation email", className: "border-sky-200 bg-sky-50 text-sky-900" };
