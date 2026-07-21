@@ -84,6 +84,23 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
   const primary = currentAudit.certificates[currentAudit.primaryCertificateIndex];
   const signalRowsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
   const signalControlsDisabled = audit.deviceSystemLocal || !audit.signalProcessingReviewed;
+
+  if (currentAudit.fieldVisitStatus === "notVisited") {
+    return (
+      <main className="mx-auto grid max-w-3xl gap-5 px-4 py-6">
+        <section className="grid gap-4 rounded-lg border border-slate-400 bg-slate-100 p-6 shadow-sm">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Property Status</p>
+            <h1 className="mt-1 text-2xl font-bold text-navy">Not Visited</h1>
+            <p className="mt-2 text-slate-700">{currentAudit.protectedProperty || "This property"} is excluded from the ASC field-note completion calculation.</p>
+          </div>
+          <button type="button" className="inline-flex w-fit min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => navigate(`/asc/${encodeURIComponent(ascKey)}`)}>
+            <ArrowLeft size={16} /> Back to Properties
+          </button>
+        </section>
+      </main>
+    );
+  }
   function commitAudit() {
     const saved = cloneAudit({ ...currentAudit, updatedAt: nowIso() })!;
     const allAudits = loadAudits();

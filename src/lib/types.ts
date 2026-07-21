@@ -234,6 +234,8 @@ export interface Audit {
   fileScn: string;
   protectedProperty: string;
   codeEdition: string;
+  fieldVisitStatus?: "notVisited";
+  fieldVisitMarkedAt?: string;
   signalProcessingReviewed: boolean;
   signalReviewStart: string;
   signalReviewEnd: string;

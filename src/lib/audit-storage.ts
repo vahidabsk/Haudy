@@ -367,6 +367,8 @@ function normalizeAudit(audit: Audit): Audit {
   const defaultCode = defaultCodeStandard(program);
   return {
     ...audit,
+    fieldVisitStatus: audit.fieldVisitStatus === "notVisited" ? "notVisited" : undefined,
+    fieldVisitMarkedAt: audit.fieldVisitMarkedAt || undefined,
     ascCity: audit.ascCity ?? primaryCertificate?.ascCity ?? ascLocation.city,
     ascState: audit.ascState ?? primaryCertificate?.ascState ?? ascLocation.state,
     signalProcessingReviewed: audit.editedFields?.signalProcessingReviewed ? Boolean(audit.signalProcessingReviewed) : true,

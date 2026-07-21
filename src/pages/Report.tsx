@@ -13,6 +13,7 @@ import { isReferenceComplete, printableReferenceValue, UNUSED_REFERENCE_VALUE } 
 import { Audit, AuditRow, Auditor, DeviceTestRow, ParsedCertificate, ReportFindingEntry, SignalLogRow } from "../lib/types";
 import { ReportFindingFields, ReportFindingValue } from "../components/ReportFindingFields";
 import { isProtectedAreaAudit } from "../lib/audit-program";
+import { FIELD_NOTE_READY_PERCENT, groupFieldNoteProgress } from "../lib/field-note-progress";
 import { addReportFindingsToPastReports, AuditorReportFinding } from "../lib/auditor-report-findings";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
@@ -57,6 +58,26 @@ export function ReportPage({ auditor }: { auditor: Auditor | null }) {
   if (!group) return <main className="p-6">ASC not found.</main>;
   const reportAudits = group.audits.filter((audit) => reportKind === "crzh" ? isProtectedAreaAudit(audit) : !isProtectedAreaAudit(audit));
   const filteredGroup = { ...group, audits: reportAudits };
+  const reportDocumentKey = reportKind === "crzh" ? "crzhReport" : "report";
+  const existingReport = loadAscDocuments()[decodeURIComponent(ascKey)]?.[reportDocumentKey];
+  const readiness = groupFieldNoteProgress(reportAudits);
+
+  if (!existingReport?.saved && !readiness.readyForReport) {
+    return (
+      <main className="mx-auto grid max-w-3xl gap-5 px-4 py-6">
+        <section className="grid gap-4 rounded-lg border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Field Notes Required</p>
+            <h1 className="mt-1 text-2xl font-bold text-navy">Report not ready yet</h1>
+            <p className="mt-2 text-slate-700">Each visited property must reach {FIELD_NOTE_READY_PERCENT}% field-note completion before a new report can be created. Properties marked Not Visited are excluded.</p>
+          </div>
+          <button type="button" className="inline-flex w-fit min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => window.history.back()}>
+            <ArrowLeft size={16} /> Back to ASC
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <ReportDocument

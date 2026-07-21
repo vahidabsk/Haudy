@@ -19,6 +19,7 @@ import { Audit, ParsedCertificate } from "../lib/types";
 import { formatUsPhone, relativeTime } from "../lib/utils";
 import { OFFLINE_READY_KEY } from "../register-service-worker";
 import { isProtectedAreaAudit } from "../lib/audit-program";
+import { FIELD_NOTE_READY_PERCENT, fieldNoteProgress, groupFieldNoteProgress } from "../lib/field-note-progress";
 
 interface DuplicateUploadReview {
   certificates: ParsedCertificate[];
@@ -700,7 +701,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <CalendarCheck size={16} /> {confirmationSaved ? "View / Edit Confirmation" : hasCertificates ? "Create Confirmation" : "Add Certificate First"}
                   </button>
                   {hasNonCrzhCertificates ? (
-                    <button className="haudy-card-action" onClick={() => {
+                    <button className="haudy-card-action disabled:cursor-not-allowed disabled:opacity-50" disabled={!reportSaved && !groupFieldNoteProgress(group.audits.filter((audit) => !isProtectedAreaAudit(audit))).readyForReport} title={!reportSaved && !groupFieldNoteProgress(group.audits.filter((audit) => !isProtectedAreaAudit(audit))).readyForReport ? `Complete field notes to ${FIELD_NOTE_READY_PERCENT}% for every visited property before creating the report.` : undefined} onClick={() => {
                       const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn });
                       navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
                     }}>
@@ -708,7 +709,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     </button>
                   ) : null}
                   {hasCrzhCertificates ? (
-                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-900 hover:bg-violet-100" onClick={() => {
+                    <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-semibold text-violet-900 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50" disabled={!crzhReportSaved && !groupFieldNoteProgress(group.audits.filter(isProtectedAreaAudit)).readyForReport} title={!crzhReportSaved && !groupFieldNoteProgress(group.audits.filter(isProtectedAreaAudit)).readyForReport ? `Complete field notes to ${FIELD_NOTE_READY_PERCENT}% for every visited property before creating the CRZH report.` : undefined} onClick={() => {
                       const params = new URLSearchParams({ poc: profile.pocName, scn: profile.scn, psn: profile.psn, kind: "crzh" });
                       navigate(`/asc/${encodeURIComponent(group.key)}/report?${params.toString()}`);
                     }}>
@@ -1483,6 +1484,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const { ascKey = "" } = useParams();
   const [deleteAudit, setDeleteAudit] = useState<Audit | null>(null);
+  const [visitStatusAudit, setVisitStatusAudit] = useState<Audit | null>(null);
   const [iHaudyMessage, setIHaudyMessage] = useState("");
   const iHaudyImportRef = useRef<HTMLInputElement | null>(null);
   const assignments = loadAuditAssignments();
@@ -1498,6 +1500,7 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
   }
 
   const propertyCategories = groupPropertiesByCategory(group.audits);
+  const completion = groupFieldNoteProgress(group.audits);
 
   useEffect(() => {
     const auditId = decodeURIComponent(window.location.hash.replace(/^#/, ""));
@@ -1564,9 +1567,17 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
             </div>
             {iHaudyMessage ? <p className="mt-2 text-sm font-medium text-slate-600">{iHaudyMessage}</p> : null}
           </div>
-          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
-            {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"}
-          </span>
+          <div className="flex flex-wrap justify-end gap-2">
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-900">
+              Field notes {completion.percentage}% complete
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
+              {completion.visited} visited{completion.notVisited ? ` · ${completion.notVisited} not visited` : ""}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
+              {group.audits.length} certificate{group.audits.length === 1 ? "" : "s"}
+            </span>
+          </div>
         </div>
       </section>
       <section className="grid gap-5">
@@ -1579,8 +1590,11 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
               <h2 className="text-lg font-bold text-navy">{category}</h2>
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700">{categoryAudits.length} propert{categoryAudits.length === 1 ? "y" : "ies"}</span>
             </div>
-            {categoryAudits.map((audit) => (
-              <article id={propertyCardDomId(audit.id)} key={audit.id} className={`haudy-property-card haudy-property-${category.toLowerCase()} grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md`}>
+            {categoryAudits.map((audit) => {
+              const progress = fieldNoteProgress(audit);
+              const notVisited = progress.notVisited;
+              return (
+              <article id={propertyCardDomId(audit.id)} key={audit.id} className={`haudy-property-card ${notVisited ? "border-slate-400 bg-slate-200" : `haudy-property-${category.toLowerCase()}`} grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md`}>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-slate-100 text-navy"><Building2 size={21} /></div>
@@ -1590,12 +1604,12 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
                         <MapPin size={14} />
                         {primaryCertificateAddress(audit) || "Property address not detected"}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">Updated {relativeTime(audit.updatedAt)}</p>
+                      <p className="mt-1 text-xs text-slate-500">{notVisited ? "Marked Not Visited" : `Field notes ${progress.percentage}% complete`} · Updated {relativeTime(audit.updatedAt)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">
-                      {audit.certificateNumber || "Certificate not set"}
+                    <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${notVisited ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                      {notVisited ? "Not Visited" : audit.certificateNumber || "Certificate not set"}
                     </span>
                     <ShieldCheck className="hidden text-emerald-600 sm:block" size={24} />
                   </div>
@@ -1607,13 +1621,15 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
                     <span className="font-semibold text-navy">Standard:</span> {audit.codeEdition || "not detected"}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit</Link>
+                    {!notVisited ? <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}`}><FilePenLine size={16} /> Edit</Link> : null}
                     <Link className="inline-flex min-h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50" to={`/audit/${audit.id}/export`}><Download size={16} /> Export</Link>
+                    <button className={`inline-flex min-h-9 items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50 ${notVisited ? "border-sky-200 text-sky-800" : "border-amber-200 text-amber-800 hover:bg-amber-50"}`} onClick={() => setVisitStatusAudit(audit)}>{notVisited ? "Mark Visited" : "Mark Not Visited"}</button>
                     <button className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setDeleteAudit(audit)}><Trash2 size={16} /> Delete</button>
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </section>
         ))}
       </section>
@@ -1632,7 +1648,44 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
           }}
         />
       ) : null}
+      {visitStatusAudit ? (
+        <VisitStatusDialog
+          audit={visitStatusAudit}
+          onCancel={() => setVisitStatusAudit(null)}
+          onConfirm={() => {
+            const markingNotVisited = visitStatusAudit.fieldVisitStatus !== "notVisited";
+            audits.setAudits(audits.audits.map((item) => item.id === visitStatusAudit.id ? {
+              ...item,
+              fieldVisitStatus: markingNotVisited ? "notVisited" : undefined,
+              fieldVisitMarkedAt: markingNotVisited ? new Date().toISOString() : undefined,
+              updatedAt: new Date().toISOString(),
+            } : item));
+            setVisitStatusAudit(null);
+          }}
+        />
+      ) : null}
     </main>
+  );
+}
+
+function VisitStatusDialog({ audit, onCancel, onConfirm }: { audit: Audit; onCancel: () => void; onConfirm: () => void }) {
+  const markingNotVisited = audit.fieldVisitStatus !== "notVisited";
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4">
+      <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 className="text-xl font-bold text-navy">{markingNotVisited ? "Mark Property Not Visited?" : "Mark Property Visited?"}</h2>
+          <p className="mt-1 text-sm text-slate-600">{audit.protectedProperty || "Selected property"}</p>
+        </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          {markingNotVisited ? `This property will be clearly identified as Not Visited and excluded from the ASC field-note completion calculation.` : "This property will return to the field-note calculation and can be edited again."}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={onCancel}>Cancel</button>
+          <button type="button" className={`min-h-10 rounded-md border px-4 text-sm font-semibold text-white ${markingNotVisited ? "border-slate-700 bg-slate-700 hover:bg-slate-800" : "border-sky-700 bg-sky-700 hover:bg-sky-800"}`} onClick={onConfirm}>{markingNotVisited ? "Mark Not Visited" : "Mark Visited"}</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
