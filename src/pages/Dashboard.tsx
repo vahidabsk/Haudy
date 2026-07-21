@@ -1608,6 +1608,11 @@ export function AscPropertiesPage({ auditorName }: { auditorName: string }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    {!notVisited ? (
+                      <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${progress.readyForReport ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                        {progress.percentage}% complete
+                      </span>
+                    ) : null}
                     <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${notVisited ? "border-slate-400 bg-slate-100 text-slate-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
                       {notVisited ? "Not Visited" : audit.certificateNumber || "Certificate not set"}
                     </span>
