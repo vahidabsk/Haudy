@@ -35,6 +35,7 @@ interface ReportItem {
   codeStandard: string;
   codeEdition: string;
   codeSection: string;
+  simpleExplanation?: boolean;
 }
 
 interface ReportPhotoItem {
@@ -104,7 +105,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const [serviceCenterMinimized, setServiceCenterMinimized] = useState(false);
   const [serviceCenterComments, setServiceCenterComments] = useState<ServiceCenterComment[]>(() => serviceCenterCommentsFromDraft(savedReportDraft));
   const [reportLetterDate, setReportLetterDate] = useState(savedReportDraft?.letterDate || todayInputValue());
-  const [savedSnapshot, setSavedSnapshot] = useState(() => reportSnapshot({ audits: group.audits, letterDate: savedReportDraft?.letterDate || todayInputValue(), serviceCenterHasComment: savedReportDraft?.serviceCenterHasComment ?? false, serviceCenterDone: savedReportDraft?.serviceCenterDone ?? false, serviceCenterComments: serviceCenterCommentsFromDraft(savedReportDraft) }));
+  const [lateResponseProjectAmount, setLateResponseProjectAmount] = useState(savedReportDraft?.lateResponseProjectAmount || "1436");
+  const [savedSnapshot, setSavedSnapshot] = useState(() => reportSnapshot({ audits: group.audits, letterDate: savedReportDraft?.letterDate || todayInputValue(), lateResponseProjectAmount: savedReportDraft?.lateResponseProjectAmount || "1436", serviceCenterHasComment: savedReportDraft?.serviceCenterHasComment ?? false, serviceCenterDone: savedReportDraft?.serviceCenterDone ?? false, serviceCenterComments: serviceCenterCommentsFromDraft(savedReportDraft) }));
   const [pendingNavigation, setPendingNavigation] = useState("");
   const reportGroup = useMemo(() => ({ ...group, audits: draftAudits }), [group, draftAudits]);
   const reportAudits = useMemo(() => reportAuditsByCategory(draftAudits), [draftAudits]);
@@ -121,7 +123,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const activeSignalItems = activeItems.filter(({ item }) => item.reviewType === "Signal Processing Review");
   const activeDocumentationItems = activeItems.filter(({ item }) => item.reviewType === "Documentation Review");
   const activeInstallationItems = activeItems.filter(({ item }) => item.reviewType === "Installation Review");
-  const currentSnapshot = reportSnapshot({ audits: draftAudits, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+  const currentSnapshot = reportSnapshot({ audits: draftAudits, letterDate: reportLetterDate, lateResponseProjectAmount, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
 
   useEffect(() => {
@@ -149,7 +151,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
     const draftById = new Map(draftAudits.map((audit) => [audit.id, audit]));
     const nextAudits = allAudits.map((audit) => draftById.get(audit.id) || audit);
     saveAudits(nextAudits);
-    const next = saveAscDocument(ascKey, reportDocumentKey, { pocName, scn, psn, letterDate: reportLetterDate, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
+    const next = saveAscDocument(ascKey, reportDocumentKey, { pocName, scn, psn, letterDate: reportLetterDate, lateResponseProjectAmount, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
     setSavedAt(next[ascKey]?.[reportDocumentKey]?.updatedAt || "");
     setSavedSnapshot(currentSnapshot);
     if (canSaveDocumentsToFolder()) {
@@ -169,6 +171,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
       scn,
       psn,
       letterDate: reportLetterDate,
+      lateResponseProjectAmount,
       serviceCenterHasComment,
       serviceCenterDone,
       serviceCenterComments,
@@ -283,6 +286,19 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
                   setReportLetterDate(nextDate);
                 }}
               />
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              Opening project amount
+              <span className="flex min-h-10 items-center rounded-md border border-slate-300 bg-white pl-3">
+                <span className="text-slate-500">$</span>
+                <input
+                  className="min-h-10 w-24 rounded-md bg-transparent px-2 outline-none"
+                  inputMode="decimal"
+                  value={lateResponseProjectAmount}
+                  onChange={(event) => setLateResponseProjectAmount(event.target.value.replace(/[^0-9.]/g, ""))}
+                  aria-label="Opening project amount"
+                />
+              </span>
             </label>
           </div>
         </div>
@@ -409,7 +425,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
       </div>
 
       <ReportLetterPage group={reportGroup} pocName={pocName} date={reportDate} files={fileReferences} scn={scn} psn={psn} />
-      <LateResponsePage auditor={auditor} />
+      <LateResponsePage auditor={auditor} projectAmount={lateResponseProjectAmount} />
       <AuditCommentsPage group={reportGroup} serviceCenterHasComment={serviceCenterHasComment} serviceCenterComments={serviceCenterComments} />
       {pendingNavigation ? <UnsavedChangesDialog onSave={saveAndNavigate} onDiscard={discardAndNavigate} onCancel={() => setPendingNavigation("")} /> : null}
     </main>
@@ -432,10 +448,11 @@ function cloneAudits(audits: Audit[]) {
   return audits.map(cloneAudit);
 }
 
-function reportSnapshot(details: { audits: Audit[]; letterDate: string; serviceCenterHasComment: boolean; serviceCenterDone: boolean; serviceCenterComments: ServiceCenterComment[] }) {
+function reportSnapshot(details: { audits: Audit[]; letterDate: string; lateResponseProjectAmount: string; serviceCenterHasComment: boolean; serviceCenterDone: boolean; serviceCenterComments: ServiceCenterComment[] }) {
   return JSON.stringify({
     audits: details.audits,
     letterDate: details.letterDate || "",
+    lateResponseProjectAmount: details.lateResponseProjectAmount || "",
     serviceCenterHasComment: details.serviceCenterHasComment,
     serviceCenterDone: details.serviceCenterDone,
     serviceCenterComments: details.serviceCenterComments,
@@ -662,7 +679,7 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
   return (
     <div className="grid gap-1 rounded-md border bg-slate-50 p-3">
       <div className="text-sm font-semibold text-navy">{audit.protectedProperty} - {item.reviewType} - {item.category}</div>
-      <div className="flex flex-wrap gap-2">
+      {!item.simpleExplanation ? <div className="flex flex-wrap gap-2">
         {item.extraIndex === undefined ? (
           <button
             type="button"
@@ -680,8 +697,8 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
             Remove Finding
           </button>
         )}
-      </div>
-      {certificateCode.year ? <div className="text-xs font-medium text-slate-500">Certificate declared: {certificateCode.standard}, {certificateCode.year} Edition</div> : null}
+      </div> : null}
+      {!item.simpleExplanation && certificateCode.year ? <div className="text-xs font-medium text-slate-500">Certificate declared: {certificateCode.standard}, {certificateCode.year} Edition</div> : null}
       {item.note ? (
         <div className="text-sm font-medium text-red-700">
           <span className="font-bold">Field Note:</span> {item.note}
@@ -689,19 +706,29 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
       ) : (
         <div className="text-sm italic text-slate-500">Field note left empty.</div>
       )}
-      <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? "Report language needs attention." : "Ready for final review."}</div>
-      <ReportFindingFields
+      <div className={`text-sm font-medium ${missing ? "text-amber-800" : "text-emerald-700"}`}>{missing ? (item.simpleExplanation ? "Add the reason this review was not completed." : "Report language needs attention.") : "Ready for final review."}</div>
+      {item.simpleExplanation ? (
+        <label className="grid gap-1 text-sm font-medium text-slate-700">
+          Reason the review was not completed
+          <textarea
+            className="min-h-28 rounded-md border border-slate-300 bg-white p-3"
+            value={item.finding}
+            onChange={(event) => onUpdateAudit(updateReportItem(audit, item, { reportFinding: event.target.value }))}
+            placeholder="Explain why this review was not completed. This text will print under the related report section."
+          />
+        </label>
+      ) : <ReportFindingFields
         value={reportValue(item)}
         showReportHelp
         helpStandard={certificateCode.standard}
         helpYear={certificateCode.year}
         onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
-      />
+      />}
     </div>
   );
 }
 
-function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
+function LateResponsePage({ auditor, projectAmount }: { auditor: Auditor | null; projectAmount: string }) {
   return (
     <section className="report-page report-fixed-page print-page bg-white text-black shadow-sm print:shadow-none">
       <ReportHeader />
@@ -711,7 +738,7 @@ function LateResponsePage({ auditor }: { auditor: Auditor | null }) {
         <ol className="report-late-list">
           <li>For certificate issuing Files, the ability to issue new or change existing protected property Certificates will be suspended.</li>
           <li>For monitoring facility Files, the ability to be designated as the monitoring location for alarm systems covered by newly issued Certificates will be suspended.</li>
-          <li>A mandatory billable project in the amount of <mark className="report-highlight">$1436</mark> will be opened to help defray the additional administrative expense associated with handling late responses.</li>
+          <li>A mandatory billable project in the amount of <mark className="report-highlight">{formatProjectAmount(projectAmount)}</mark> will be opened to help defray the additional administrative expense associated with handling late responses.</li>
         </ol>
         <p>If your reply has still not been received within 55 days of the date of this letter the following actions will occur:</p>
         <ol className="report-late-list">
@@ -825,12 +852,13 @@ function SignalReportSection({ audit, items, takeNumber }: { audit: Audit; items
     supervisory: audit.signalLog.filter((row) => row.signalType === "Supervisory").length,
     trouble: audit.signalLog.filter((row) => row.signalType === "Trouble").length,
   };
+  if (!audit.signalLog.some((row) => row.signalType)) return null;
   return (
     <div className="report-review-section">
       <h3>----Signal Processing Review----</h3>
       <p className="report-aligned-note">A total of {counts.alarm} alarm, {counts.supervisory} supervisory, and {counts.trouble} trouble signal event(s) has been reviewed.</p>
       {!items.length ? <p className="report-aligned-note">** No non-compliance issues were identified during the signal review.</p> : null}
-      {items.map((item) => <ReportFinding key={item.id} item={item} number={takeNumber()} />)}
+      {items.map((item) => <ReportFinding key={item.id} item={item} number={item.simpleExplanation ? 0 : takeNumber()} />)}
     </div>
   );
 }
@@ -840,12 +868,20 @@ function ReportSection({ title, items, emptyText, takeNumber }: { title: ReportR
     <div className="report-review-section">
       <h3>----{title}----</h3>
       {!items.length ? <p className="report-aligned-note">{emptyText}</p> : null}
-      {items.map((item) => <ReportFinding key={item.id} item={item} number={takeNumber()} />)}
+      {items.map((item) => <ReportFinding key={item.id} item={item} number={item.simpleExplanation ? 0 : takeNumber()} />)}
     </div>
   );
 }
 
 function ReportFinding({ item, number }: { item: ReportItem; number: number }) {
+  if (item.simpleExplanation) {
+    return (
+      <div className="report-finding">
+        <h4>{item.category}</h4>
+        <p>{item.finding || "Reason not provided."}</p>
+      </div>
+    );
+  }
   return (
     <div className="report-finding">
       <h4>{item.category}</h4>
@@ -932,10 +968,12 @@ function printableReportItems(audit: Audit): ReportItem[] {
 }
 
 function reportItemHasContent(item: ReportItem) {
+  if (item.simpleExplanation) return Boolean(item.finding.trim());
   return Boolean(item.finding.trim() || item.requiredAction.trim() || item.codeEdition.trim() || item.codeSection.trim() || (item.codeStandard.trim() && item.codeStandard.trim() !== "NFPA 72"));
 }
 
 function reportItemNeedsAttention(item: ReportItem) {
+  if (item.simpleExplanation) return !item.finding.trim();
   return !item.finding.trim() || !item.requiredAction.trim() || !isReferenceComplete(item.codeStandard, "NFPA 72") || !isReferenceComplete(item.codeEdition) || !isReferenceComplete(item.codeSection);
 }
 
@@ -1117,6 +1155,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
       codeStandard: audit.installationReviewReportCodeStandard,
       codeEdition: audit.installationReviewReportCodeEdition,
       codeSection: audit.installationReviewReportCodeSection,
+      simpleExplanation: true,
     });
   }
   if (!audit.deviceTestingReviewed && (audit.editedFields?.deviceTestingReviewed || audit.deviceTestingNotes)) {
@@ -1133,6 +1172,7 @@ function sectionReviewItems(audit: Audit): ReportItem[] {
       codeStandard: audit.deviceTestingReportCodeStandard,
       codeEdition: audit.deviceTestingReportCodeEdition,
       codeSection: audit.deviceTestingReportCodeSection,
+      simpleExplanation: true,
     });
   }
   return items;
@@ -1478,6 +1518,12 @@ function formatServiceCenterCodeReference(comment: ServiceCenterComment) {
   const edition = editionValue ? `${editionValue.replace(/\D/g, "") || editionValue} Edition` : "";
   const section = sectionValue ? `Section ${sectionValue}` : "";
   return [standard, edition, section].filter(Boolean).join(", ") || "Not used";
+}
+
+function formatProjectAmount(value: string) {
+  const amount = Number.parseFloat(value);
+  if (!Number.isFinite(amount)) return "$0";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
 }
 
 function ReportHeader() {

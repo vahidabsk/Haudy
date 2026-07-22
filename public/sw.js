@@ -1,4 +1,4 @@
-const CACHE_NAME = "haudy-offline-v3";
+const CACHE_NAME = "haudy-offline-v4";
 const APP_SHELL = [
   "/",
   "/index.html",

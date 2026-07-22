@@ -11,6 +11,7 @@ export interface SavedDocumentStatus {
   meetingLocation?: string;
   conversationDate?: string;
   letterDate?: string;
+  lateResponseProjectAmount?: string;
   confirmationPdfPath?: string;
   confirmationEmailPreparedAt?: string;
   confirmationEmailSentAt?: string;

@@ -28,6 +28,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
   const currentAudit = audit;
   const [folderMessage, setFolderMessage] = useState("");
   const deviceComments = deviceTestComments(audit.deviceTests);
+  const reviewComments = notReviewedComments(audit);
 
   function csv() {
     const blob = new Blob([auditToCsv(currentAudit)], { type: "text/csv" });
@@ -138,7 +139,7 @@ function ExportDocument({ audit }: { audit: Audit }) {
           }
         />
         <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(0, deviceRowsPage2), deviceRowsPage2)} localSystem={audit.deviceSystemLocal} />
-        <CommentsBox comments={deviceComments} compact />
+        <CommentsBox comments={[reviewComments, deviceComments].filter(Boolean).join("\n")} compact />
       </FieldNotesPage>
       <FieldNotesPage pageNumber={3} totalPages={totalPages} audit={audit}>
         <DeviceTable rows={padDeviceRows(audit.deviceTests.slice(deviceRowsPage2), deviceRowsPage3)} localSystem={audit.deviceSystemLocal} continued />
@@ -165,7 +166,7 @@ function MercantileFieldNotesPage({ audit }: { audit: Audit }) {
       <MercantileDeviceTable rows={padDeviceRows(deviceRows, 5)} />
       <div className="merc-comments">
         <div className="merc-comments-label">Additional Comments</div>
-        <div>{[audit.comments, audit.deviceTestingNotes, deviceTestComments(audit.deviceTests)].filter(Boolean).join("\n")}</div>
+        <div>{[audit.comments, notReviewedComments(audit), deviceTestComments(audit.deviceTests)].filter(Boolean).join("\n")}</div>
       </div>
     </section>
   );
@@ -727,6 +728,17 @@ function deviceTestComments(rows: DeviceTestRow[]) {
       return `${label}: ${row.notes.trim()}`;
     })
     .join("\n");
+}
+
+function notReviewedComments(audit: Audit) {
+  const comments: string[] = [];
+  if (!audit.installationReviewed && audit.installationReviewNotes.trim()) {
+    comments.push(`Installation review not completed: ${audit.installationReviewNotes.trim()}`);
+  }
+  if (!audit.deviceTestingReviewed && audit.deviceTestingNotes.trim()) {
+    comments.push(`Device testing not completed: ${audit.deviceTestingNotes.trim()}`);
+  }
+  return comments.join("\n");
 }
 
 function mercantileDeviceRowsForExport(audit: Audit) {
