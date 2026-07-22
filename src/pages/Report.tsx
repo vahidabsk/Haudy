@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { groupAssignmentsAndAudits, loadAuditAssignments } from "../lib/audit-assignments";
 import { loadAscDocuments, saveAscDocument, ServiceCenterComment } from "../lib/asc-documents";
+import { loadAscProfiles } from "../lib/asc-profile";
 import { loadAudits, saveAudits } from "../lib/audit-storage";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
@@ -15,6 +16,7 @@ import { ReportFindingFields, ReportFindingValue } from "../components/ReportFin
 import { isProtectedAreaAudit } from "../lib/audit-program";
 import { FIELD_NOTE_READY_PERCENT, groupFieldNoteProgress } from "../lib/field-note-progress";
 import { addReportFindingsToPastReports, AuditorReportFinding } from "../lib/auditor-report-findings";
+import { AuditEmailDialog } from "../components/AuditEmailDialog";
 
 type ReportReview = "Signal Processing Review" | "Documentation Review" | "Installation Review";
 type ReportSource = "signalLog" | "documentation" | "installation" | "deviceTests" | "sectionReview";
@@ -108,6 +110,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const [lateResponseProjectAmount, setLateResponseProjectAmount] = useState(savedReportDraft?.lateResponseProjectAmount || "1436");
   const [savedSnapshot, setSavedSnapshot] = useState(() => reportSnapshot({ audits: group.audits, letterDate: savedReportDraft?.letterDate || todayInputValue(), lateResponseProjectAmount: savedReportDraft?.lateResponseProjectAmount || "1436", serviceCenterHasComment: savedReportDraft?.serviceCenterHasComment ?? false, serviceCenterDone: savedReportDraft?.serviceCenterDone ?? false, serviceCenterComments: serviceCenterCommentsFromDraft(savedReportDraft) }));
   const [pendingNavigation, setPendingNavigation] = useState("");
+  const [showReportEmail, setShowReportEmail] = useState(false);
   const reportGroup = useMemo(() => ({ ...group, audits: draftAudits }), [group, draftAudits]);
   const reportAudits = useMemo(() => reportAuditsByCategory(draftAudits), [draftAudits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
@@ -125,6 +128,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const activeInstallationItems = activeItems.filter(({ item }) => item.reviewType === "Installation Review");
   const currentSnapshot = reportSnapshot({ audits: draftAudits, letterDate: reportLetterDate, lateResponseProjectAmount, serviceCenterHasComment, serviceCenterDone, serviceCenterComments });
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
+  const reportForEmail = loadAscDocuments()[ascKey]?.[reportDocumentKey];
+  const emailProfile = loadAscProfiles()[ascKey];
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -255,6 +260,15 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
             >
               Save Report Draft
             </button>
+            {reportForEmail?.reportCreated ? (
+              <button
+                type="button"
+                className="min-h-10 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white hover:bg-navy/90"
+                onClick={() => setShowReportEmail(true)}
+              >
+                Report Email
+              </button>
+            ) : null}
           </div>
         </div>
         <div>
@@ -427,6 +441,17 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
       <ReportLetterPage group={reportGroup} pocName={pocName} date={reportDate} files={fileReferences} scn={scn} psn={psn} />
       <LateResponsePage auditor={auditor} projectAmount={lateResponseProjectAmount} />
       <AuditCommentsPage group={reportGroup} serviceCenterHasComment={serviceCenterHasComment} serviceCenterComments={serviceCenterComments} />
+      {showReportEmail && reportForEmail ? (
+        <AuditEmailDialog
+          type="report"
+          group={group}
+          profile={emailProfile}
+          report={reportForEmail}
+          reportDocumentKey={reportDocumentKey}
+          onClose={() => setShowReportEmail(false)}
+          onDocumentsChanged={() => setSavedAt(loadAscDocuments()[ascKey]?.[reportDocumentKey]?.updatedAt || "")}
+        />
+      ) : null}
       {pendingNavigation ? <UnsavedChangesDialog onSave={saveAndNavigate} onDiscard={discardAndNavigate} onCancel={() => setPendingNavigation("")} /> : null}
     </main>
   );

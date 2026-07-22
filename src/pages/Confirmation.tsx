@@ -4,7 +4,9 @@ import { ArrowLeft } from "lucide-react";
 import { useAudits } from "../hooks/use-audits";
 import { groupAssignmentsAndAudits, loadAuditAssignments } from "../lib/audit-assignments";
 import { loadAscDocuments, saveAscDocument } from "../lib/asc-documents";
+import { loadAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
+import { AuditEmailDialog } from "../components/AuditEmailDialog";
 import { canSaveDocumentsToFolder, saveCurrentDocumentSnapshot, storageDetailsFromAsc, storageFoldersForDetails } from "../lib/local-document-storage";
 import { canSavePdfDirectly, savePrintablePagesAsPdfToFolder, savePrintablePagesAsPdfWithResult } from "../lib/pdf-saver";
 import { Audit, Auditor, ParsedCertificate } from "../lib/types";
@@ -57,6 +59,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
   const [confirmationLetterDate, setConfirmationLetterDate] = useState(letterDate);
   const [savedSnapshot, setSavedSnapshot] = useState(() => confirmationSnapshot({ startDate, endDate: endDate || startDate, startTime, meetingLocation, conversationDate, letterDate }));
   const [pendingNavigation, setPendingNavigation] = useState("");
+  const [showConfirmationEmail, setShowConfirmationEmail] = useState(false);
   const today = new Date();
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const ascAddressLines = formatAscAddressLines(ascAddress || group.location);
@@ -74,6 +77,8 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
   const maxEndDate = maxAuditEndDate(auditStartDate);
   const currentSnapshot = confirmationSnapshot({ startDate: auditStartDate, endDate: auditEndDate, startTime: auditStartTime, meetingLocation: auditMeetingLocation, conversationDate: scheduleConversationDate, letterDate: confirmationLetterDate });
   const hasUnsavedChanges = currentSnapshot !== savedSnapshot;
+  const confirmationForEmail = loadAscDocuments()[ascKey]?.confirmation;
+  const emailProfile = loadAscProfiles()[ascKey];
   const updateDetails = (next: { startDate?: string; endDate?: string; startTime?: string; meetingLocation?: string; conversationDate?: string; letterDate?: string }) => {
     const nextStartDate = next.startDate ?? auditStartDate;
     const nextEndDate = next.endDate ?? auditEndDate;
@@ -218,6 +223,15 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
             >
               Save Confirmation
             </button>
+            {confirmationForEmail?.saved ? (
+              <button
+                type="button"
+                className="min-h-10 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white hover:bg-navy/90"
+                onClick={() => setShowConfirmationEmail(true)}
+              >
+                Confirmation Email
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
@@ -289,6 +303,16 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
         </div>
         <ConfirmationFooter />
       </section>
+      {showConfirmationEmail && confirmationForEmail ? (
+        <AuditEmailDialog
+          type="confirmation"
+          group={group}
+          profile={emailProfile}
+          confirmation={confirmationForEmail}
+          onClose={() => setShowConfirmationEmail(false)}
+          onDocumentsChanged={() => setSavedAt(loadAscDocuments()[ascKey]?.confirmation?.updatedAt || "")}
+        />
+      ) : null}
 
       <section className="confirmation-page confirmation-sites-page print-page bg-white text-black shadow-sm print:shadow-none">
         <h1>SELECTED SITES FOR UL AUDIT -{scheduledYear}</h1>

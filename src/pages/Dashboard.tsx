@@ -631,12 +631,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                 </div>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                {confirmationSaved && documents?.confirmation ? (
-                  <>
-                    <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", reportAttachmentPath: dashboardReport?.reportPdfPath || "", attachments: [], emailType: "confirmation", reportCreated: Boolean(dashboardReport?.reportCreated), reportSent: Boolean(dashboardReport?.sentToClient), report: dashboardReport })}>
-                      <UploadCloud size={16} /> Prepare Email
-                    </button>
-                  </>
+                {status.id === "clearance" && documents?.confirmation && dashboardReport ? (
+                  <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", reportAttachmentPath: dashboardReport.reportPdfPath || "", attachments: [], emailType: "reminder", reportCreated: Boolean(dashboardReport.reportCreated), reportSent: Boolean(dashboardReport.sentToClient), report: dashboardReport })}>
+                    <UploadCloud size={16} /> Reminder Email
+                  </button>
                 ) : null}
                 <div>
                   <UploadDialog compact compactLabel="Add Certificate" onParsed={(certificates) => addCertificatesToGroup(group, certificates)} />
@@ -1330,14 +1328,18 @@ function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange
           <p className="mt-2 text-xs text-slate-500">This activity remains with the related confirmation or report record.</p>
         </section>
         {message ? <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${message.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div> : null}
-        <label className="grid gap-1 text-sm font-medium text-slate-700">
-          Email type
-          <select className="min-h-11 rounded-md border border-slate-300 bg-white px-3 font-semibold text-navy" value={editor.emailType} onChange={(event) => onChange({ ...editor, emailType: event.target.value as ConfirmationEmailEditorState["emailType"] })}>
-            <option value="confirmation">Confirmation Email</option>
-            <option value="report">Report Email</option>
-            <option value="reminder">Reminder Email</option>
-          </select>
-        </label>
+        {editor.emailType === "reminder" ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">Reminder Email</div>
+        ) : (
+          <label className="grid gap-1 text-sm font-medium text-slate-700">
+            Email type
+            <select className="min-h-11 rounded-md border border-slate-300 bg-white px-3 font-semibold text-navy" value={editor.emailType} onChange={(event) => onChange({ ...editor, emailType: event.target.value as ConfirmationEmailEditorState["emailType"] })}>
+              <option value="confirmation">Confirmation Email</option>
+              <option value="report">Report Email</option>
+              <option value="reminder">Reminder Email</option>
+            </select>
+          </label>
+        )}
         {editor.emailType === "report" && !editor.reportCreated ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <p className="font-bold">No report PDF has been created yet.</p><p className="mt-1">Create and save the report PDF for this ASC before preparing a report email.</p>
