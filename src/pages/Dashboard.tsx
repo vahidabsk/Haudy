@@ -1774,19 +1774,39 @@ interface AscNextAction {
 
 function nextAuditAction(group: AssignmentGroup, profile: AscProfile, documents?: AscDocumentState): AscNextAction {
   const confirmation = documents?.confirmation;
-  const report = documents?.[dashboardReportKey(group)];
   if (!group.audits.length) return { label: "Add certificate", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!profile.pocName.trim()) return { label: "Select or add the POC", className: "border-amber-200 bg-amber-50 text-amber-950" };
   if (!confirmation?.saved) return { label: "Create confirmation letter", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!confirmation.confirmationEmailPreparedAt) return { label: "Prepare confirmation email", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!group.audits.some(auditHasProgress)) return { label: "Complete field notes", className: "border-violet-200 bg-violet-50 text-violet-900" };
-  if (!report?.saved) return { label: "Create audit report", className: "border-violet-200 bg-violet-50 text-violet-900" };
-  if (!report.reportCreated) return { label: "Create report PDF", className: "border-violet-200 bg-violet-50 text-violet-900" };
-  if (!report.sentToClient) return { label: "Mark report sent to customer", className: "border-sky-200 bg-sky-50 text-sky-900" };
-  if (groupDeficiencyCount(group, documents) > 0 && !report.clearanceResponseReceived) {
+  const reportActions = reportActionsNeeded(group, documents);
+  if (reportActions.length) return { label: reportActions.join(" • "), className: reportActions.some((item) => item.startsWith("Send")) ? "border-sky-200 bg-sky-50 text-sky-900" : "border-violet-200 bg-violet-50 text-violet-900" };
+  const report = documents?.[dashboardReportKey(group)];
+  if (groupDeficiencyCount(group, documents) > 0 && !report?.clearanceResponseReceived) {
     return { label: "Await customer response", className: "border-amber-200 bg-amber-50 text-amber-950" };
   }
   return { label: "Audit closed", className: "border-emerald-200 bg-emerald-50 text-emerald-900" };
+}
+
+function reportActionsNeeded(group: AssignmentGroup, documents?: AscDocumentState) {
+  const tracks: Array<{ audits: Audit[]; key: "report" | "crzhReport"; name: string }> = [];
+  const standardAudits = group.audits.filter((audit) => !isProtectedAreaAudit(audit));
+  const crzhAudits = group.audits.filter(isProtectedAreaAudit);
+  if (standardAudits.length) tracks.push({ audits: standardAudits, key: "report", name: reportCategoryNames(standardAudits) || "standard certificates" });
+  if (crzhAudits.length) tracks.push({ audits: crzhAudits, key: "crzhReport", name: reportCategoryNames(crzhAudits) || "CRZH" });
+  return tracks.flatMap((track) => {
+    const report = documents?.[track.key];
+    if (!groupFieldNoteProgress(track.audits).readyForReport) return [`Complete field notes for ${track.name}`];
+    if (!report?.saved) return [`Create report for ${track.name}`];
+    if (!report.reportCreated) return [`Save report PDF for ${track.name}`];
+    if (!report.reportEmailPreparedAt) return [`Send report email for ${track.name}`];
+    if (!report.sentToClient) return [`Mark report email sent for ${track.name}`];
+    return [];
+  });
+}
+
+function reportCategoryNames(audits: Audit[]) {
+  return Array.from(new Set(audits.flatMap((audit) => audit.certificates.map((certificate) => certificate.categoryCode?.trim().toUpperCase() || certificate.ccn?.trim().toUpperCase() || "")).filter(Boolean))).join(", ");
 }
 
 function homeJobTabs(cards: Array<{ status: HomeJobStatusDetails }>) {

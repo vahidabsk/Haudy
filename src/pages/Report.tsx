@@ -260,7 +260,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
             >
               Save Report Draft
             </button>
-            {reportForEmail?.reportCreated ? (
+            {reportForEmail?.saved ? (
               <button
                 type="button"
                 className="min-h-10 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white hover:bg-navy/90"
