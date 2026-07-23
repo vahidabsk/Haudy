@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Haudy Audit Suite",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "identifier": "com.haudy.audit",
   "build": {
     "beforeDevCommand": "pnpm dev",

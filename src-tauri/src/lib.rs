@@ -410,12 +410,12 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         .map(|path| format!("[void]$mail.Attachments.Add('{}');", powershell_quote(path)))
         .collect::<Vec<_>>()
         .join(" ");
-    let html_body = html_email_body(&body);
+    let body_text = body.replace("\n", "\r\n");
     let command = format!(
-        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.To = '{}'; $mail.Subject = '{}'; $mail.Display(); $mail.HTMLBody = '{}' + $mail.HTMLBody; {}; $mail.Display()",
+        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.BodyFormat = 2; $mail.To = '{}'; $mail.Subject = '{}'; $mail.Display(); $doc = $mail.GetInspector.WordEditor; $bodyText = '{}'; $insertRange = $doc.Range(0, 0); $insertRange.InsertBefore($bodyText); $bodyRange = $doc.Range(0, $bodyText.Length); $bodyRange.Font.Name = 'Calibri'; $bodyRange.Font.Size = 11; $bodyRange.ParagraphFormat.SpaceBefore = 0; $bodyRange.ParagraphFormat.SpaceAfter = 8; $bodyRange.ParagraphFormat.LineSpacingRule = 0; $bodyRange.ParagraphFormat.Alignment = 0; {}; $mail.Display()",
         powershell_quote(&recipient),
         powershell_quote(&subject),
-        powershell_quote(&html_body),
+        powershell_quote(&body_text),
         attachments,
     );
     let mut powershell = Command::new("powershell");
@@ -433,34 +433,6 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         return Err("Outlook could not create the email draft. Confirm that Outlook desktop is installed and configured.".to_string());
     }
     Ok("Outlook email draft opened.".to_string())
-}
-
-fn html_email_body(body: &str) -> String {
-    let escaped = body
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;");
-    let paragraphs = escaped
-        .split("\n\n")
-        .filter(|paragraph| !paragraph.trim().is_empty())
-        .map(|paragraph| {
-            let content = paragraph
-                .lines()
-                .map(|line| {
-                    let trimmed = line.trim();
-                    if let Some(item) = trimmed.strip_prefix('•') {
-                        format!("&bull; {}", item.trim())
-                    } else {
-                        trimmed.to_string()
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("<br>");
-            format!("<p style=\"margin:0 0 15px 0;\">{content}</p>")
-        })
-        .collect::<String>();
-    format!("<div style=\"font-family:Aptos, Calibri, Arial, sans-serif; font-size:11pt; line-height:1.5; color:#1f2937; max-width:760px;\">{paragraphs}</div><br>")
 }
 
 #[tauri::command]
