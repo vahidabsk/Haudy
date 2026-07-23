@@ -111,6 +111,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const [savedSnapshot, setSavedSnapshot] = useState(() => reportSnapshot({ audits: group.audits, letterDate: savedReportDraft?.letterDate || todayInputValue(), lateResponseProjectAmount: savedReportDraft?.lateResponseProjectAmount || "1436", serviceCenterHasComment: savedReportDraft?.serviceCenterHasComment ?? false, serviceCenterDone: savedReportDraft?.serviceCenterDone ?? false, serviceCenterComments: serviceCenterCommentsFromDraft(savedReportDraft) }));
   const [pendingNavigation, setPendingNavigation] = useState("");
   const [showReportEmail, setShowReportEmail] = useState(false);
+  const [showCompletionRequired, setShowCompletionRequired] = useState(false);
   const reportGroup = useMemo(() => ({ ...group, audits: draftAudits }), [group, draftAudits]);
   const reportAudits = useMemo(() => reportAuditsByCategory(draftAudits), [draftAudits]);
   const [activeAuditId, setActiveAuditId] = useState(reportAudits[0]?.id || "");
@@ -118,6 +119,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   const reportItems = useMemo(() => draftAudits.flatMap((audit) => collectReportItems(audit).map((item) => ({ audit, item }))), [draftAudits]);
   const incomplete = reportItems.filter(({ item }) => reportItemNeedsAttention(item));
   const serviceCenterIncomplete = serviceCenterHasComment && serviceCenterComments.some(serviceCenterCommentNeedsAttention);
+  const completion = useMemo(() => reportCompletionStatus(draftAudits, serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete), [draftAudits, serviceCenterHasComment, serviceCenterDone, serviceCenterIncomplete]);
   const reportDate = dateFromInput(reportLetterDate);
   const fileReferences = referenceFiles(group.audits);
   const reportName = reportFileName(group, reportDate, fileReferences, scn, reportKind);
@@ -152,6 +154,10 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   }
 
   async function saveReport() {
+    if (!completion.ready) {
+      setShowCompletionRequired(true);
+      return false;
+    }
     const allAudits = loadAudits();
     const draftById = new Map(draftAudits.map((audit) => [audit.id, audit]));
     const nextAudits = allAudits.map((audit) => draftById.get(audit.id) || audit);
@@ -168,6 +174,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
         setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
       }
     }
+    return true;
   }
 
   function markReportCreated(reportPdfPath = "") {
@@ -207,8 +214,8 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
     if (!pendingNavigation) return;
     const destination = pendingNavigation;
     setPendingNavigation("");
-    await saveReport();
-    navigate(destination);
+    const saved = await saveReport();
+    if (saved) navigate(destination);
   }
 
   function discardAndNavigate() {
@@ -236,12 +243,17 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
               type="button"
               className="min-h-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
               onClick={async () => {
+                if (!completion.ready) {
+                  setShowCompletionRequired(true);
+                  return;
+                }
                 if (!canSavePdfDirectly()) {
                   window.print();
                   return;
                 }
                 try {
-                  await saveReport();
+                  const saved = await saveReport();
+                  if (!saved) return;
                   const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
                   const result = await savePrintablePagesAsPdfWithResult(reportName, storageFoldersForDetails(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName })));
                   setFolderMessage(result.message);
@@ -260,15 +272,15 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
             >
               Save Report Draft
             </button>
-            {reportForEmail?.saved ? (
-              <button
-                type="button"
-                className="min-h-10 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white hover:bg-navy/90"
-                onClick={() => setShowReportEmail(true)}
-              >
-                Report Email
-              </button>
-            ) : null}
+            <button
+              type="button"
+              disabled={!completion.ready || !reportForEmail?.reportCreated}
+              title={!completion.ready ? "Complete every report section before preparing the report email." : !reportForEmail?.reportCreated ? "Save the completed report as a PDF before preparing the report email." : "Prepare the report email."}
+              className="min-h-10 rounded-md border border-navy bg-navy px-3 py-2 text-sm font-semibold text-white hover:bg-navy/90 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500"
+              onClick={() => setShowReportEmail(true)}
+            >
+              Report Email
+            </button>
           </div>
         </div>
         <div>
@@ -452,6 +464,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
           onDocumentsChanged={() => setSavedAt(loadAscDocuments()[ascKey]?.[reportDocumentKey]?.updatedAt || "")}
         />
       ) : null}
+      {showCompletionRequired ? <ReportCompletionRequiredDialog completion={completion} onClose={() => setShowCompletionRequired(false)} /> : null}
       {pendingNavigation ? <UnsavedChangesDialog onSave={saveAndNavigate} onDiscard={discardAndNavigate} onCancel={() => setPendingNavigation("")} /> : null}
     </main>
   );
@@ -1072,6 +1085,55 @@ function reportPropertyStats(audit: Audit) {
   };
 }
 
+function reportCompletionStatus(audits: Audit[], serviceCenterHasComment: boolean, serviceCenterDone: boolean, serviceCenterIncomplete: boolean) {
+  const sections: ReportPropertySection[] = ["signal", "documentation", "installation"];
+  const missingItems = audits.flatMap((audit) => printableReportItems(audit).filter(reportItemNeedsAttention));
+  const unfinishedSections = audits.flatMap((audit) => sections
+    .filter((section) => sectionItemsForAudit(audit, section).length > 0 && !audit.reportSectionStatus?.[section])
+    .map((section) => `${audit.protectedProperty || "Property"} — ${reportSectionLabel(section)}`));
+  const serviceCenterNeedsReview = serviceCenterHasComment && (serviceCenterIncomplete || !serviceCenterDone);
+  return {
+    ready: missingItems.length === 0 && unfinishedSections.length === 0 && !serviceCenterNeedsReview,
+    missingItems: missingItems.length,
+    unfinishedSections,
+    serviceCenterNeedsReview,
+  };
+}
+
+function reportSectionLabel(section: ReportPropertySection) {
+  if (section === "signal") return "Signal Processing";
+  if (section === "documentation") return "Documentation";
+  return "Installation";
+}
+
+function ReportCompletionRequiredDialog({ completion, onClose }: { completion: ReturnType<typeof reportCompletionStatus>; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4" role="dialog" aria-modal="true" aria-labelledby="report-completion-title">
+      <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
+        <div>
+          <h2 id="report-completion-title" className="text-xl font-bold text-navy">Complete the report first</h2>
+          <p className="mt-1 text-sm text-slate-600">Save Report Draft and Save as PDF are available after every report item is complete and each applicable section is marked Done.</p>
+        </div>
+        <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          {completion.missingItems ? <p><b>{completion.missingItems}</b> report item{completion.missingItems === 1 ? "" : "s"} still need{completion.missingItems === 1 ? "s" : ""} Finding, Required Action, or Code Reference details.</p> : null}
+          {completion.serviceCenterNeedsReview ? <p><b>Service Center Comments</b> must be completed and marked Done.</p> : null}
+          {completion.unfinishedSections.length ? (
+            <div>
+              <p className="font-semibold">Mark these completed sections Done:</p>
+              <ul className="mt-1 list-disc pl-5">
+                {completion.unfinishedSections.map((section) => <li key={section}>{section}</li>)}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex justify-end">
+          <button type="button" className="min-h-10 rounded-md border border-navy bg-navy px-4 py-2 text-sm font-semibold text-white hover:bg-navy/90" onClick={onClose}>Continue Editing</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function sectionItemsForAudit(audit: Audit, section: ReportPropertySection) {
   return printableReportItems(audit).filter((item) => {
     if (section === "signal") return item.reviewType === "Signal Processing Review";
@@ -1593,7 +1655,7 @@ function referenceFiles(audits: Audit[]) {
 function reportFileName(group: AscGroup, date: Date, files: string, scn: string, reportKind: "standard" | "crzh") {
   const ascAddress = group.audits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
   const categorySuffix = Array.from(new Set(group.audits.map((audit) => categoryOutputCode(primaryCertificate(audit)?.categoryCode || "")).filter(Boolean))).join("_");
-  const prefix = reportKind === "crzh" ? "CRZH_Report" : "Report";
+  const prefix = reportKind === "crzh" ? "NI_Report" : "Report";
   return [`${prefix}_${date.getFullYear()}_${group.ascName.toUpperCase()}${cityStateCode(ascAddress) ? `-${cityStateCode(ascAddress)}` : ""}`, filesForName(files), `SCN${scn}`, categorySuffix].filter(Boolean).join("_");
 }
 
@@ -1610,7 +1672,7 @@ function cityStateCode(address: string) {
 }
 
 function categoryOutputCode(category: string) {
-  const codes: Record<string, string> = { UUJS: "FA", UUFX: "FD" };
+  const codes: Record<string, string> = { UUJS: "FA", UUFX: "FD", CVSG: "MR", CRZH: "NI" };
   return codes[category.toUpperCase()] || category.toUpperCase();
 }
 

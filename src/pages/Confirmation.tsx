@@ -454,7 +454,7 @@ function stateCode(value: string) {
 }
 
 function categoryOutputCode(category: string) {
-  const codes: Record<string, string> = { UUJS: "FA", UUFX: "FD" };
+  const codes: Record<string, string> = { UUJS: "FA", UUFX: "FD", CVSG: "MR", CRZH: "NI" };
   return codes[category.toUpperCase()] || category.toUpperCase();
 }
 
