@@ -154,10 +154,6 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
   }
 
   async function saveReport() {
-    if (!completion.ready) {
-      setShowCompletionRequired(true);
-      return false;
-    }
     const allAudits = loadAudits();
     const draftById = new Map(draftAudits.map((audit) => [audit.id, audit]));
     const nextAudits = allAudits.map((audit) => draftById.get(audit.id) || audit);
@@ -169,11 +165,12 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
       try {
         const ascAddress = draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || "";
         await saveCurrentDocumentSnapshot(storageDetailsFromAsc({ year: reportDate.getFullYear().toString(), ascName: group.ascName, cityState: cityStateCode(ascAddress), psn, folder: "Report", fileName: reportName }));
-        setFolderMessage("Saved to Haudy Database.");
+        setFolderMessage(completion.ready ? "Saved to Haudy Database." : "Draft saved to Haudy Database. Complete the remaining report sections when you return.");
       } catch (error) {
         setFolderMessage(error instanceof Error ? error.message : "Could not save to folder.");
       }
     }
+    if (!canSaveDocumentsToFolder()) setFolderMessage(completion.ready ? "Report draft saved." : "Draft saved. Complete the remaining report sections when you return.");
     return true;
   }
 
@@ -287,7 +284,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
           <h2 className="text-xl font-bold text-navy">Report Content Review</h2>
           <p className="mt-1 text-sm text-slate-600">
             {reportKind === "crzh" ? "CRZH report only. " : ""}
-            {reportItems.length} deficienc{reportItems.length === 1 ? "y" : "ies"} noted from completed field notes. Complete the report language before printing.
+            {reportItems.length} deficienc{reportItems.length === 1 ? "y" : "ies"} noted from completed field notes. Save your draft anytime; complete the report before saving its final PDF.
           </p>
         </div>
         <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
@@ -1112,7 +1109,7 @@ function ReportCompletionRequiredDialog({ completion, onClose }: { completion: R
       <div className="grid w-full max-w-lg gap-4 rounded-lg bg-white p-5 shadow-2xl">
         <div>
           <h2 id="report-completion-title" className="text-xl font-bold text-navy">Complete the report first</h2>
-          <p className="mt-1 text-sm text-slate-600">Save Report Draft and Save as PDF are available after every report item is complete and each applicable section is marked Done.</p>
+          <p className="mt-1 text-sm text-slate-600">Your report draft can be saved at any time. Save as PDF becomes available after every report item is complete and each applicable section is marked Done.</p>
         </div>
         <div className="grid gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           {completion.missingItems ? <p><b>{completion.missingItems}</b> report item{completion.missingItems === 1 ? "" : "s"} still need{completion.missingItems === 1 ? "s" : ""} Finding, Required Action, or Code Reference details.</p> : null}
