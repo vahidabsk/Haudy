@@ -11,6 +11,7 @@ export interface AuditEmailGroup {
   key: string;
   ascName: string;
   location?: string;
+  address?: string;
   psn?: string;
 }
 
@@ -37,6 +38,7 @@ export function AuditEmailDialog({ type, group, profile, confirmation, report, r
   const [message, setMessage] = useState<{ text: string; tone: "success" | "warning" | "error" } | null>(null);
   const activeProfile = profile || { pocName: currentConfirmation?.pocName || currentReport?.pocName || "", pocEmail: "", psn: currentConfirmation?.psn || currentReport?.psn || group.psn || "", scn: "", updatedAt: "" };
   const emailLabel = type === "confirmation" ? "Confirmation Email" : type === "report" ? "Report Email" : "Reminder Email";
+  const mailingLocation = formatMailingLocation(group.address || group.location || "Location TBD");
   const history = type === "confirmation"
     ? currentConfirmation?.confirmationEmailDrafts || (currentConfirmation?.confirmationEmailPreparedAt ? [currentConfirmation.confirmationEmailPreparedAt] : [])
     : type === "report"
@@ -102,18 +104,21 @@ export function AuditEmailDialog({ type, group, profile, confirmation, report, r
         const start = displayDate(currentConfirmation.startDate);
         const end = displayDate(currentConfirmation.endDate || currentConfirmation.startDate);
         const range = start === end ? start : `${start} to ${end}`;
-        const subject = `***UL Audit - ${shortDate(currentConfirmation.startDate)}${currentConfirmation.endDate && currentConfirmation.endDate !== currentConfirmation.startDate ? ` to ${shortDate(currentConfirmation.endDate)}` : ""} - ${group.ascName} - ${group.location || "Location TBD"} - PSN#${activeProfile.psn || group.psn || ""}`;
+        const subject = `***UL Audit - ${shortDate(currentConfirmation.startDate)}${currentConfirmation.endDate && currentConfirmation.endDate !== currentConfirmation.startDate ? ` to ${shortDate(currentConfirmation.endDate)}` : ""} - ${group.ascName} - ${mailingLocation} - PSN#${activeProfile.psn || group.psn || ""}`;
         const body = `Dear ${activeProfile.pocName},\n\nThank you for your assistance in coordinating the upcoming UL audit.\n\nThis email confirms that your UL audit is scheduled for ${range}, beginning at ${displayTime(startTime || currentConfirmation.startTime || "8:00 AM")}, at ${meetingLocation.trim() || currentConfirmation.meetingLocation?.trim() || "the first location you will arrange (TBD)"}. If the audit is scheduled for multiple days, it will continue on the scheduled dates.\n\nPlease find attached the following:\n\n• Official UL Audit Confirmation Letter${attachments.length ? "\n• Audit Preparation Checklist" : ""}\n\nPlease ensure the assigned technician has the required test equipment available. We also recommend notifying the selected site(s) in advance, as portions of the audit may require functional testing that could temporarily activate audible or visual notification appliances.\n\nPlease note that arrival times may vary slightly due to travel conditions between audit locations. We appreciate your flexibility and cooperation.\n\nIf you have any questions before the audit, please do not hesitate to contact me.\n\nThank you, and I look forward to working with you.\n\nKind regards,`;
         await prepareOutlookConfirmationEmail(activeProfile.pocEmail, subject, body, [confirmationAttachmentPath, ...attachments]);
         const next = saveAscDocument(group.key, "confirmation", { ...currentConfirmation, confirmationPdfPath: confirmationAttachmentPath, confirmationEmailPreparedAt: now, confirmationEmailDrafts: [...(currentConfirmation.confirmationEmailDrafts || []), now] });
         setCurrentConfirmation(next[group.key]?.confirmation);
       } else if (currentReport) {
-        const deadline = new Date(currentReport.clearanceStartDate || currentReport.letterDate || currentReport.reportSentAt?.slice(0, 10) || new Date().toISOString());
+        const deadline = new Date(currentReport.letterDate || currentReport.clearanceStartDate || currentReport.reportSentAt?.slice(0, 10) || new Date().toISOString());
         deadline.setDate(deadline.getDate() + 30);
         const dueDate = displayDate(deadline.toISOString().slice(0, 10));
         const daysRemaining = Math.ceil((deadline.getTime() - startOfToday().getTime()) / 86400000);
         const reminder = reminderInfo(daysRemaining);
-        const subject = type === "report" ? `UL Annual Audit Report – ${group.ascName}` : `${reminder.prefix}: UL Audit Corrective Action Response Due – ${group.ascName}`;
+        const reportYear = (currentReport.letterDate || new Date().toISOString()).slice(0, 4);
+        const subject = type === "report"
+          ? `UL Annual Audit Report ${reportYear} - ${group.ascName} - ${mailingLocation} - PSN#${activeProfile.psn || group.psn || ""}`
+          : `${reminder.prefix}: UL Audit Corrective Action Response Due - ${group.ascName}`;
         const body = type === "report"
           ? `Dear ${activeProfile.pocName},\n\nPlease find attached the UL Annual Audit Report for ${group.ascName}.\n\nPlease review the report carefully and complete the required corrective actions identified in the report.\n\nThe deadline to submit your official response and supporting documentation is ${dueDate}.\n\nSupporting documentation may include photographs, records, or other evidence demonstrating that the identified deficiencies have been corrected.\n\nImportant: Failure to submit the required response and supporting documentation by the stated deadline may result in cancellation of the affected UL Certificates.\n\nIf you have any questions regarding the report or the corrective action process, please do not hesitate to contact me.\n\nThank you for your cooperation.\n\nKind regards,`
           : `Dear ${activeProfile.pocName},\n\nThis is a ${reminder.label.toLowerCase()} reminder regarding the UL Annual Audit Report issued for ${group.ascName}.\n\n${reminder.remaining} to submit your official response and supporting documentation. The submission deadline is ${dueDate}.\n\nPlease ensure your response includes all required supporting documentation, such as photographs, records, or other evidence demonstrating that the identified deficiencies have been corrected.\n\nImportant: Failure to submit the required response and supporting documentation by the deadline may result in cancellation of the affected UL Certificates.\n\nIf you have any questions or require assistance, please do not hesitate to contact me.\n\nThank you for your prompt attention to this matter.\n\nKind regards,`;
@@ -136,7 +141,7 @@ export function AuditEmailDialog({ type, group, profile, confirmation, report, r
       const next = saveAscDocument(group.key, "confirmation", { ...currentConfirmation, confirmationEmailSentAt: now });
       setCurrentConfirmation(next[group.key]?.confirmation);
     } else if (currentReport) {
-      const next = saveAscDocument(group.key, reportDocumentKey, { ...currentReport, ...(type === "report" ? { reportEmailSentAt: now, sentToClient: true, reportSentAt: currentReport.reportSentAt || now, clearanceStartDate: currentReport.clearanceStartDate || now.slice(0, 10) } : { reminderEmailSentAt: now }) });
+      const next = saveAscDocument(group.key, reportDocumentKey, { ...currentReport, ...(type === "report" ? { reportEmailSentAt: now, sentToClient: true, reportSentAt: currentReport.reportSentAt || now, clearanceStartDate: currentReport.letterDate || now.slice(0, 10) } : { reminderEmailSentAt: now }) });
       setCurrentReport(next[group.key]?.[reportDocumentKey]);
     }
     onDocumentsChanged?.();
@@ -156,6 +161,7 @@ export function AuditEmailDialog({ type, group, profile, confirmation, report, r
 }
 
 function AttachmentPanel({ label, path, buttonLabel, onChoose }: { label: string; path: string; buttonLabel: string; onChoose: () => void | Promise<void> }) { return <section className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-bold text-navy">{label}</h3><p className="text-sm text-slate-600">Attach the saved file before opening the Outlook draft.</p></div><button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50" onClick={() => void onChoose()}><FileText size={16} /> {buttonLabel}</button></div><div className={`rounded-md border px-3 py-2 text-sm font-semibold ${path ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{path ? <><FileText className="mr-2 inline" size={16} />{path.split(/[/\\]/).pop()}</> : `${label} not attached yet`}</div></section>; }
+function formatMailingLocation(value: string) { return value.replace(/\s+UNITED STATES$/i, "").replace(/\s+/g, " ").trim(); }
 function displayDate(value?: string) { if (!value) return "TBD"; const [year, month, day] = value.slice(0, 10).split("-"); return year && month && day ? new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) : value; }
 function shortDate(value?: string) { if (!value) return "TBD"; const [year, month, day] = value.slice(0, 10).split("-"); return year && month && day ? `${month}/${day}/${year.slice(-2)}` : value; }
 function displayTime(value: string) { if (!/^\d{2}:\d{2}$/.test(value)) return value; const [hour, minute] = value.split(":").map(Number); return `${((hour + 11) % 12) + 1}:${String(minute).padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"}`; }

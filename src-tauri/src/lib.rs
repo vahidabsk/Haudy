@@ -410,11 +410,12 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         .map(|path| format!("[void]$mail.Attachments.Add('{}');", powershell_quote(path)))
         .collect::<Vec<_>>()
         .join(" ");
+    let html_body = html_email_body(&body);
     let command = format!(
-        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.To = '{}'; $mail.Subject = '{}'; $mail.Body = '{}'; {}; $mail.Display()",
+        "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.To = '{}'; $mail.Subject = '{}'; $mail.Display(); $mail.HTMLBody = '{}' + $mail.HTMLBody; {}; $mail.Display()",
         powershell_quote(&recipient),
         powershell_quote(&subject),
-        powershell_quote(&body),
+        powershell_quote(&html_body),
         attachments,
     );
     let mut powershell = Command::new("powershell");
@@ -432,6 +433,34 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         return Err("Outlook could not create the email draft. Confirm that Outlook desktop is installed and configured.".to_string());
     }
     Ok("Outlook email draft opened.".to_string())
+}
+
+fn html_email_body(body: &str) -> String {
+    let escaped = body
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;");
+    let paragraphs = escaped
+        .split("\n\n")
+        .filter(|paragraph| !paragraph.trim().is_empty())
+        .map(|paragraph| {
+            let content = paragraph
+                .lines()
+                .map(|line| {
+                    let trimmed = line.trim();
+                    if let Some(item) = trimmed.strip_prefix('•') {
+                        format!("&bull; {}", item.trim())
+                    } else {
+                        trimmed.to_string()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("<br>");
+            format!("<p style=\"margin:0 0 15px 0;\">{content}</p>")
+        })
+        .collect::<String>();
+    format!("<div style=\"font-family:Aptos, Calibri, Arial, sans-serif; font-size:11pt; line-height:1.5; color:#1f2937; max-width:760px;\">{paragraphs}</div><br>")
 }
 
 #[tauri::command]
@@ -585,6 +614,18 @@ fn safe_file_name(value: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let result = rfd::MessageDialog::new()
+                    .set_title("Exit Haudy Audit Suite?")
+                    .set_description("Are you sure you want to close Haudy? Any unsaved changes may be lost.")
+                    .set_buttons(rfd::MessageButtons::YesNo)
+                    .show();
+                if !matches!(result, rfd::MessageDialogResult::Yes) {
+                    api.prevent_close();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             choose_haudy_database_location,
             create_haudy_folders,

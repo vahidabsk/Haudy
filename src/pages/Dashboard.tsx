@@ -310,7 +310,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   }
 
   function setClearanceResponseReceived(group: AssignmentGroup, received: boolean) {
-    const documentKey = dashboardReportKey(group);
+    const documentKey = reportTracks(group, loadAscDocuments()).find((track) => track.report?.sentToClient)?.key;
+    if (!documentKey) return;
     const existingReport = loadAscDocuments()[group.key]?.[documentKey];
     if (!existingReport) return;
     const next = updateAscDocumentDraft(group.key, documentKey, {
@@ -579,7 +580,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const hasCrzhCertificates = group.audits.some(isProtectedAreaAudit);
           const hasNonCrzhCertificates = group.audits.some((audit) => !isProtectedAreaAudit(audit));
           const hasCertificates = group.audits.length > 0;
-          const dashboardReport = documents?.[dashboardReportKey(group)];
+          const dashboardReport = firstSentReport(group, documents) || documents?.[dashboardReportKey(group)];
           const nextAction = nextAuditAction(group, profile, documents);
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
@@ -2028,30 +2029,26 @@ function scheduledAuditDays(groups: AssignmentGroup[], documents: Record<string,
 
 function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): HomeJobStatusDetails {
   const confirmation = documents?.confirmation;
-  const report = documents?.[dashboardReportKey(group)];
-  const deficiencyCount = groupDeficiencyCount(group, documents);
+  const report = firstSentReport(group, documents) || documents?.[dashboardReportKey(group)];
+  const sentTracks = reportTracks(group, documents).filter((track) => track.report?.sentToClient);
+  const pendingTracks = reportTracks(group, documents).filter((track) => !track.report?.sentToClient);
   const today = startOfLocalDay(new Date());
   const auditStart = parseLocalDate(confirmation?.startDate);
   const auditEnd = parseLocalDate(confirmation?.endDate || confirmation?.startDate);
-  const clearanceStartDate = parseLocalDate(report?.clearanceStartDate || report?.letterDate || report?.reportSentAt?.slice(0, 10) || "");
+  const clearanceStartDate = earliestClearanceStart(sentTracks);
 
-  if (report?.sentToClient && clearanceStartDate) {
-    if (deficiencyCount === 0) {
+  if (sentTracks.length && clearanceStartDate) {
+    const tracksAwaitingResponse = sentTracks.filter((track) => reportDeficiencyCount(group, track.key, documents) > 0 && !track.report?.clearanceResponseReceived);
+    const trackDetails = sentTracks.map((track) => clearanceTrackDetail(group, track, documents, today));
+    const pendingDetail = pendingTracks.map((track) => `${track.name}: complete and send report`);
+    const detail = [...trackDetails, ...pendingDetail].join(" • ");
+    if (!pendingTracks.length && !tracksAwaitingResponse.length) {
       return {
         id: "done",
         label: "Audit done",
-        detail: "Report sent, no clearance needed",
+        detail: "All report tracks have been sent and closed",
         className: "border-emerald-200 bg-emerald-50 text-emerald-800",
         cardClassName: "border-emerald-200 bg-emerald-50/45",
-      };
-    }
-    if (report.clearanceResponseReceived) {
-      return {
-        id: "done",
-        label: "Deficiency response received",
-        detail: report.clearanceResponseAt ? `Received ${relativeTime(report.clearanceResponseAt)}` : "Ready for closeout",
-        className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-        cardClassName: "border-emerald-300 bg-emerald-50/70",
       };
     }
     const clearanceDeadline = addDays(clearanceStartDate, 30);
@@ -2060,7 +2057,7 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
       return {
         id: "clearance",
         label: "Open late clearance project",
-        detail: `${Math.abs(remaining)} day${Math.abs(remaining) === 1 ? "" : "s"} past client response window`,
+        detail,
         className: "border-red-300 bg-red-50 text-red-800",
         cardClassName: "border-red-300 bg-red-50/70",
       };
@@ -2073,13 +2070,13 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
     return {
       id: "clearance",
       label: "Waiting for clearance",
-      detail: remaining === 0 ? "Clearance due today" : `${remaining} day${remaining === 1 ? "" : "s"} left for client response`,
+      detail,
       className: remaining <= 5 ? "border-orange-300 bg-orange-50 text-orange-900" : remaining <= 10 ? "border-amber-300 bg-amber-50 text-amber-900" : "border-violet-200 bg-violet-50 text-violet-800",
       cardClassName: urgencyClass,
     };
   }
 
-  if (report?.reportCreated && !report?.sentToClient) {
+  if (reportTracks(group, documents).some((track) => track.report?.reportCreated && !track.report.sentToClient)) {
     return {
       id: "reportCreated",
       label: "Report created",
@@ -2126,7 +2123,8 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
 }
 
 function shouldShowClearanceToggle(group: AssignmentGroup, documents?: AscDocumentState) {
-  return Boolean(documents?.[dashboardReportKey(group)]?.sentToClient && groupDeficiencyCount(group, documents) > 0);
+  const sentTracks = reportTracks(group, documents).filter((track) => track.report?.sentToClient);
+  return sentTracks.length === 1 && reportDeficiencyCount(group, sentTracks[0].key, documents) > 0;
 }
 
 type DashboardJobCard = {
@@ -2148,7 +2146,7 @@ function jobCardSortTime(
   status: HomeJobStatus,
 ) {
   const confirmation = documents?.confirmation;
-  const report = documents?.[dashboardReportKey(group)];
+  const report = firstSentReport(group, documents) || documents?.[dashboardReportKey(group)];
   const auditStart = parseLocalDate(confirmation?.startDate);
   const auditEnd = parseLocalDate(confirmation?.endDate || confirmation?.startDate);
   const clearanceStart = parseLocalDate(
@@ -2179,17 +2177,51 @@ function timestampOrInfinity(value?: string) {
 }
 
 function shouldShowReportSentToggle(group: AssignmentGroup, documents?: AscDocumentState) {
-  const report = documents?.[dashboardReportKey(group)];
-  return Boolean(report?.reportCreated && !report.sentToClient);
+  return false;
 }
 
 function groupDeficiencyCount(group: AssignmentGroup, documents?: AscDocumentState) {
-  const documentKey = dashboardReportKey(group);
+  return reportDeficiencyCount(group, dashboardReportKey(group), documents);
+}
+
+function reportDeficiencyCount(group: AssignmentGroup, documentKey: "report" | "crzhReport", documents?: AscDocumentState) {
   const report = documents?.[documentKey];
   const serviceCenterComments = report?.serviceCenterHasComment ? report.serviceCenterComments || [] : [];
   const serviceCenterCount = serviceCenterComments.filter((comment) => comment.finding.trim() || comment.requiredAction.trim()).length;
   const reportAudits = group.audits.filter((audit) => documentKey === "crzhReport" ? isProtectedAreaAudit(audit) : !isProtectedAreaAudit(audit));
   return serviceCenterCount + reportAudits.reduce((total, audit) => total + auditDeficiencyCount(audit), 0);
+}
+
+function reportTracks(group: AssignmentGroup, documents?: AscDocumentState) {
+  return applicableReportKeys(group).map((key) => ({
+    key,
+    report: documents?.[key],
+    name: reportCategoryNames(group.audits.filter((audit) => key === "crzhReport" ? isProtectedAreaAudit(audit) : !isProtectedAreaAudit(audit))) || (key === "crzhReport" ? "CRZH" : "report"),
+  }));
+}
+
+function firstSentReport(group: AssignmentGroup, documents?: AscDocumentState) {
+  return reportTracks(group, documents).find((track) => track.report?.sentToClient)?.report;
+}
+
+function earliestClearanceStart(tracks: ReturnType<typeof reportTracks>) {
+  return tracks
+    .map((track) => parseLocalDate(track.report?.letterDate || track.report?.clearanceStartDate || track.report?.reportSentAt?.slice(0, 10) || ""))
+    .filter((date): date is Date => Boolean(date))
+    .sort((first, second) => first.getTime() - second.getTime())[0];
+}
+
+function clearanceTrackDetail(group: AssignmentGroup, track: ReturnType<typeof reportTracks>[number], documents: AscDocumentState | undefined, today: Date) {
+  if (reportDeficiencyCount(group, track.key, documents) === 0) return `${track.name}: report sent`;
+  if (track.report?.clearanceResponseReceived) return `${track.name}: response received`;
+  const start = parseLocalDate(track.report?.letterDate || track.report?.clearanceStartDate || track.report?.reportSentAt?.slice(0, 10) || "");
+  if (!start) return `${track.name}: awaiting response`;
+  const remaining = daysBetween(today, addDays(start, 30));
+  return remaining < 0
+    ? `${track.name}: ${Math.abs(remaining)} day${Math.abs(remaining) === 1 ? "" : "s"} past due`
+    : remaining === 0
+      ? `${track.name}: due today`
+      : `${track.name}: ${remaining} day${remaining === 1 ? "" : "s"} left`;
 }
 
 function dashboardReportKey(group: AssignmentGroup): "report" | "crzhReport" {

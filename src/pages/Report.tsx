@@ -456,7 +456,7 @@ function ReportDocument({ group, ascKey, auditor, pocName, scn, psn, reportKind 
       {showReportEmail && reportForEmail ? (
         <AuditEmailDialog
           type="report"
-          group={group}
+          group={{ ...group, address: draftAudits.map(primaryCertificate).find((certificate) => certificate?.ascAddress)?.ascAddress || group.location }}
           profile={emailProfile}
           report={reportForEmail}
           reportDocumentKey={reportDocumentKey}

@@ -306,7 +306,7 @@ function ConfirmationDocument({ ascKey, group, auditor, pocName, startDate, endD
       {showConfirmationEmail && confirmationForEmail ? (
         <AuditEmailDialog
           type="confirmation"
-          group={group}
+          group={{ ...group, address: ascAddress }}
           profile={emailProfile}
           confirmation={confirmationForEmail}
           onClose={() => setShowConfirmationEmail(false)}
