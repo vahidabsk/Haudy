@@ -40,6 +40,7 @@ interface ConfirmationEmailEditorState {
   emailType: "confirmation" | "report" | "reminder";
   reportCreated: boolean;
   reportSent: boolean;
+  reportDocumentKey: "report" | "crzhReport";
   report?: NonNullable<AscDocumentState["report"]>;
 }
 
@@ -392,14 +393,14 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       return;
     }
     if (!editor.report) return;
-    const documentKey = dashboardReportKey(editor.group);
+    const documentKey = editor.reportDocumentKey;
     const next = saveAscDocument(editor.group.key, documentKey, {
       ...editor.report,
       ...(editor.emailType === "report" ? {
         reportEmailSentAt: sentAt,
         sentToClient: true,
         reportSentAt: editor.report.reportSentAt || sentAt,
-        clearanceStartDate: editor.report.clearanceStartDate || sentAt.slice(0, 10),
+        clearanceStartDate: editor.report.letterDate || sentAt.slice(0, 10),
       } : {
         reminderEmailSentAt: sentAt,
       }),
@@ -425,7 +426,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       return false;
     }
     try {
-      const deadline = addDays(parseLocalDate(report.clearanceStartDate || report.letterDate || report.reportSentAt?.slice(0, 10) || "") || startOfLocalDay(new Date()), 30);
+      const deadline = addDays(parseLocalDate(report.letterDate || report.clearanceStartDate || report.reportSentAt?.slice(0, 10) || "") || startOfLocalDay(new Date()), 30);
       const remaining = daysBetween(startOfLocalDay(new Date()), deadline);
       const dueDate = formatDisplayDate(localDateKey(deadline));
       const reminder = reminderDetails(remaining);
@@ -437,7 +438,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         : `Dear ${editor.profile.pocName},\n\nThis is a ${reminder.label.toLowerCase()} reminder regarding the UL Annual Audit Report issued for ${editor.group.ascName}.\n\n${reminder.remainingText} to submit your official response and supporting documentation. The submission deadline is ${dueDate}.\n\nPlease ensure your response includes all required supporting documentation, such as photographs, records, or other evidence demonstrating that the identified deficiencies have been corrected.\n\nImportant: Failure to submit the required response and supporting documentation by the deadline may result in cancellation of the affected UL Certificates.\n\nIf you have any questions or require assistance, please do not hesitate to contact me.\n\nThank you for your prompt attention to this matter.\n\nKind regards,`;
       await prepareOutlookConfirmationEmail(editor.profile.pocEmail || "", subject, body, editor.emailType === "report" ? [editor.reportAttachmentPath] : []);
       const preparedAt = new Date().toISOString();
-      const type = dashboardReportKey(editor.group);
+      const type = editor.reportDocumentKey;
       const next = saveAscDocument(editor.group.key, type, {
         ...report,
         reportPdfPath: editor.reportAttachmentPath || report.reportPdfPath,
@@ -633,7 +634,10 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {status.id === "clearance" && documents?.confirmation && dashboardReport ? (
-                  <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", reportAttachmentPath: dashboardReport.reportPdfPath || "", attachments: [], emailType: "reminder", reportCreated: Boolean(dashboardReport.reportCreated), reportSent: Boolean(dashboardReport.sentToClient), report: dashboardReport })}>
+                  <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20" onClick={() => {
+                    const reportDocumentKey = reportTracks(group, documents).find((track) => track.report === dashboardReport)?.key || dashboardReportKey(group);
+                    setConfirmationEmailEditor({ group, profile, confirmation: documents.confirmation!, startTime: documents.confirmation?.startTime || "", meetingLocation: documents.confirmation?.meetingLocation || "", confirmationAttachmentPath: documents.confirmation?.confirmationPdfPath || "", reportAttachmentPath: dashboardReport.reportPdfPath || "", attachments: [], emailType: "reminder", reportCreated: Boolean(dashboardReport.reportCreated), reportSent: Boolean(dashboardReport.sentToClient), reportDocumentKey, report: dashboardReport });
+                  }}>
                     <UploadCloud size={16} /> Reminder Email
                   </button>
                 ) : null}

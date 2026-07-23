@@ -400,8 +400,8 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
     if !cfg!(target_os = "windows") {
         return Err("Confirmation email preparation is available in the Windows desktop app.".to_string());
     }
-    if recipient.trim().is_empty() || attachment_paths.is_empty() {
-        return Err("A POC email address and confirmation PDF are required.".to_string());
+    if recipient.trim().is_empty() {
+        return Err("A POC email address is required.".to_string());
     }
     if attachment_paths.iter().any(|path| !Path::new(path).is_file()) {
         return Err("One or more email attachments could not be found. Select the files again.".to_string());
