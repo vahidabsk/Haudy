@@ -414,7 +414,7 @@ fn prepare_outlook_confirmation_email(recipient: String, subject: String, body: 
         .replace("\r\n", "\n")
         .replace('\r', "\n")
         .replace("\n\n\n", "\n\n")
-        .replace('\n', "\r\n");
+        .replace('\n', "\r");
     let command = format!(
         "$outlook = New-Object -ComObject Outlook.Application; $mail = $outlook.CreateItem(0); $mail.BodyFormat = 2; $mail.To = '{}'; $mail.Subject = '{}'; $mail.Display(); $doc = $mail.GetInspector.WordEditor; $bodyText = '{}'; $insertRange = $doc.Range(0, 0); $insertRange.InsertBefore($bodyText); $bodyRange = $doc.Range(0, $bodyText.Length); $bodyRange.Font.Name = 'Calibri'; $bodyRange.Font.Size = 11; $bodyRange.ParagraphFormat.SpaceBefore = 0; $bodyRange.ParagraphFormat.SpaceAfter = 0; $bodyRange.ParagraphFormat.LineSpacingRule = 0; $bodyRange.ParagraphFormat.Alignment = 0; {}; $mail.Display()",
         powershell_quote(&recipient),

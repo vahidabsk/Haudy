@@ -310,9 +310,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     };
   }
 
-  function setClearanceResponseReceived(group: AssignmentGroup, received: boolean) {
-    const documentKey = reportTracks(group, loadAscDocuments()).find((track) => track.report?.sentToClient)?.key;
-    if (!documentKey) return;
+  function setClearanceResponseReceived(group: AssignmentGroup, documentKey: "report" | "crzhReport", received: boolean) {
     const existingReport = loadAscDocuments()[group.key]?.[documentKey];
     if (!existingReport) return;
     const next = updateAscDocumentDraft(group.key, documentKey, {
@@ -583,6 +581,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
           const hasCertificates = group.audits.length > 0;
           const dashboardReport = firstSentReport(group, documents) || documents?.[dashboardReportKey(group)];
           const nextAction = nextAuditAction(group, profile, documents);
+          const clearanceResponseTracks = reportTracks(group, documents).filter((track) => track.report?.sentToClient && reportDeficiencyCount(group, track.key, documents) > 0);
           const trackerFileSummary = group.assignments.map((assignment) => [assignment.ccn, assignment.fileNo].filter(Boolean).join(" ")).filter(Boolean).slice(0, 4).join(" | ");
           return (
           <section id={ascCardDomId(group.key)} key={group.key} className={`haudy-asc-card grid gap-3 rounded-lg border p-4 shadow-sm transition hover:shadow-md ${status.cardClassName} ${focusAscKey === group.key ? "ring-2 ring-sky-300" : ""}`}>
@@ -610,16 +609,20 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                     <span className="font-semibold">Next action:</span>
                     <span>{nextAction.label}</span>
                   </div>
-                  {shouldShowClearanceToggle(group, documents) ? (
-                    <label className="mt-3 flex w-fit items-center gap-3 rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700">
-                      <input
-                        type="checkbox"
-                        className="h-5 w-5 accent-emerald-600"
-                        checked={Boolean(dashboardReport?.clearanceResponseReceived)}
-                        onChange={(event) => setClearanceResponseReceived(group, event.target.checked)}
-                      />
-                      Response to deficiencies received
-                    </label>
+                  {status.id === "clearance" && clearanceResponseTracks.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {clearanceResponseTracks.map((track) => (
+                        <label key={track.key} className="flex w-fit items-center gap-3 rounded-md border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5 accent-emerald-600"
+                            checked={Boolean(track.report?.clearanceResponseReceived)}
+                            onChange={(event) => setClearanceResponseReceived(group, track.key, event.target.checked)}
+                          />
+                          {track.name} clearance letter / response received
+                        </label>
+                      ))}
+                    </div>
                   ) : null}
                   {shouldShowReportSentToggle(group, documents) ? (
                     <button
@@ -1786,8 +1789,8 @@ function nextAuditAction(group: AssignmentGroup, profile: AscProfile, documents?
   if (!group.audits.some(auditHasProgress)) return { label: "Complete field notes", className: "border-violet-200 bg-violet-50 text-violet-900" };
   const reportActions = reportActionsNeeded(group, documents);
   if (reportActions.length) return { label: reportActions.join(" • "), className: reportActions.some((item) => item.startsWith("Send")) ? "border-sky-200 bg-sky-50 text-sky-900" : "border-violet-200 bg-violet-50 text-violet-900" };
-  const report = documents?.[dashboardReportKey(group)];
-  if (groupDeficiencyCount(group, documents) > 0 && !report?.clearanceResponseReceived) {
+  const awaitingClearanceResponse = reportTracks(group, documents).some((track) => track.report?.sentToClient && reportDeficiencyCount(group, track.key, documents) > 0 && !track.report?.clearanceResponseReceived);
+  if (awaitingClearanceResponse) {
     return { label: "Await customer response", className: "border-amber-200 bg-amber-50 text-amber-950" };
   }
   return { label: "Audit closed", className: "border-emerald-200 bg-emerald-50 text-emerald-900" };
@@ -2124,11 +2127,6 @@ function homeJobStatus(group: AssignmentGroup, documents?: AscDocumentState): Ho
     className: reportDaysRemaining < 0 ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900",
     cardClassName: reportDaysRemaining < 0 ? "border-red-300 bg-red-50/70" : reportDaysRemaining <= 3 ? "border-orange-300 bg-orange-50/60" : "border-amber-200 bg-amber-50/40",
   };
-}
-
-function shouldShowClearanceToggle(group: AssignmentGroup, documents?: AscDocumentState) {
-  const sentTracks = reportTracks(group, documents).filter((track) => track.report?.sentToClient);
-  return sentTracks.length === 1 && reportDeficiencyCount(group, sentTracks[0].key, documents) > 0;
 }
 
 type DashboardJobCard = {
