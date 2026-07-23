@@ -1317,40 +1317,35 @@ function deviceItem(row: DeviceTestRow): ReportItem {
 }
 
 function certificateConditionItems(audit: Audit): ReportItem[] {
-  const items: ReportItem[] = [];
-  if (audit.matchesCertificateStatus === "VAR") {
-    items.push({
-      id: `certificate-match-${audit.id}`,
-      baseId: `certificate-match-${audit.id}`,
-      source: "installation",
-      rowId: `certificate-match-${audit.id}`,
-      reviewType: "Installation Review",
-      category: "Certificate - Installation Matches Certificate Declarations",
-      note: "",
-      finding: audit.certificateMatchReportFinding,
-      requiredAction: audit.certificateMatchReportRequiredAction,
-      codeStandard: audit.certificateMatchReportCodeStandard,
-      codeEdition: audit.certificateMatchReportCodeEdition,
-      codeSection: audit.certificateMatchReportCodeSection,
-    });
-  }
-  if (audit.certificateDisplayedStatus === "VAR") {
-    items.push({
-      id: `certificate-displayed-${audit.id}`,
-      baseId: `certificate-displayed-${audit.id}`,
-      source: "installation",
-      rowId: `certificate-displayed-${audit.id}`,
-      reviewType: "Installation Review",
-      category: "Certificate - Certificate Displayed",
-      note: "",
-      finding: audit.certificateDisplayedReportFinding,
-      requiredAction: audit.certificateDisplayedReportRequiredAction,
-      codeStandard: audit.certificateDisplayedReportCodeStandard,
-      codeEdition: audit.certificateDisplayedReportCodeEdition,
-      codeSection: audit.certificateDisplayedReportCodeSection,
-    });
-  }
-  return items;
+  const hasCertificateVariation = audit.matchesCertificateStatus === "VAR" || audit.certificateDisplayedStatus === "VAR";
+  if (!hasCertificateVariation) return [];
+  const useMatchReportFields = Boolean(
+    audit.certificateMatchReportFinding ||
+    audit.certificateMatchReportRequiredAction ||
+    audit.certificateMatchReportCodeStandard ||
+    audit.certificateMatchReportCodeEdition ||
+    audit.certificateMatchReportCodeSection,
+  );
+  const notes = [
+    audit.matchesCertificateStatus === "VAR" && audit.certificateMatchNotes.trim()
+      ? `Certificate declarations variation: ${audit.certificateMatchNotes.trim()}`
+      : "",
+    audit.certificateDisplayedStatus === "VAR" ? "Certificate was not displayed." : "",
+  ].filter(Boolean).join("\n");
+  return [{
+    id: `certificate-condition-${audit.id}`,
+    baseId: `certificate-condition-${audit.id}`,
+    source: "installation",
+    rowId: `certificate-condition-${audit.id}`,
+    reviewType: "Installation Review",
+    category: "Certificate",
+    note: notes,
+    finding: useMatchReportFields ? audit.certificateMatchReportFinding : audit.certificateDisplayedReportFinding,
+    requiredAction: useMatchReportFields ? audit.certificateMatchReportRequiredAction : audit.certificateDisplayedReportRequiredAction,
+    codeStandard: useMatchReportFields ? audit.certificateMatchReportCodeStandard : audit.certificateDisplayedReportCodeStandard,
+    codeEdition: useMatchReportFields ? audit.certificateMatchReportCodeEdition : audit.certificateDisplayedReportCodeEdition,
+    codeSection: useMatchReportFields ? audit.certificateMatchReportCodeSection : audit.certificateDisplayedReportCodeSection,
+  }];
 }
 
 function reportValue(item: ReportItem): ReportFindingValue {
@@ -1492,7 +1487,7 @@ function updateReportItem(audit: Audit, item: ReportItem, reportFields: Partial<
     };
   }
   if (item.source === "installation") {
-    if (item.rowId.startsWith("certificate-match-")) {
+    if (item.rowId.startsWith("certificate-condition-") || item.rowId.startsWith("certificate-match-")) {
       return {
         ...audit,
         updatedAt,

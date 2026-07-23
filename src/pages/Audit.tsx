@@ -254,6 +254,13 @@ export function AuditPage({ auditorName }: { auditorName: string }) {
                   </>
                 ) : null}
               </div>
+              {program === "fire" && audit.installationReviewed && audit.matchesCertificateStatus === "VAR" ? (
+                <SectionReviewNote
+                  title="Certificate declaration variation note"
+                  value={audit.certificateMatchNotes}
+                  onChange={(certificateMatchNotes) => update({ ...audit, certificateMatchNotes })}
+                />
+              ) : null}
               {!audit.installationReviewed ? (
                 <SectionReviewNote
                   title="Installation review variation"

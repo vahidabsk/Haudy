@@ -269,6 +269,7 @@ export interface Audit {
   deviceTestingReportCodeSection: string;
   matchesCertificateStatus: ReviewStatus | "";
   certificateDisplayedStatus: DisplayStatus | "";
+  certificateMatchNotes: string;
   certificateMatchReportFinding: string;
   certificateMatchReportRequiredAction: string;
   certificateMatchReportCodeStandard: string;

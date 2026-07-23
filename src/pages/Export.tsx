@@ -738,6 +738,15 @@ function notReviewedComments(audit: Audit) {
   if (!audit.deviceTestingReviewed && audit.deviceTestingNotes.trim()) {
     comments.push(`Device testing not completed: ${audit.deviceTestingNotes.trim()}`);
   }
+  if (audit.matchesCertificateStatus === "VAR" && audit.certificateMatchNotes.trim()) {
+    comments.push(`Certificate declarations variation: ${audit.certificateMatchNotes.trim()}`);
+  }
+  if (audit.certificateDisplayedStatus === "VAR") {
+    comments.push("Certificate was not displayed.");
+  }
+  if (audit.certificateDisplayedStatus === "NA") {
+    comments.push("Posting certificate is not required by the code.");
+  }
   return comments.join("\n");
 }
 
