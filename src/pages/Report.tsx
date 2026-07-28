@@ -757,6 +757,15 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
         showReportHelp
         helpStandard={certificateCode.standard}
         helpYear={certificateCode.year}
+        aiContext={{
+          reviewType: item.reviewType,
+          source: item.source,
+          category: item.category,
+          fieldNote: item.note,
+          nfpa72Edition: certificateCode.year,
+          certificateStandard: certificateCode.standard,
+          propertyContext: audit.protectedProperty,
+        }}
         onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
       />}
     </div>
