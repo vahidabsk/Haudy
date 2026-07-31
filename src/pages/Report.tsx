@@ -44,7 +44,7 @@ interface ReportPhotoItem {
   id: string;
   photoId: string;
   dataUrl: string;
-  itemLineNumber: number;
+  relatedFindingNumber: number;
   propertyName: string;
   reviewType: ReportReview;
   category: string;
@@ -945,9 +945,9 @@ function ReportPhotoAppendix({ photos }: { photos: ReportPhotoItem[] }) {
       <div className="report-photo-grid">
         {photos.map((photo) => (
           <figure key={photo.id} className="report-photo-card">
-            <img src={photo.dataUrl} alt={`Item line ${photo.itemLineNumber} - ${photo.category}`} />
+            <img src={photo.dataUrl} alt={`Related Finding No. ${photo.relatedFindingNumber} - ${photo.category}`} />
             <figcaption>
-              <b>Item line {photo.itemLineNumber}</b>
+              <b>Related Finding No. {photo.relatedFindingNumber}</b>
               <span>{photo.reviewType} - {photo.category}</span>
               <span>{photo.propertyName}</span>
             </figcaption>
@@ -971,13 +971,14 @@ function collectReportItems(audit: Audit): ReportItem[] {
 }
 
 function reportPhotoAppendixItems(audits: Audit[], serviceCenterCount: number): ReportPhotoItem[] {
-  let nextNumber = serviceCenterCount + 1;
+  const findingNumbers = reportFindingNumberMap(audits, serviceCenterCount);
   const photos: ReportPhotoItem[] = [];
   reportAuditsByCategory(audits).forEach((audit) => {
     const installationRows = new Map(audit.installation.map((row) => [row.id, row]));
     printableReportItems(audit).forEach((item) => {
-      const itemLineNumber = nextNumber++;
       if (item.source !== "installation" || item.extraIndex !== undefined) return;
+      const relatedFindingNumber = findingNumbers.get(reportFindingNumberKey(audit, item));
+      if (!relatedFindingNumber) return;
       const row = installationRows.get(item.rowId);
       if (!row?.photos.length) return;
       row.photos.forEach((photoId, index) => {
@@ -987,7 +988,7 @@ function reportPhotoAppendixItems(audits: Audit[], serviceCenterCount: number): 
           id: `${item.id}-${photoId}-${index}`,
           photoId,
           dataUrl,
-          itemLineNumber,
+          relatedFindingNumber,
           propertyName: audit.protectedProperty,
           reviewType: item.reviewType,
           category: item.category,
@@ -996,6 +997,30 @@ function reportPhotoAppendixItems(audits: Audit[], serviceCenterCount: number): 
     });
   });
   return photos;
+}
+
+function reportFindingNumberMap(audits: Audit[], serviceCenterCount: number) {
+  let nextNumber = serviceCenterCount + 1;
+  const numbers = new Map<string, number>();
+  reportAuditsByCategory(audits).forEach((audit) => {
+    const items = printableReportItems(audit);
+    const printedGroups = [
+      !audit.deviceSystemLocal && audit.signalLog.some((row) => row.signalType)
+        ? items.filter((item) => item.reviewType === "Signal Processing Review")
+        : [],
+      items.filter((item) => item.reviewType === "Documentation Review"),
+      items.filter((item) => item.reviewType === "Installation Review"),
+    ];
+    printedGroups.flat().forEach((item) => {
+      if (item.simpleExplanation) return;
+      numbers.set(reportFindingNumberKey(audit, item), nextNumber++);
+    });
+  });
+  return numbers;
+}
+
+function reportFindingNumberKey(audit: Audit, item: ReportItem) {
+  return `${audit.id}:${item.id}`;
 }
 
 function printableReportItems(audit: Audit): ReportItem[] {
