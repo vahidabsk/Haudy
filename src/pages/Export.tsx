@@ -479,7 +479,7 @@ function fieldNotesName(audit: Audit) {
   const year = (audit.auditDate || audit.createdAt || new Date().toISOString()).slice(0, 4);
   const property = protectedPropertyHeader(audit);
   return [
-    `Filed Notes_${year}`,
+    `Field Notes_${year}`,
     property.toUpperCase(),
     certificate?.fileNo || fileScnParts(audit.fileScn).file,
     `SCN ${certificate?.ccn || fileScnParts(audit.fileScn).scn || "0"}`,
