@@ -16,6 +16,12 @@ export interface SavedDocumentStatus {
   confirmationEmailPreparedAt?: string;
   confirmationEmailSentAt?: string;
   confirmationEmailDrafts?: string[];
+  prescheduleOptionOne?: string;
+  prescheduleOptionTwo?: string;
+  prescheduleAuditDays?: string;
+  prescheduleEmailPreparedAt?: string;
+  prescheduleEmailSentAt?: string;
+  prescheduleEmailDrafts?: string[];
   serviceCenterHasComment?: boolean;
   serviceCenterDone?: boolean;
   serviceCenterComments?: ServiceCenterComment[];
@@ -48,6 +54,7 @@ export interface ServiceCenterComment {
 }
 
 export interface AscDocumentState {
+  preschedule?: SavedDocumentStatus;
   confirmation?: SavedDocumentStatus;
   report?: SavedDocumentStatus;
   crzhReport?: SavedDocumentStatus;

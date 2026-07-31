@@ -44,7 +44,7 @@ interface ReportPhotoItem {
   id: string;
   photoId: string;
   dataUrl: string;
-  deficiencyNumber: number;
+  itemLineNumber: number;
   propertyName: string;
   reviewType: ReportReview;
   category: string;
@@ -757,15 +757,6 @@ function ReportEditorItemCard({ audit, item, onUpdateAudit }: { audit: Audit; it
         showReportHelp
         helpStandard={certificateCode.standard}
         helpYear={certificateCode.year}
-        aiContext={{
-          reviewType: item.reviewType,
-          source: item.source,
-          category: item.category,
-          fieldNote: item.note,
-          nfpa72Edition: certificateCode.year,
-          certificateStandard: certificateCode.standard,
-          propertyContext: audit.protectedProperty,
-        }}
         onChange={(reportFields) => onUpdateAudit(updateReportItem(audit, item, reportFields))}
       />}
     </div>
@@ -954,9 +945,9 @@ function ReportPhotoAppendix({ photos }: { photos: ReportPhotoItem[] }) {
       <div className="report-photo-grid">
         {photos.map((photo) => (
           <figure key={photo.id} className="report-photo-card">
-            <img src={photo.dataUrl} alt={`Deficiency ${photo.deficiencyNumber} - ${photo.category}`} />
+            <img src={photo.dataUrl} alt={`Item line ${photo.itemLineNumber} - ${photo.category}`} />
             <figcaption>
-              <b>Deficiency {photo.deficiencyNumber}</b>
+              <b>Item line {photo.itemLineNumber}</b>
               <span>{photo.reviewType} - {photo.category}</span>
               <span>{photo.propertyName}</span>
             </figcaption>
@@ -985,7 +976,7 @@ function reportPhotoAppendixItems(audits: Audit[], serviceCenterCount: number): 
   reportAuditsByCategory(audits).forEach((audit) => {
     const installationRows = new Map(audit.installation.map((row) => [row.id, row]));
     printableReportItems(audit).forEach((item) => {
-      const deficiencyNumber = nextNumber++;
+      const itemLineNumber = nextNumber++;
       if (item.source !== "installation" || item.extraIndex !== undefined) return;
       const row = installationRows.get(item.rowId);
       if (!row?.photos.length) return;
@@ -996,7 +987,7 @@ function reportPhotoAppendixItems(audits: Audit[], serviceCenterCount: number): 
           id: `${item.id}-${photoId}-${index}`,
           photoId,
           dataUrl,
-          deficiencyNumber,
+          itemLineNumber,
           propertyName: audit.protectedProperty,
           reviewType: item.reviewType,
           category: item.category,

@@ -5,7 +5,7 @@ import { UploadDialog } from "../components/UploadDialog";
 import { useAudits } from "../hooks/use-audits";
 import { assignmentCertificateOverrides, assignmentProfileDefaults, groupAssignmentsAndAudits, importTrackerAssignments, loadAuditAssignments, saveAuditAssignments, AssignmentGroup } from "../lib/audit-assignments";
 import { clearAscDocuments, deleteAscDocuments, loadAscDocuments, saveAscDocument, updateAscDocumentDraft } from "../lib/asc-documents";
-import type { AscDocumentState } from "../lib/asc-documents";
+import type { AscDocumentState, SavedDocumentStatus } from "../lib/asc-documents";
 import { AscProfile, clearAscProfiles, completeAscProfile, deleteAscProfile, loadAscProfiles, saveAscProfiles } from "../lib/asc-profile";
 import { AscGroup, groupByAsc } from "../lib/asc-groups";
 import { auditHasProgress, auditIdentity, certificateIdentity } from "../lib/audit-duplicates";
@@ -44,6 +44,14 @@ interface ConfirmationEmailEditorState {
   report?: NonNullable<AscDocumentState["report"]>;
 }
 
+interface PrescheduleEmailEditorState {
+  group: AssignmentGroup;
+  profile: AscProfile;
+  optionOne: string;
+  optionTwo: string;
+  auditDays: string;
+}
+
 export function Dashboard({ auditorName }: { auditorName: string }) {
   const audits = useAudits(auditorName);
   const navigate = useNavigate();
@@ -63,7 +71,9 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
   const [storageMessage, setStorageMessage] = useState("");
   const [confirmationEmailMessage, setConfirmationEmailMessage] = useState<{ ascKey: string; text: string; tone: "success" | "warning" | "error" } | null>(null);
   const [confirmationEmailEditor, setConfirmationEmailEditor] = useState<ConfirmationEmailEditorState | null>(null);
+  const [prescheduleEmailEditor, setPrescheduleEmailEditor] = useState<PrescheduleEmailEditorState | null>(null);
   const [preparingConfirmationEmail, setPreparingConfirmationEmail] = useState(false);
+  const [preparingPrescheduleEmail, setPreparingPrescheduleEmail] = useState(false);
   const [transferMessage, setTransferMessage] = useState("");
   const [duplicateUpload, setDuplicateUpload] = useState<DuplicateUploadReview | null>(null);
   const [deleteAscGroup, setDeleteAscGroup] = useState<AssignmentGroup | null>(null);
@@ -376,6 +386,52 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     }
   }
 
+  async function preparePrescheduleEmail(editor: PrescheduleEmailEditorState) {
+    if (!(editor.profile.pocEmail || "").trim()) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Add a POC email address before preparing the preschedule email.", tone: "warning" });
+      return false;
+    }
+    if (!editor.optionOne || !editor.optionTwo || !editor.auditDays.trim()) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Enter two proposed dates and the audit-day allocation.", tone: "warning" });
+      return false;
+    }
+    try {
+      const optionOne = emailDate(editor.optionOne);
+      const optionTwo = emailDate(editor.optionTwo);
+      const auditDays = editor.auditDays.trim();
+      const subject = `Proposed UL Audit Dates – ${editor.group.ascName} – PSN#${editor.profile.psn || editor.group.psn}`;
+      const body = `Dear ${editor.profile.pocName},\n\nI am contacting you regarding the upcoming UL audit for ${editor.group.ascName}. The audit is allocated for ${auditDays}.\n\nTo coordinate the audit schedule, please let me know which of the following proposed start dates works best for your team:\n\n• Option 1: ${optionOne}\n• Option 2: ${optionTwo}\n\nIf neither option is available, please provide alternate dates for consideration. Once the dates are agreed upon, I will provide the formal audit confirmation and preparation information.\n\nPlease also confirm that the appropriate service personnel will be available for the allocated audit period.\n\nIf you have any questions, please do not hesitate to contact me.\n\nThank you for your cooperation.\n\nKind regards,`;
+      await prepareOutlookConfirmationEmail(editor.profile.pocEmail || "", subject, body, []);
+      const preparedAt = new Date().toISOString();
+      const existing = loadAscDocuments()[editor.group.key]?.preschedule;
+      const next = saveAscDocument(editor.group.key, "preschedule", {
+        ...(existing || {}),
+        pocName: editor.profile.pocName,
+        scn: editor.profile.scn,
+        psn: editor.profile.psn || editor.group.psn,
+        prescheduleOptionOne: editor.optionOne,
+        prescheduleOptionTwo: editor.optionTwo,
+        prescheduleAuditDays: auditDays,
+        prescheduleEmailPreparedAt: preparedAt,
+        prescheduleEmailDrafts: [...(existing?.prescheduleEmailDrafts || []), preparedAt],
+      });
+      setAscDocuments(next);
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Outlook preschedule email draft opened. Review and send it in Outlook.", tone: "success" });
+      return true;
+    } catch (error) {
+      setConfirmationEmailMessage({ ascKey: editor.group.key, text: error instanceof Error ? error.message : "Could not prepare the preschedule email.", tone: "error" });
+      return false;
+    }
+  }
+
+  function markPrescheduleEmailSent(editor: PrescheduleEmailEditorState) {
+    const existing = loadAscDocuments()[editor.group.key]?.preschedule;
+    if (!existing) return;
+    const next = saveAscDocument(editor.group.key, "preschedule", { ...existing, prescheduleEmailSentAt: new Date().toISOString() });
+    setAscDocuments(next);
+    setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Preschedule email marked as sent.", tone: "success" });
+  }
+
   function markConfirmationEmailSent(group: AssignmentGroup, confirmation: NonNullable<AscDocumentState["confirmation"]>) {
     const next = saveAscDocument(group.key, "confirmation", { ...confirmation, confirmationEmailSentAt: new Date().toISOString() });
     setAscDocuments(next);
@@ -661,6 +717,8 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   <span className="mx-2 text-slate-300">|</span>
                   <span className="font-semibold text-navy">PSN:</span> {profile.psn}
                   <div className="mt-1 text-xs text-slate-500">
+                    Preschedule Email: {documents?.preschedule?.prescheduleEmailSentAt ? `sent ${relativeTime(documents.preschedule.prescheduleEmailSentAt)}` : documents?.preschedule?.prescheduleEmailPreparedAt ? `draft created ${relativeTime(documents.preschedule.prescheduleEmailPreparedAt)}` : "not prepared yet"}
+                    <span className="mx-2 text-slate-300">|</span>
                     Confirmation: {confirmationSaved ? `saved ${relativeTime(documents.confirmation?.updatedAt || "")}` : "not saved yet"}
                     {hasNonCrzhCertificates ? (
                       <>
@@ -684,6 +742,24 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   </button>
                   <button className="haudy-card-action" onClick={() => navigate(`/asc/${encodeURIComponent(group.key)}`)}>
                     <Building2 size={16} /> Field Notes
+                  </button>
+                  <button
+                    className="haudy-card-action disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!readyForDocuments || !(profile.pocEmail || "").trim()}
+                    title={!readyForDocuments || !(profile.pocEmail || "").trim() ? "Complete the ASC contact information, including the POC email, first." : undefined}
+                    onClick={() => {
+                      const preschedule = documents?.preschedule;
+                      setConfirmationEmailMessage(null);
+                      setPrescheduleEmailEditor({
+                        group,
+                        profile,
+                        optionOne: preschedule?.prescheduleOptionOne || "",
+                        optionTwo: preschedule?.prescheduleOptionTwo || "",
+                        auditDays: preschedule?.prescheduleAuditDays || "",
+                      });
+                    }}
+                  >
+                    <CalendarDays size={16} /> Preschedule Email
                   </button>
                   <button className="haudy-card-action disabled:cursor-not-allowed disabled:opacity-50" disabled={!confirmationSaved && !hasCertificates} title={!confirmationSaved && !hasCertificates ? "Add a certificate before creating a confirmation letter." : undefined} onClick={() => {
                     if (!confirmationSaved && !hasCertificates) return;
@@ -761,6 +837,25 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         />
       ) : null}
       {showCustomerPhoneBook ? <CustomerPhoneBook auditorName={auditorName} onClose={() => setShowCustomerPhoneBook(false)} /> : null}
+      {prescheduleEmailEditor ? (
+        <PrescheduleEmailDialog
+          editor={prescheduleEmailEditor}
+          record={ascDocuments[prescheduleEmailEditor.group.key]?.preschedule}
+          preparing={preparingPrescheduleEmail}
+          message={confirmationEmailMessage?.ascKey === prescheduleEmailEditor.group.key ? confirmationEmailMessage : null}
+          onChange={setPrescheduleEmailEditor}
+          onClose={() => setPrescheduleEmailEditor(null)}
+          onPrepare={async () => {
+            setPreparingPrescheduleEmail(true);
+            try {
+              await preparePrescheduleEmail(prescheduleEmailEditor);
+            } finally {
+              setPreparingPrescheduleEmail(false);
+            }
+          }}
+          onMarkSent={() => markPrescheduleEmailSent(prescheduleEmailEditor)}
+        />
+      ) : null}
       {confirmationGroup ? (
         <ConfirmationDialog
           group={confirmationGroup}
@@ -1303,6 +1398,38 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
   );
 }
 
+function PrescheduleEmailDialog({ editor, record, preparing, message, onClose, onChange, onPrepare, onMarkSent }: { editor: PrescheduleEmailEditorState; record?: SavedDocumentStatus; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: PrescheduleEmailEditorState) => void; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
+  const history = record?.prescheduleEmailDrafts?.length ? record.prescheduleEmailDrafts : record?.prescheduleEmailPreparedAt ? [record.prescheduleEmailPreparedAt] : [];
+  const ready = Boolean(editor.optionOne && editor.optionTwo && editor.optionOne !== editor.optionTwo && editor.auditDays.trim());
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 py-6">
+      <section className="grid max-h-[calc(100vh-3rem)] w-full max-w-2xl gap-4 overflow-y-auto rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Preschedule email">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+          <div><h2 className="text-xl font-bold text-navy">Preschedule Email</h2><p className="mt-1 text-sm text-slate-600">Propose two audit dates before creating the formal confirmation.</p></div>
+          <button type="button" className="grid h-10 w-10 place-items-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-50" onClick={onClose} disabled={preparing} aria-label="Close preschedule email"><X size={18} /></button>
+        </div>
+        <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
+          <p><span className="font-semibold text-navy">To:</span> {editor.profile.pocName} &lt;{editor.profile.pocEmail}&gt;</p>
+          <p className="mt-1"><span className="font-semibold text-navy">ASC:</span> {editor.group.ascName} <span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">PSN:</span> {editor.profile.psn || editor.group.psn}</p>
+        </div>
+        {history.length || record?.prescheduleEmailSentAt ? <section className="rounded-lg border border-slate-200 bg-slate-50 p-3"><h3 className="text-sm font-bold text-navy">Email activity</h3><ul className="mt-2 grid gap-1 text-sm text-slate-700">{history.map((timestamp, index) => <li key={`${timestamp}-${index}`}><span className="font-semibold text-sky-800">Preschedule draft created</span> — {formatEmailActivityTime(timestamp)}</li>)}{record?.prescheduleEmailSentAt ? <li><span className="font-semibold text-emerald-800">Preschedule email marked sent</span> — {formatEmailActivityTime(record.prescheduleEmailSentAt)}</li> : null}</ul></section> : null}
+        {message ? <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${message.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div> : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-medium text-slate-700">Proposed date option 1<input className="min-h-11 rounded-md border border-slate-300 px-3" type="date" value={editor.optionOne} onChange={(event) => onChange({ ...editor, optionOne: event.target.value })} /></label>
+          <label className="grid gap-1 text-sm font-medium text-slate-700">Proposed date option 2<input className="min-h-11 rounded-md border border-slate-300 px-3" type="date" value={editor.optionTwo} onChange={(event) => onChange({ ...editor, optionTwo: event.target.value })} /></label>
+        </div>
+        <label className="grid gap-1 text-sm font-medium text-slate-700">Audit-day allocation<input className="min-h-11 rounded-md border border-slate-300 px-3" value={editor.auditDays} onChange={(event) => onChange({ ...editor, auditDays: event.target.value })} placeholder="Example: 2 audit days" /></label>
+        {editor.optionOne && editor.optionTwo && editor.optionOne === editor.optionTwo ? <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">Choose two different proposed dates.</div> : null}
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
+          {record?.prescheduleEmailPreparedAt && !record.prescheduleEmailSentAt ? <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800" onClick={onMarkSent} disabled={preparing}><CheckCircle2 size={16} /> Mark Sent</button> : null}
+          <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700" onClick={onClose} disabled={preparing}>Close</button>
+          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-50" disabled={!ready || preparing} onClick={() => void onPrepare()}><UploadCloud size={16} /> {preparing ? "Preparing…" : "Open Outlook Draft"}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function ConfirmationEmailDialog({ editor, preparing, message, onClose, onChange, onChooseConfirmation, onAddAttachments, onChooseReport, onPrepare, onMarkSent }: { editor: ConfirmationEmailEditorState; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: ConfirmationEmailEditorState) => void; onChooseConfirmation: () => void | Promise<void>; onAddAttachments: () => void | Promise<void>; onChooseReport: () => void | Promise<void>; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
   const draftHistory = editor.confirmation.confirmationEmailDrafts?.length ? editor.confirmation.confirmationEmailDrafts : editor.confirmation.confirmationEmailPreparedAt ? [editor.confirmation.confirmationEmailPreparedAt] : [];
   const reportDraftHistory = editor.report?.reportEmailDrafts?.length ? editor.report.reportEmailDrafts : editor.report?.reportEmailPreparedAt ? [editor.report.reportEmailPreparedAt] : [];
@@ -1784,6 +1911,8 @@ function nextAuditAction(group: AssignmentGroup, profile: AscProfile, documents?
   const confirmation = documents?.confirmation;
   if (!group.audits.length) return { label: "Add certificate", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!profile.pocName.trim()) return { label: "Select or add the POC", className: "border-amber-200 bg-amber-50 text-amber-950" };
+  if (!(profile.pocEmail || "").trim()) return { label: "Add the POC email", className: "border-amber-200 bg-amber-50 text-amber-950" };
+  if (!documents?.preschedule?.prescheduleEmailPreparedAt) return { label: "Prepare preschedule email", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!confirmation?.saved) return { label: "Create confirmation letter", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!confirmation.confirmationEmailPreparedAt) return { label: "Prepare confirmation email", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!group.audits.some(auditHasProgress)) return { label: "Complete field notes", className: "border-violet-200 bg-violet-50 text-violet-900" };
