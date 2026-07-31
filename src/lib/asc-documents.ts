@@ -22,6 +22,7 @@ export interface SavedDocumentStatus {
   prescheduleEmailPreparedAt?: string;
   prescheduleEmailSentAt?: string;
   prescheduleEmailDrafts?: string[];
+  prescheduleEmailNotNeeded?: boolean;
   serviceCenterHasComment?: boolean;
   serviceCenterDone?: boolean;
   serviceCenterComments?: ServiceCenterComment[];

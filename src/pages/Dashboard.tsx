@@ -50,6 +50,7 @@ interface PrescheduleEmailEditorState {
   optionOne: string;
   optionTwo: string;
   auditDays: string;
+  enabled: boolean;
 }
 
 export function Dashboard({ auditorName }: { auditorName: string }) {
@@ -400,7 +401,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
       const optionTwo = emailDate(editor.optionTwo);
       const auditDays = editor.auditDays.trim();
       const subject = `Proposed UL Audit Dates – ${editor.group.ascName} – PSN#${editor.profile.psn || editor.group.psn}`;
-      const body = `Dear ${editor.profile.pocName},\n\nI am contacting you regarding the upcoming UL audit for ${editor.group.ascName}. The audit is allocated for ${auditDays}.\n\nTo coordinate the audit schedule, please let me know which of the following proposed start dates works best for your team:\n\n• Option 1: ${optionOne}\n• Option 2: ${optionTwo}\n\nIf neither option is available, please provide alternate dates for consideration. Once the dates are agreed upon, I will provide the formal audit confirmation and preparation information.\n\nPlease also confirm that the appropriate service personnel will be available for the allocated audit period.\n\nIf you have any questions, please do not hesitate to contact me.\n\nThank you for your cooperation.\n\nKind regards,`;
+      const body = `Dear ${editor.profile.pocName},\n\nI am contacting you regarding the upcoming UL audit for ${editor.group.ascName}. The audit has been allocated for ${auditDays}.\n\nTo finalize the audit schedule, please confirm one of the following proposed start dates:\n\n• Option 1: ${optionOne}\n• Option 2: ${optionTwo}\n\nPlease reply with your preferred option so I can finalize the audit schedule and send the formal audit confirmation along with the preparation information.\n\nPlease also confirm that the appropriate service personnel will be available for the allocated audit period.\n\nIf you have any questions, please do not hesitate to contact me.\n\nThank you for your cooperation.\n\nKind regards,`;
       await prepareOutlookConfirmationEmail(editor.profile.pocEmail || "", subject, body, []);
       const preparedAt = new Date().toISOString();
       const existing = loadAscDocuments()[editor.group.key]?.preschedule;
@@ -414,6 +415,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
         prescheduleAuditDays: auditDays,
         prescheduleEmailPreparedAt: preparedAt,
         prescheduleEmailDrafts: [...(existing?.prescheduleEmailDrafts || []), preparedAt],
+        prescheduleEmailNotNeeded: false,
       });
       setAscDocuments(next);
       setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Outlook preschedule email draft opened. Review and send it in Outlook.", tone: "success" });
@@ -430,6 +432,21 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
     const next = saveAscDocument(editor.group.key, "preschedule", { ...existing, prescheduleEmailSentAt: new Date().toISOString() });
     setAscDocuments(next);
     setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Preschedule email marked as sent.", tone: "success" });
+  }
+
+  function savePrescheduleNotNeeded(editor: PrescheduleEmailEditorState) {
+    const existing = loadAscDocuments()[editor.group.key]?.preschedule;
+    const next = saveAscDocument(editor.group.key, "preschedule", {
+      ...(existing || {}),
+      pocName: editor.profile.pocName,
+      scn: editor.profile.scn,
+      psn: editor.profile.psn || editor.group.psn,
+      prescheduleEmailNotNeeded: true,
+      prescheduleEmailPreparedAt: "",
+      prescheduleEmailSentAt: "",
+    });
+    setAscDocuments(next);
+    setConfirmationEmailMessage({ ascKey: editor.group.key, text: "Preschedule email saved as not needed for this audit.", tone: "success" });
   }
 
   function markConfirmationEmailSent(group: AssignmentGroup, confirmation: NonNullable<AscDocumentState["confirmation"]>) {
@@ -717,7 +734,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                   <span className="mx-2 text-slate-300">|</span>
                   <span className="font-semibold text-navy">PSN:</span> {profile.psn}
                   <div className="mt-1 text-xs text-slate-500">
-                    Preschedule Email: {documents?.preschedule?.prescheduleEmailSentAt ? `sent ${relativeTime(documents.preschedule.prescheduleEmailSentAt)}` : documents?.preschedule?.prescheduleEmailPreparedAt ? `draft created ${relativeTime(documents.preschedule.prescheduleEmailPreparedAt)}` : "not prepared yet"}
+                    Preschedule Email: {documents?.preschedule?.prescheduleEmailNotNeeded ? "not needed" : documents?.preschedule?.prescheduleEmailSentAt ? `sent ${relativeTime(documents.preschedule.prescheduleEmailSentAt)}` : documents?.preschedule?.prescheduleEmailPreparedAt ? `draft created ${relativeTime(documents.preschedule.prescheduleEmailPreparedAt)}` : "not prepared yet"}
                     <span className="mx-2 text-slate-300">|</span>
                     Confirmation: {confirmationSaved ? `saved ${relativeTime(documents.confirmation?.updatedAt || "")}` : "not saved yet"}
                     {hasNonCrzhCertificates ? (
@@ -756,6 +773,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
                         optionOne: preschedule?.prescheduleOptionOne || "",
                         optionTwo: preschedule?.prescheduleOptionTwo || "",
                         auditDays: preschedule?.prescheduleAuditDays || "",
+                        enabled: !preschedule?.prescheduleEmailNotNeeded,
                       });
                     }}
                   >
@@ -854,6 +872,7 @@ export function Dashboard({ auditorName }: { auditorName: string }) {
             }
           }}
           onMarkSent={() => markPrescheduleEmailSent(prescheduleEmailEditor)}
+          onSaveNotNeeded={() => savePrescheduleNotNeeded(prescheduleEmailEditor)}
         />
       ) : null}
       {confirmationGroup ? (
@@ -1398,7 +1417,7 @@ function AscProfileDialog({ group, profile, onClose, onSave }: { group: AscGroup
   );
 }
 
-function PrescheduleEmailDialog({ editor, record, preparing, message, onClose, onChange, onPrepare, onMarkSent }: { editor: PrescheduleEmailEditorState; record?: SavedDocumentStatus; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: PrescheduleEmailEditorState) => void; onPrepare: () => void | Promise<void>; onMarkSent: () => void }) {
+function PrescheduleEmailDialog({ editor, record, preparing, message, onClose, onChange, onPrepare, onMarkSent, onSaveNotNeeded }: { editor: PrescheduleEmailEditorState; record?: SavedDocumentStatus; preparing: boolean; message: { text: string; tone: "success" | "warning" | "error" } | null; onClose: () => void; onChange: (next: PrescheduleEmailEditorState) => void; onPrepare: () => void | Promise<void>; onMarkSent: () => void; onSaveNotNeeded: () => void }) {
   const history = record?.prescheduleEmailDrafts?.length ? record.prescheduleEmailDrafts : record?.prescheduleEmailPreparedAt ? [record.prescheduleEmailPreparedAt] : [];
   const ready = Boolean(editor.optionOne && editor.optionTwo && editor.optionOne !== editor.optionTwo && editor.auditDays.trim());
   return (
@@ -1412,18 +1431,36 @@ function PrescheduleEmailDialog({ editor, record, preparing, message, onClose, o
           <p><span className="font-semibold text-navy">To:</span> {editor.profile.pocName} &lt;{editor.profile.pocEmail}&gt;</p>
           <p className="mt-1"><span className="font-semibold text-navy">ASC:</span> {editor.group.ascName} <span className="mx-2 text-slate-300">|</span><span className="font-semibold text-navy">PSN:</span> {editor.profile.psn || editor.group.psn}</p>
         </div>
+        <section className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div>
+            <h3 className="font-bold text-navy">Use preschedule email</h3>
+            <p className="mt-1 text-sm text-slate-600">Optional. Turn this off when the audit dates were arranged another way.</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={editor.enabled}
+            className={`relative h-8 w-14 shrink-0 rounded-full transition ${editor.enabled ? "bg-emerald-600" : "bg-slate-300"}`}
+            onClick={() => onChange({ ...editor, enabled: !editor.enabled })}
+            disabled={preparing}
+          >
+            <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition ${editor.enabled ? "left-7" : "left-1"}`} />
+            <span className="sr-only">{editor.enabled ? "Preschedule email enabled" : "Preschedule email not needed"}</span>
+          </button>
+        </section>
         {history.length || record?.prescheduleEmailSentAt ? <section className="rounded-lg border border-slate-200 bg-slate-50 p-3"><h3 className="text-sm font-bold text-navy">Email activity</h3><ul className="mt-2 grid gap-1 text-sm text-slate-700">{history.map((timestamp, index) => <li key={`${timestamp}-${index}`}><span className="font-semibold text-sky-800">Preschedule draft created</span> — {formatEmailActivityTime(timestamp)}</li>)}{record?.prescheduleEmailSentAt ? <li><span className="font-semibold text-emerald-800">Preschedule email marked sent</span> — {formatEmailActivityTime(record.prescheduleEmailSentAt)}</li> : null}</ul></section> : null}
         {message ? <div className={`rounded-md border px-3 py-2 text-sm font-semibold ${message.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : message.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-800"}`}>{message.text}</div> : null}
-        <div className="grid gap-4 sm:grid-cols-2">
+        {editor.enabled ? <><div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium text-slate-700">Proposed date option 1<input className="min-h-11 rounded-md border border-slate-300 px-3" type="date" value={editor.optionOne} onChange={(event) => onChange({ ...editor, optionOne: event.target.value })} /></label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">Proposed date option 2<input className="min-h-11 rounded-md border border-slate-300 px-3" type="date" value={editor.optionTwo} onChange={(event) => onChange({ ...editor, optionTwo: event.target.value })} /></label>
         </div>
         <label className="grid gap-1 text-sm font-medium text-slate-700">Audit-day allocation<input className="min-h-11 rounded-md border border-slate-300 px-3" value={editor.auditDays} onChange={(event) => onChange({ ...editor, auditDays: event.target.value })} placeholder="Example: 2 audit days" /></label>
         {editor.optionOne && editor.optionTwo && editor.optionOne === editor.optionTwo ? <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">Choose two different proposed dates.</div> : null}
+        </> : <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">No email draft will be created. Save this step as not needed to continue the audit timeline.</div>}
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4">
           {record?.prescheduleEmailPreparedAt && !record.prescheduleEmailSentAt ? <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-800" onClick={onMarkSent} disabled={preparing}><CheckCircle2 size={16} /> Mark Sent</button> : null}
           <button type="button" className="min-h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700" onClick={onClose} disabled={preparing}>Close</button>
-          <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-50" disabled={!ready || preparing} onClick={() => void onPrepare()}><UploadCloud size={16} /> {preparing ? "Preparing…" : "Open Outlook Draft"}</button>
+          {editor.enabled ? <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-50" disabled={!ready || preparing} onClick={() => void onPrepare()}><UploadCloud size={16} /> {preparing ? "Preparing…" : "Open Outlook Draft"}</button> : <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-800" onClick={onSaveNotNeeded} disabled={preparing}><CheckCircle2 size={16} /> Save as Not Needed</button>}
         </div>
       </section>
     </div>
@@ -1912,7 +1949,7 @@ function nextAuditAction(group: AssignmentGroup, profile: AscProfile, documents?
   if (!group.audits.length) return { label: "Add certificate", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!profile.pocName.trim()) return { label: "Select or add the POC", className: "border-amber-200 bg-amber-50 text-amber-950" };
   if (!(profile.pocEmail || "").trim()) return { label: "Add the POC email", className: "border-amber-200 bg-amber-50 text-amber-950" };
-  if (!documents?.preschedule?.prescheduleEmailPreparedAt) return { label: "Prepare preschedule email", className: "border-sky-200 bg-sky-50 text-sky-900" };
+  if (!documents?.preschedule?.prescheduleEmailPreparedAt && !documents?.preschedule?.prescheduleEmailNotNeeded) return { label: "Prepare or skip preschedule email", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!confirmation?.saved) return { label: "Create confirmation letter", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!confirmation.confirmationEmailPreparedAt) return { label: "Prepare confirmation email", className: "border-sky-200 bg-sky-50 text-sky-900" };
   if (!group.audits.some(auditHasProgress)) return { label: "Complete field notes", className: "border-violet-200 bg-violet-50 text-violet-900" };
