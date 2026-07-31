@@ -1,6 +1,7 @@
 import findingRows from "../data/auditor-report-findings.json";
 
 const PAST_REPORTS_KEY = "haudy.pastReports.library.excel-v1";
+const DELETED_PAST_REPORTS_KEY = "haudy.pastReports.deleted.excel-v1";
 
 export interface AuditorReportFinding {
   id: string;
@@ -48,8 +49,9 @@ export function savePastReportFindings(rows: AuditorReportFinding[]) {
 
 export function allAuditorReportFindings() {
   const localRows = loadPastReportFindings();
+  const deletedIds = loadDeletedPastReportIds();
   const localIds = new Set(localRows.map((row) => row.id));
-  return [...localRows, ...auditorReportFindings.filter((row) => !localIds.has(row.id))];
+  return [...localRows, ...auditorReportFindings.filter((row) => !localIds.has(row.id))].filter((row) => !deletedIds.has(row.id));
 }
 
 export function pastReportOptions(filters: Partial<AuditorReportSearchFilters> = {}) {
@@ -100,7 +102,7 @@ export function addReportFindingsToPastReports(rows: AuditorReportFinding[]) {
   return added;
 }
 
-export function updatePastReportMetadata(rowId: string, patch: Pick<AuditorReportFinding, "standard" | "year" | "section" | "reviewType" | "category">) {
+export function updatePastReportFinding(rowId: string, patch: Pick<AuditorReportFinding, "standard" | "year" | "section" | "reviewType" | "category" | "finding" | "requiredAction">) {
   const localRows = loadPastReportFindings();
   const base = localRows.find((row) => row.id === rowId) || auditorReportFindings.find((row) => row.id === rowId);
   if (!base) return null;
@@ -111,13 +113,34 @@ export function updatePastReportMetadata(rowId: string, patch: Pick<AuditorRepor
     section: patch.section.trim(),
     reviewType: patch.reviewType.trim(),
     category: patch.category.trim(),
-    keywords: buildKeywords([base.finding, base.requiredAction, patch.standard, patch.year, patch.section, patch.reviewType, patch.category]),
+    finding: patch.finding.trim(),
+    requiredAction: patch.requiredAction.trim(),
+    keywords: buildKeywords([patch.finding, patch.requiredAction, patch.standard, patch.year, patch.section, patch.reviewType, patch.category]),
   };
   const existingIndex = localRows.findIndex((row) => row.id === rowId);
   const nextRows = existingIndex >= 0 ? [...localRows] : [updated, ...localRows];
   if (existingIndex >= 0) nextRows[existingIndex] = updated;
   savePastReportFindings(nextRows);
   return updated;
+}
+
+export function deletePastReportFinding(rowId: string) {
+  const exists = allAuditorReportFindings().some((row) => row.id === rowId);
+  if (!exists) return false;
+  savePastReportFindings(loadPastReportFindings().filter((row) => row.id !== rowId));
+  const deletedIds = loadDeletedPastReportIds();
+  deletedIds.add(rowId);
+  localStorage.setItem(DELETED_PAST_REPORTS_KEY, JSON.stringify([...deletedIds]));
+  return true;
+}
+
+function loadDeletedPastReportIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DELETED_PAST_REPORTS_KEY) || "[]");
+    return new Set<string>(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
 }
 
 function findingFingerprint(row: AuditorReportFinding) {
