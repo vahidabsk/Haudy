@@ -52,13 +52,20 @@ export function allAuditorReportFindings() {
   return [...localRows, ...auditorReportFindings.filter((row) => !localIds.has(row.id))];
 }
 
-export function pastReportOptions() {
+export function pastReportOptions(filters: Partial<AuditorReportSearchFilters> = {}) {
   const rows = allAuditorReportFindings();
+  const matches = (row: AuditorReportFinding, excludedField: keyof AuditorReportSearchFilters) => {
+    if (excludedField !== "standard" && filters.standard && normalize(row.standard) !== normalize(filters.standard)) return false;
+    if (excludedField !== "year" && filters.year && normalize(row.year) !== normalize(filters.year)) return false;
+    if (excludedField !== "reviewType" && filters.reviewType && normalize(row.reviewType) !== normalize(filters.reviewType)) return false;
+    if (excludedField !== "category" && filters.category && normalize(row.category) !== normalize(filters.category)) return false;
+    return true;
+  };
   return {
-    standards: uniqueSorted(rows.map((row) => row.standard)),
-    years: uniqueSorted(rows.map((row) => row.year)).sort((a, b) => Number(b) - Number(a)),
-    reviewTypes: uniqueSorted(rows.map((row) => row.reviewType)),
-    categories: uniqueSorted(rows.map((row) => row.category)),
+    standards: uniqueSorted(rows.filter((row) => matches(row, "standard")).map((row) => row.standard)),
+    years: uniqueSorted(rows.filter((row) => matches(row, "year")).map((row) => row.year)).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })),
+    reviewTypes: uniqueSorted(rows.filter((row) => matches(row, "reviewType")).map((row) => row.reviewType)),
+    categories: uniqueSorted(rows.filter((row) => matches(row, "category")).map((row) => row.category)),
   };
 }
 

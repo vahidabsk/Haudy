@@ -25,7 +25,7 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
   const [libraryVersion, setLibraryVersion] = useState(0);
   const [editingId, setEditingId] = useState("");
   const [editDraft, setEditDraft] = useState({ standard: "", year: "", section: "", reviewType: "", category: "" });
-  const options = useMemo(() => pastReportOptions(), [open, libraryVersion]);
+  const options = useMemo(() => pastReportOptions({ keyword: "", standard, year, reviewType, category }), [standard, year, reviewType, category, open, libraryVersion]);
   const results = useMemo(() => searchAuditorReportFindings({ keyword, standard, year, reviewType, category }), [keyword, standard, year, reviewType, category, open, libraryVersion]);
 
   function openSearch() {
@@ -33,6 +33,7 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
     setStandard(initialStandard);
     setYear(initialYear);
     setReviewType("");
+    setCategory("");
     setOpen(true);
   }
 
@@ -93,21 +94,21 @@ export function AuditorReportDatabase({ initialStandard = "", initialYear = "", 
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Standard
-                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={standard} onChange={(event) => setStandard(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={standard} onChange={(event) => { setStandard(event.target.value); setYear(""); setReviewType(""); setCategory(""); }}>
                   <option value="">All standards</option>
                   {options.standards.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Edition
-                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={year} onChange={(event) => setYear(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={year} onChange={(event) => { setYear(event.target.value); setReviewType(""); setCategory(""); }}>
                   <option value="">All editions</option>
                   {options.years.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Review
-                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={reviewType} onChange={(event) => setReviewType(event.target.value)}>
+                <select className="min-h-11 w-full rounded-md border bg-white px-3" value={reviewType} onChange={(event) => { setReviewType(event.target.value); setCategory(""); }}>
                   <option value="">All reviews</option>
                   {options.reviewTypes.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
